@@ -3,7 +3,7 @@
 ## Huidige status
 > Bijwerken aan het eind van elke sessie.
 
-- **Fase:** M1 movement gebouwd + speeltest-feedback verwerkt (608 movement-tests). Wacht op 2e speeltest; daarna M2 (ledges) + M3 (gevecht).
+- **Fase:** M1 movement ✅ (gebruiker: "het werkt allemaal"; fast fall op verzoek losser). Volgende: combat afmaken (M3) en ledges (M2).
 - **Laatste sessie (2026-10-08):** planning, agents, M0, M1, rig, stage, SFX, menu's. Speeltest 1: dash-dance te strikt,
   fast fall bij short hop faalde, run turnaround bleef hangen → opgelost met Xbox-leniency (`DASH_FLICK_WINDOW=4`,
   `FAST_FALL_BUFFER=6`, `RUN_TURN_DEBOUNCE=5` in `melee_stick.gd`). Wavedash, platform drop, run, walk, hops: goed.
@@ -56,7 +56,7 @@
 | # | Mijlpaal | Klaar als | Status |
 |---|---|---|---|
 | M0 | Fundament | Godot-project, 60 Hz-tick, 2× XInput met Melee-stickraster, debug overlay (frame, state, hitboxes), frame advance | 🟨 handmatige controllertest |
-| M1 | **Movement** | Dash-dance, run, jumpsquat/short hop, fast fall, air drift, wavedash/waveland, platform drop — voelt als Melee | 🟨 wacht op speeltest |
+| M1 | **Movement** | Dash-dance, run, jumpsquat/short hop, fast fall, air drift, wavedash/waveland, platform drop — voelt als Melee | ✅ |
 | M2 | Stage | Vlakke stage (FD-achtig, eigen ontwerp), ledges (snap, hang, getups, invincibility), blast zones, camera | ⬜ |
 | M3 | Gevecht | Hitbox/hurtbox per frame, Melee-knockbackformule, hitstun, hitlag, DI/SDI/ASDI, L-cancel, test-moveset | ⬜ |
 | M4 | Verdediging | Shield + lightshield, shieldstun, shield break, rolls, spot dodge, grabs/pummel/throws, teching | ⬜ |
