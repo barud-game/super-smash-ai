@@ -10,6 +10,7 @@ weight = 109.0
 gravity = 0.13
 terminal_velocity = 2.0
 fast_fall_velocity = 2.6
+visual_height = 19.0
 jumpsquat_frames = 6
 jump_v_initial_velocity = 2.6
 hop_v_initial_velocity = 2.0

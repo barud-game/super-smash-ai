@@ -621,6 +621,8 @@ func _segment_at(p: Vector2, tol: float) -> int:
 func _update_visual() -> void:
 	position = Units.to_px(pos)
 	if visual != null and state != null:
+		# Rig is getekend op STAND_HEIGHT_PX; schaal naar de lengte van dit character.
+		visual.scale = Vector2.ONE * (stats.visual_height * Units.UNIT_TO_PX / Rig.STAND_HEIGHT_PX)
 		visual.facing = facing
 		visual.play(state.pose(), false)
 		visual.tick(state.pose_frame(), state.pose_speed())

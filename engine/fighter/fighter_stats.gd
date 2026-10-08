@@ -88,6 +88,11 @@ extends Resource
 @export var airdodge_intangible_start: int = 4
 @export var airdodge_intangible_end: int = 29
 
+@export_group("Uiterlijk")
+## ⚠️ Getekende lengte (vloer -> kruin) in Melee-units. Melee-characters zijn grofweg 11–20 units;
+## het rig is 22 units, dus de visual wordt hierop geschaald.
+@export var visual_height: float = 15.0
+
 @export_group("ECB / hurtbox")
 ## ⚠️ ECB-diamant: onderpunt = voeten (positie), bovenpunt op ecb_height, zijpunten op ecb_mid_y.
 @export var ecb_height: float = 16.0
