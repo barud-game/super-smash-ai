@@ -8,10 +8,14 @@ Waarden met ⚠️ zijn nog niet geverifieerd — eerst checken tegen frame-data
 - Posities/snelheden in **Melee-units** (per frame). Renderen via `UNIT_TO_PX`.
 
 ## Input (stick)
-- Stick wordt gekwantiseerd naar −80..80 per as (genormaliseerd: stap 1/80).
-- ⚠️ Deadzone ≈ 0.2875 (23/80).
-- ⚠️ Smash-input: stick van (bijna) neutraal naar ≥ 0.8 binnen enkele frames → dash / smash attack / tap-jump.
-- Analoge trigger → lightshield.
+Geïmplementeerd in `engine/input/` (M0). Constanten staan in `MeleeStick`.
+- Stick wordt gekwantiseerd naar −80..80 per as (`GRID = 80`, genormaliseerd: stap 1/80). Ruwe stick wordt eerst op de eenheidscirkel geclamped, daarna naar nul afgekapt (nooit buiten straal 80).
+- ⚠️ Deadzone `DEADZONE = 23` (≈ 0.2875), per as: |waarde| < 23 → 0.
+- ⚠️ Smash-input: stick van onder `SMASH_LOW = 0.3` naar ≥ `SMASH_HIGH = 0.8` binnen N frames (N als argument van `stick_smashed_x/y(N)`) → dash / smash attack / tap-jump. Venster per move nog niet bepaald (Melee: ~2–3 frames).
+- Analoge trigger 0..1 → lightshield. ⚠️ Digitale "volledig ingedrukt"-bit vanaf `TRIGGER_FULL = 0.95`.
+- Historie: ringbuffer van 32 `InputFrame`s per speler (`InputHistory`) met `pressed/released/held`.
+- Layout (XInput): A=attack, X=special, Y/B=jump, LT/RT=shield, RB=Z, rechterstick=C-stick, Start=start. Toetsenbord speler 1: WASD=stick, pijltjes=C-stick, J=A, K=special, Space=jump, L=shield, I=Z.
+- Schaal: `UNIT_TO_PX = 7.0` (`engine/units.gd`); ±85 units = 1190 px.
 
 ## Grond
 - Dash: initiële snelheid + acceleratie tot dash speed; dash-dance door binnen het dash-window terug te tikken.

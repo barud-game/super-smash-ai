@@ -1,0 +1,9 @@
+# Tests
+
+Headless, geen scène nodig. Exit code is 0 bij succes, 1 bij falen. Eerst één keer importeren
+(maakt de class-cache aan), daarna draaien (vanuit de repo-root):
+
+```
+"C:\Users\yassi\Downloads\Godot_v4.6-stable_win64.exe\Godot_v4.6-stable_win64_console.exe" --headless --import --path .
+"C:\Users\yassi\Downloads\Godot_v4.6-stable_win64.exe\Godot_v4.6-stable_win64_console.exe" --headless --path . --script res://tests/run_tests.gd
+```

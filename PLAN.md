@@ -3,9 +3,13 @@
 ## Huidige status
 > Bijwerken aan het eind van elke sessie.
 
-- **Fase:** planning afgerond, M0 nog niet gestart.
-- **Laatste sessie (2026-10-08):** repo opgezet, plan, balanssysteem en character-gesprek vastgelegd.
-- **Volgende stap:** M0 — Godot-project, 60 Hz-loop, XInput + stick-kwantisatie, debug overlay.
+- **Fase:** M0 gebouwd (headless geverifieerd, 33/33 tests). Wacht op handmatige test met 2 controllers.
+- **Laatste sessie (2026-10-08):** planning, director-werkwijze + agents, M0 door `engine-builder`.
+- **Code-overzicht:** `engine/sim.gd` (klok, frame advance), `engine/input/` (InputManager, MeleeStick,
+  InputFrame, InputHistory), `engine/units.gd` (UNIT_TO_PX = 7), `ui/debug_overlay/`, `scenes/sandbox.tscn`,
+  tests: zie `tests/README.md`.
+- **Open punten:** ⚠️-waarden in `docs/movement.md` verifiëren; F2-hitboxweergave is nog een lege hook.
+- **Volgende stap:** M1 — movement.
 
 ## Besluiten
 - **Visuals:** SVG's (Godot importeert ze native). Characters zijn originele ontwerpen.
@@ -21,7 +25,7 @@
 
 | # | Mijlpaal | Klaar als | Status |
 |---|---|---|---|
-| M0 | Fundament | Godot-project, 60 Hz-tick, 2× XInput met Melee-stickraster, debug overlay (frame, state, hitboxes), frame advance | ⬜ |
+| M0 | Fundament | Godot-project, 60 Hz-tick, 2× XInput met Melee-stickraster, debug overlay (frame, state, hitboxes), frame advance | 🟨 handmatige controllertest |
 | M1 | **Movement** | Dash-dance, run, jumpsquat/short hop, fast fall, air drift, wavedash/waveland, platform drop — voelt als Melee | ⬜ |
 | M2 | Stage | Vlakke stage (FD-achtig, eigen ontwerp), ledges (snap, hang, getups, invincibility), blast zones, camera | ⬜ |
 | M3 | Gevecht | Hitbox/hurtbox per frame, Melee-knockbackformule, hitstun, hitlag, DI/SDI/ASDI, L-cancel, test-moveset | ⬜ |
