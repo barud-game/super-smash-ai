@@ -8,7 +8,17 @@
 - **Code-overzicht:** `engine/sim.gd` (klok, frame advance), `engine/input/` (InputManager, MeleeStick,
   InputFrame, InputHistory), `engine/units.gd` (UNIT_TO_PX = 7), `ui/debug_overlay/`, `scenes/sandbox.tscn`,
   tests: zie `tests/README.md`.
-- **Open punten:** ⚠️-waarden in `docs/movement.md` verifiëren; F2-hitboxweergave is nog een lege hook.
+- **Ook al gebouwd (vooruit op M2/M6):** SVG-rig + dummy (`engine/visual/`, `docs/rig.md`), stage Eindpunt + camera
+  (`engine/stage/`, `engine/camera/`, `docs/stage.md`), SFX (`engine/audio/`, `docs/audio.md`), menu-schil
+  (`ui/`, `engine/roster/`, `docs/ui.md`). Ontwerp: `docs/special-sjablonen.md`, `docs/move-conversie.md`.
+- **Open punten:**
+  - ⚠️-waarden in `docs/movement.md` verifiëren; F2-hitboxweergave is nog een lege hook.
+  - `Sim` pauzeert op de P-toets, ook in menu's/zoekveld (nu omzeild met `MenuNav.keep_sim_running()`): debug-toetsen
+    in `Sim` alleen tijdens een match/sandbox laten werken.
+  - Y en B zijn allebei `BTN_JUMP`, dus beide = "terug" in menu's. Prima voor nu.
+  - `Settings.sfx_volume` wordt nog niet door `Sfx` toegepast. Geen code roept `Sfx` al aan in gameplay.
+  - Stage: camera bounds en spawns zijn ⚠️ geschat. Ledge-snap-logica hoort bij de fighter (M2).
+  - SFX moeten nog op het gehoor beoordeeld worden door de gebruiker.
 - **Volgende stap:** M1 — movement.
 
 ## Besluiten
