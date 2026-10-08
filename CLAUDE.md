@@ -55,6 +55,13 @@ De hoofdchat schrijft zelf (bijna) geen code of art. Die:
 Het gesprek met de speler en balanskeuzes blijven altijd bij de director.
 Het lokale Godot-pad staat in `CLAUDE.local.md` (niet in git).
 
+## Autonomie en gebruik
+- De gebruiker wil dat de director **het hele spel zelfstandig afbouwt**. Alleen vragen als er echt sturing
+  nodig is (smaak/richting), niet voor technische keuzes.
+- Zoveel agents parallel als nuttig, maar **ruim vóór het gebruikslimiet afronden**: check
+  `get_usage`; vanaf ~85% van het 5-uurs- of weeklimiet geen nieuwe agents starten, lopend werk
+  afronden, `PLAN.md` bijwerken en committen, zodat een volgende sessie naadloos verder kan.
+
 ## Werkafspraken
 - Na elke sessie: **status in `PLAN.md` bijwerken** en committen, zodat de volgende chat weet waar we zijn.
 - Commits klein en beschrijvend; push naar `main` tenzij anders afgesproken.

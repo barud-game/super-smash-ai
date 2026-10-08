@@ -27,6 +27,11 @@
 - **Training:** bare bones. De dummy is een willekeurig ander character.
 - **Feedback:** gegenereerde simpele SFX; Melee-stijl hit-effecten (hitlag-shake, flits, screenshake bij harde kills).
   Elk character krijgt een **eigen KO-effect**, gemaakt door een Haiku-agent bij het aanmaken van het character.
+- **Stage-thema:** zwevend platform in een donkere kosmische lucht (keuze director).
+- **Budget:** blijft 200 (Melee-top-tiers komen op ~215–225 uit, dus sterke characters vragen keuzes; OP-optie bestaat).
+- **Eerste character (M7):** de gebruiker wil Captain Falcon. Wordt een **origineel** character met die speelstijl:
+  snelle, zware racer-brawler met krachtige vuurstoot en knie-achtige aerial. Eigen naam en uiterlijk;
+  movement-stats mogen op de Falcon-referentiewaarden gebaseerd zijn.
 - **Testen:** de gebruiker test op gevoel; agents draaien automatische vergelijkingstests tegen Melee-waarden.
 - **Snelle character-creatie:** voorstel-eerst gesprek, standaard-moveset per archetype, special-sjablonen,
   gedeeld SVG-skelet met gedeelde animaties, hot reload in training mode.
