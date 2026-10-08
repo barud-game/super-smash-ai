@@ -16,7 +16,9 @@ description: Start of hervat het gesprek waarin een speler een eigen Super Smash
 7. Na akkoord:
    - schrijf `ontwerp.md` en `stats.tres`; specials die in een sjabloon passen: configureer zelf
    - start parallel: `svg-artist` voor het uiterlijk, `normals-builder` voor afwijkende normals,
-     `special-builder` per eigen special
+     `special-builder` per eigen special, `ko-effect-builder` voor het KO-effect
+   - meerdere characters in één chat: elk zijn eigen set agents, alles parallel
+   - bewust boven 200 (speler wil het)? `op = true`, wordt gemarkeerd op de character select
    - review: bekijk de SVG-preview, lees de special-code
    - draai de validator, los fouten op, werk `PLAN.md` bij, commit
 8. Laat de speler testen in training mode (reload-knop), pas aan op feedback.

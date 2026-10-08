@@ -18,6 +18,16 @@
 - **Scope:** lokaal, 2 spelers, voor de lol — geen online/delen/competitieve balans voorlopig.
 - **Director-model:** de hoofdchat plant, delegeert, reviewt en commit; agents (`.claude/agents/`) doen het werk.
   Sonnet 5.5 = engine, specials, SVG; Haiku 5.5 = normals. Een validator controleert budget, frame-bereiken en simulaties.
+- **Besturing:** UCF-gedrag (o.a. betrouwbare dashback en shield drop), tap-jump aan (uit te zetten in instellingen),
+  LT/RT/RB doen allemaal L-cancel.
+- **Match:** 4 stocks, 8 minuten, geen items, sudden death bij gelijkspel. Pauze en L+R+A+Start precies als Melee.
+- **Character select:** elk gemaakt character is een eigen pick; moet schalen naar ~100 (grid met pagina's/zoeken,
+  automatisch ontdekt uit `characters/`). Mirror matches toegestaan, kleur per speler.
+  **OP-characters** (buiten 200-budget) staan duidelijk gemarkeerd op de character select.
+- **Training:** bare bones. De dummy is een willekeurig ander character.
+- **Feedback:** gegenereerde simpele SFX; Melee-stijl hit-effecten (hitlag-shake, flits, screenshake bij harde kills).
+  Elk character krijgt een **eigen KO-effect**, gemaakt door een Haiku-agent bij het aanmaken van het character.
+- **Testen:** de gebruiker test op gevoel; agents draaien automatische vergelijkingstests tegen Melee-waarden.
 - **Snelle character-creatie:** voorstel-eerst gesprek, standaard-moveset per archetype, special-sjablonen,
   gedeeld SVG-skelet met gedeelde animaties, hot reload in training mode.
 

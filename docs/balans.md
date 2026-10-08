@@ -61,6 +61,10 @@ command grab, teleport, etc.
 **Kosten van een move = som van de assen.** Een "gemiddelde" move kost ~8. De 22 moves samen,
 plus de movement-aanvullingen, moeten **≤ 200** uitkomen.
 
+## OP-characters
+Een speler mag bewust boven de 200 gaan, voor de lol. Dan: `op = true`, de puntentabel toont het totaal,
+en de character select markeert het character duidelijk als OP. Wel alle andere regels (sanity, validator).
+
 ## 4. Regels voor Claude
 - De speler noemt nooit getallen; Claude vertaalt een omschrijving ("supersnelle maar zwakke jab") naar scores.
 - Gaat het over budget, dan stelt Claude een **ruil** voor ("je up-B wordt zo goed dat ik je smashes iets

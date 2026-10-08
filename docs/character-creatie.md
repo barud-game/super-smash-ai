@@ -49,7 +49,13 @@ Een special die in een sjabloon past is **configuratie**, geen code.
 | SVG-onderdelen + preview | Subagent `svg-artist` (Sonnet 5.5) |
 | Afwijkende normals → `MoveData` | Subagent `normals-builder` (Haiku 5.5) |
 | Specials die niet in een sjabloon passen → GDScript | Subagent `special-builder` (Sonnet 5.5), één per special, parallel |
+| Eigen KO-effect (bij de blast zone) | Subagent `ko-effect-builder` (Haiku 5.5) |
 | Controle | Validator-script (budget, frame-bereiken, compileren, simulatietests) |
+
+**Meerdere characters in één chat** mag: elk character krijgt zijn eigen set parallelle subagents.
+
+**OP-characters:** wil de speler bewust over het budget, dan mag dat. Het character krijgt `op = true` in
+`ontwerp.md`/stats en wordt op de character select duidelijk als OP gemarkeerd.
 
 Subagents krijgen alleen `characters/<id>/ontwerp.md` en hun eigen opdracht.
 

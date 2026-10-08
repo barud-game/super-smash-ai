@@ -50,6 +50,7 @@ De hoofdchat schrijft zelf (bijna) geen code of art. Die:
 | `special-builder` | Sonnet 5.5 | Eén special die niet in een sjabloon past |
 | `normals-builder` | Haiku 5.5 | Normals van score → `MoveData` |
 | `svg-artist` | Sonnet 5.5 | SVG-onderdelen voor het rig + preview-controle |
+| `ko-effect-builder` | Haiku 5.5 | Eigen KO-effect per character |
 
 Het gesprek met de speler en balanskeuzes blijven altijd bij de director.
 Het lokale Godot-pad staat in `CLAUDE.local.md` (niet in git).
