@@ -1,0 +1,4 @@
+{"duration":0.12,"seed":17,"volume_db":-3,"layers":[
+{"osc":"square","freq":[500,900],"curve":0.5,"env":[0.001,0.08,0.2,0.02],"len":0.1,"gain":0.5,"duty":0.35,"bits":6},
+{"osc":"noise","filter":{"type":"bp","cutoff":[2500,2500],"q":2},"env":[0.001,0.03,0,0.01],"len":0.04,"gain":0.7},
+{"osc":"sine","freq":[200,120],"env":[0.001,0.08,0,0.02],"len":0.1,"gain":0.5}]}

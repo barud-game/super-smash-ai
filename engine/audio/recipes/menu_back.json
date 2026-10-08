@@ -1,0 +1,3 @@
+{"duration":0.14,"seed":31,"volume_db":-7,"layers":[
+{"osc":"square","freq":[560,340],"curve":0.7,"duty":0.5,"env":[0.001,0.1,0.1,0.02],"len":0.12,"gain":0.5,"bits":7},
+{"osc":"sine","freq":[560,340],"curve":0.7,"env":[0.001,0.1,0.1,0.02],"len":0.12,"gain":0.5}]}

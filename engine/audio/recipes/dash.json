@@ -1,0 +1,3 @@
+{"duration":0.14,"seed":25,"volume_db":-8,"layers":[
+{"osc":"noise","filter":{"type":"lp","cutoff":[3500,700],"q":0.8},"env":[0.01,0.1,0,0.03],"len":0.13,"gain":0.9,"pow":1.5},
+{"osc":"sine","freq":[140,70],"env":[0.005,0.08,0,0.02],"len":0.1,"gain":0.5}]}

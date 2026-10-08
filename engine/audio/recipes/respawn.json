@@ -1,0 +1,7 @@
+{"duration":0.7,"seed":28,"volume_db":-5,"layers":[
+{"osc":"tri","freq":392,"env":[0.005,0.2,0.1,0.05],"len":0.25,"gain":0.6},
+{"osc":"tri","freq":494,"delay":0.1,"env":[0.005,0.2,0.1,0.05],"len":0.25,"gain":0.6},
+{"osc":"tri","freq":587,"delay":0.2,"env":[0.005,0.2,0.1,0.05],"len":0.25,"gain":0.6},
+{"osc":"tri","freq":784,"delay":0.3,"env":[0.005,0.4,0.0,0.08],"len":0.4,"gain":0.7},
+{"osc":"sine","freq":1568,"delay":0.3,"env":[0.005,0.4,0,0.08],"len":0.4,"gain":0.3,"vib":[8,0.2]},
+{"osc":"square","freq":784,"duty":0.25,"delay":0.3,"env":[0.005,0.3,0,0.05],"len":0.35,"gain":0.15,"bits":7}]}

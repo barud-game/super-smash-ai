@@ -18,6 +18,7 @@ config/features=PackedStringArray("4.6", "GL Compatibility")
 
 InputManager="*res://engine/input/input_manager.gd"
 Sim="*res://engine/sim.gd"
+Sfx="*res://engine/audio/sfx.gd"
 
 [display]
 

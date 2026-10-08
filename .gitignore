@@ -3,3 +3,4 @@
 *.tmp
 CLAUDE.local.md
 tools/preview/out/
+tools/sfx_preview/out/

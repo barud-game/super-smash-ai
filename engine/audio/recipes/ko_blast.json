@@ -1,0 +1,6 @@
+{"duration":1.3,"seed":27,"volume_db":1,"layers":[
+{"osc":"noise","filter":{"type":"bp","cutoff":[300,5000],"q":1.0},"env":[0.15,0.2,0.6,0.05],"len":0.35,"gain":0.7},
+{"osc":"noise","filter":{"type":"lp","cutoff":[7000,150],"q":1.0},"delay":0.3,"env":[0.002,0.9,0,0.1],"len":1.0,"gain":1.1,"bits":6,"pow":1.6},
+{"osc":"saw","freq":[600,35],"curve":0.5,"delay":0.3,"env":[0.002,0.6,0,0.05],"len":0.65,"gain":0.5,"bits":4,"drive":5},
+{"osc":"sine","freq":[70,20],"curve":0.6,"delay":0.3,"env":[0.002,1.0,0,0.1],"len":1.0,"gain":1.5,"pow":1.5,"drive":2}],
+"master":{"drive":1.2}}

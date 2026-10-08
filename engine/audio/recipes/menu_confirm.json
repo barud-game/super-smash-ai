@@ -1,0 +1,4 @@
+{"duration":0.24,"seed":30,"volume_db":-6,"layers":[
+{"osc":"square","freq":660,"duty":0.5,"env":[0.001,0.06,0.3,0.02],"len":0.08,"gain":0.5,"bits":7},
+{"osc":"square","freq":990,"duty":0.5,"delay":0.07,"env":[0.001,0.16,0,0.03],"len":0.17,"gain":0.5,"bits":7},
+{"osc":"sine","freq":990,"delay":0.07,"env":[0.001,0.16,0,0.03],"len":0.17,"gain":0.5}]}
