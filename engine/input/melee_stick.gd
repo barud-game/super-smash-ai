@@ -35,9 +35,9 @@ const FAST_FALL_WINDOW: int = 4
 ## ⚠️ LENIENCY: een omlaag-flick in de lucht blijft zoveel frames "geladen" en geeft fast fall zodra vy < 0
 ## wordt (short hop: de flick komt vaak vlak vóór de apex). Melee zelf: alleen flick binnen het venster zelf.
 const FAST_FALL_BUFFER: int = 6
-## ⚠️ AFWIJKING van Melee (speeltest 2, gebruiker wil het losser): fast fall mag ook tijdens het stijgen;
+## Schakelaar (standaard uit = Rivals-aanpak: Melee-fast-fall + hitfall in M3). Aan: fast fall ook tijdens het stijgen;
 ## de flick zet de val meteen in. false = Melee-gedrag (pas na de apex). Static var zodat tests beide kunnen draaien.
-static var fast_fall_while_rising: bool = true
+static var fast_fall_while_rising: bool = false
 ## ⚠️ Crouch: stick-y <= -0.6875 (55/80), ingehouden (geen venster).
 const CROUCH_THRESHOLD: float = 0.6875
 ## ⚠️ Platform drop vanuit crouch: stick-y <= -0.6875 met teller < 4.
