@@ -1,0 +1,8 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://engine/stage/stage.gd" id="1"]
+[ext_resource type="Resource" path="res://stages/eindpunt/eindpunt.tres" id="2"]
+
+[node name="Eindpunt" type="Node2D"]
+script = ExtResource("1")
+data = ExtResource("2")

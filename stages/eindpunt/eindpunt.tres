@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="StageData" load_steps=7 format=3]
+
+[ext_resource type="Script" path="res://engine/stage/stage_data.gd" id="1"]
+[ext_resource type="Script" path="res://engine/stage/stage_segment.gd" id="2"]
+[ext_resource type="Script" path="res://engine/stage/stage_ledge.gd" id="3"]
+
+[sub_resource type="Resource" id="seg"]
+script = ExtResource("2")
+a = Vector2(-85.5657, 0)
+b = Vector2(85.5657, 0)
+type = 0
+
+[sub_resource type="Resource" id="ledge_l"]
+script = ExtResource("3")
+position = Vector2(-85.5657, 0)
+side = -1
+
+[sub_resource type="Resource" id="ledge_r"]
+script = ExtResource("3")
+position = Vector2(85.5657, 0)
+side = 1
+
+[resource]
+script = ExtResource("1")
+stage_name = "Eindpunt"
+ground_segments = Array[ExtResource("2")]([SubResource("seg")])
+ledges = Array[ExtResource("3")]([SubResource("ledge_l"), SubResource("ledge_r")])
+blast_zone = Rect2(-246, -140, 492, 328)
+camera_bounds = Rect2(-200, -85, 400, 225)
+spawns = Array[Vector2]([Vector2(-30, 0), Vector2(30, 0), Vector2(-60, 0), Vector2(60, 0)])
+respawns = Array[Vector2]([Vector2(0, 60), Vector2(0, 60), Vector2(0, 60), Vector2(0, 60)])
