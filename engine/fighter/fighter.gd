@@ -404,7 +404,9 @@ func apply_air_vertical(allow_fastfall: bool = true) -> void:
 	# ⚠️ Een omlaag-flick wordt FAST_FALL_BUFFER frames onthouden (short hop: flick vlak vóór de apex telt).
 	if allow_fastfall and input.flick_y(MeleeStick.FAST_FALL_THRESHOLD, MeleeStick.FAST_FALL_WINDOW) == -1:
 		_ff_flick_tick = tick_count
-	if allow_fastfall and not fastfalling and vel.y < 0.0 \
+	# ⚠️ Afwijking van Melee (speeltest-wens): met fast_fall_while_rising mag fast fall ook vóór de apex.
+	var past_apex: bool = vel.y < 0.0 or MeleeStick.fast_fall_while_rising
+	if allow_fastfall and not fastfalling and past_apex \
 			and tick_count - _ff_flick_tick <= MeleeStick.FAST_FALL_BUFFER:
 		fastfalling = true
 	if fastfalling:

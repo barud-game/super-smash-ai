@@ -250,3 +250,8 @@ Algemene ⚠️-velden (geen bron, zelfde redenering voor elke preset):
 | ECB (`ecb_height`, `ecb_mid_y`, `ecb_half_width`) | 10–18 / 5–9 / 3.5–5 | geschat naar postuur; nog alleen visueel (F2) |
 
 Gemeten wavedash-afstand (test-stick 75/−27, frame-perfect): Marth 47.5, Fox 34.9, Ganondorf 33.5, Pikachu 28.6, Peach 24.0 units — de volgorde (Marth lang, Peach kort) klopt met Melee.
+
+### Speeltest 2: fast fall losser (afwijking van Melee)
+- `MeleeStick.fast_fall_while_rising = true` (standaard): een verse flick omlaag in de lucht zet de fast fall **meteen** in, ook tijdens het stijgen. De gebruiker vond wachten tot de apex niet lekker voelen. ⚠️ Bewuste afwijking van Melee.
+- Stick omlaag vasthouden vanaf de grond geeft nog steeds geen fast fall (er is geen verse flick in de lucht).
+- `false` = puur Melee-gedrag (pas na de apex). De Melee-vergelijkingstests draaien met `false`; `_test_fast_fall_while_rising` test de losse variant.

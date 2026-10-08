@@ -25,6 +25,8 @@ var stage: SandboxStage
 
 func _initialize() -> void:
 	stage = SandboxStage.new()
+	# De Melee-vergelijkingen draaien met puur Melee-gedrag; de losse variant wordt apart getest.
+	MeleeStick.fast_fall_while_rising = false
 	for id: String in Archetypes.IDS:
 		print("")
 		print("== archetype: %s (%s) ==" % [id, REF[id]["char"]])
@@ -49,6 +51,8 @@ func _initialize() -> void:
 	_test_xbox_run_turn()
 	_test_xbox_run_stop_overshoot()
 	_test_determinism()
+	MeleeStick.fast_fall_while_rising = true
+	_test_fast_fall_while_rising()
 	print("")
 	print("%d/%d checks geslaagd" % [_total - _fails, _total])
 	stage.free()
@@ -198,6 +202,30 @@ func _test_fast_fall(id: String) -> void:
 	check("%s: langzaam omlaag = geen fast fall" % id, not g.fastfalling)
 	f.free()
 	g.free()
+
+
+## Losse variant (standaard in het spel): een flick omlaag tijdens het stijgen zet de fast fall meteen in.
+func _test_fast_fall_while_rising() -> void:
+	print("")
+	print("== fast fall tijdens stijgen (losse variant) ==")
+	for id: String in Archetypes.IDS:
+		var s: FighterStats = Archetypes.load_stats(id)
+		var f := make(id)
+		step(f, 0, 0, JUMP)
+		until_state(f, "Jump", 20, 0, 0, JUMP)
+		step(f, 0, 0, JUMP)
+		check("%s: nog aan het stijgen" % id, f.vel.y > 0.0)
+		step(f, 0, -80)
+		check("%s: flick tijdens stijgen = meteen fast fall" % id,
+			f.fastfalling and near(f.vel.y, -s.fast_fall_velocity), "vy %.4f" % f.vel.y)
+		f.free()
+		# stick omlaag al vastgehouden vanaf de grond: nog steeds geen fast fall (geen verse flick in de lucht)
+		var g := make(id)
+		step(g, 0, -80)
+		for i in 12:
+			step(g, 0, -80, JUMP if i < 6 else 0)
+		check("%s: omlaag vasthouden vanaf de grond = geen fast fall" % id, not g.fastfalling)
+		g.free()
 
 
 func _test_terminal_and_drift(id: String) -> void:
