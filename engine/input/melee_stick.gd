@@ -18,6 +18,10 @@ const TRIGGER_FULL: float = 0.95
 const SMASH_THRESHOLD: float = 0.8
 ## ⚠️ dash_smash_window: "binnen 2 frames" (teller < 2).
 const SMASH_WINDOW: int = 2
+## ⚠️ LENIENCY (Xbox-stick): venster voor dash/dashback/dash-dance in de grondstates. Melee gebruikt 2
+## (SMASH_WINDOW, blijft voor smash-aanvallen); een echte Xbox-stick doet 2-4 frames over 0 -> vol.
+## Langzaam duwen (>= 5 frames) blijft walk/tilt-turn.
+const DASH_FLICK_WINDOW: int = 4
 ## Tap jump: stick-y >= 0.6625 (53/80) met teller < 4. ✅
 const TAP_JUMP_THRESHOLD: float = 0.6625
 const TAP_JUMP_WINDOW: int = 4
@@ -28,6 +32,9 @@ const TAP_JUMP_RELEASE_THRESHOLD: float = 0.6625
 ## ⚠️ Fast fall: stick-y <= -0.6625 met teller < 4, en vy < 0.
 const FAST_FALL_THRESHOLD: float = 0.6625
 const FAST_FALL_WINDOW: int = 4
+## ⚠️ LENIENCY: een omlaag-flick in de lucht blijft zoveel frames "geladen" en geeft fast fall zodra vy < 0
+## wordt (short hop: de flick komt vaak vlak vóór de apex). Melee zelf: alleen flick binnen het venster zelf.
+const FAST_FALL_BUFFER: int = 6
 ## ⚠️ Crouch: stick-y <= -0.6875 (55/80), ingehouden (geen venster).
 const CROUCH_THRESHOLD: float = 0.6875
 ## ⚠️ Platform drop vanuit crouch: stick-y <= -0.6875 met teller < 4.
@@ -37,6 +44,10 @@ const PLATFORM_DROP_WINDOW: int = 4
 const PLATFORM_FALL_THROUGH_THRESHOLD: float = 0.6875
 ## ⚠️ Run-drempel (x58): Dash -> Run en Run blijft Run zolang stick_x*facing >= deze waarde.
 const RUN_THRESHOLD: float = 0.62
+## ⚠️ LENIENCY: tegen-de-run-in leunen start een RunTurn pas als het een flick is (>= SMASH_THRESHOLD) of
+## dit aantal frames achtereen wordt vastgehouden. Voorkomt dat de terugveer-overshoot van een Xbox-stick
+## (stick los -> kort even de andere kant op) een run-turnaround van 25+ frames triggert.
+const RUN_TURN_DEBOUNCE: int = 5
 ## ⚠️ Turn-drempel (x34): elke stick-x tegen de kijkrichting buiten de deadzone draait om.
 const TURN_THRESHOLD: float = 0.2875
 ## Teeter-walk: walk met |x| >= 0.75 loopt van de rand af, anders stopt hij. ✅

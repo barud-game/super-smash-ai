@@ -1,7 +1,8 @@
 class_name StateRunBrake
 extends FighterState
 ## RunBrake (skid): alleen traction (x1.0, geen verdubbeling). Crouch vanaf frame 1,
-## stick terug -> RunTurn, sprong altijd. Einde na run_brake_frames -> Wait.
+## dash-flick -> Dash (vooruit) of smash-turn -> Dash (achteruit) ⚠️, echte terug-input -> RunTurn,
+## sprong altijd. Einde na run_brake_frames -> Wait.
 
 
 func id() -> String:
@@ -16,10 +17,11 @@ func anim() -> void:
 func iasa() -> void:
 	if f.check_ground_jump():
 		return
+	if f.check_dash():
+		return
 	if sf() >= 1 and f.check_squat():
 		return
-	var d: float = f.stick_x() * f.facing
-	if d < 0.0 and MeleeStick.reaches(d, MeleeStick.TURN_THRESHOLD):
+	if f.run_turn_intent():
 		f.change_state("RunTurn")
 
 

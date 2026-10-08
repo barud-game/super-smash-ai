@@ -22,6 +22,7 @@ func enter(_args: Dictionary) -> void:
 	f.vel = Vector2(sx * f.stats.air_jump_h_multiplier, f.stats.air_jump_velocity(f.air_jumps_used))
 	f.air_jumps_used += 1
 	f.fastfalling = false
+	f.reset_fast_fall_buffer()
 
 
 func anim() -> void:

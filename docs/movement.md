@@ -37,7 +37,7 @@ Melee houdt per stickas een **teller “frames sinds de stick de deadzone verlie
 | Teeter-walk | 0.75 | — | ✅ [S12] |
 
 - **Geïmplementeerd (M1):** het oude `SMASH_LOW = 0.3`-mechanisme is vervangen door Melee's teller. `InputHistory.stick_timer_x/y()` = frames sinds de as de deadzone verliet (0 op het eerste frame buiten de deadzone; **per richting**, dus van links naar rechts in één frame reset de teller ook — nodig voor dash-dance; in de deadzone `TIMER_NEUTRAL` = 255). `flick_x/flick_y(drempel, venster)` = |as| ≥ drempel én teller < venster. De flick moet dus *vanuit de deadzone* beginnen en snel genoeg de drempel halen; langzaam voorbij de drempel geeft tilt/walk/crouch. ⚠️ Of Melee de teller ook reset bij een tekenwissel zonder deadzone-frame is niet in de decomp nagelezen; aangenomen van wel.
-- Alle drempels/vensters staan als constanten in `MeleeStick` (`engine/input/melee_stick.gd`). Gekozen ⚠️-waarden: dash/smash 0.8 met venster 2; fast fall 0.6625 / 4; crouch 0.6875 (ingehouden); platform drop 0.6875 / 4; door platform vallen in special fall 0.6875; tap-jump-loslaten (short hop met stick) 0.6625; run-drempel (`x58`) 0.62; turn-drempel (`x34`) = deadzone; walk-animatie slow < 0.5 ≤ middle < 0.8 ≤ fast. `RELAXED_TAP_JUMP_THRESHOLD` (0.5625) is gedefinieerd maar nog niet gebruikt (welke grondstates hem gebruiken is onbekend).
+- Alle drempels/vensters staan als constanten in `MeleeStick` (`engine/input/melee_stick.gd`). Gekozen ⚠️-waarden: dash/smash 0.8 met venster 2 (grondstates: `DASH_FLICK_WINDOW` 4, zie M1-speeltestfeedback); fast fall 0.6625 / 4; crouch 0.6875 (ingehouden); platform drop 0.6875 / 4; door platform vallen in special fall 0.6875; tap-jump-loslaten (short hop met stick) 0.6625; run-drempel (`x58`) 0.62; turn-drempel (`x34`) = deadzone; walk-animatie slow < 0.5 ≤ middle < 0.8 ≤ fast. `RELAXED_TAP_JUMP_THRESHOLD` (0.5625) is gedefinieerd maar nog niet gebruikt (welke grondstates hem gebruiken is onbekend).
 - `SMASH_THRESHOLD = 0.8` ligt op het raster gelijk aan de echte drempel (0.79 → 64/80 = 0.8). ✅ praktisch correct, ⚠️ exacte float. Vergelijkingen via `MeleeStick.reaches()` (marge 1e-6) zodat rasterwaarden als 53/80 = 0.6625 exact meetellen.
 - **Eén flick = één tap jump:** de fighter onthoudt welke stick-omhoog-beweging al een sprong gaf, zodat dezelfde flick (teller nog < 4 na een 3-frame jumpsquat) geen double jump geeft. ⚠️ Melee doet dit op een eigen manier (niet nagelezen); effect is hetzelfde.
 - Analoge trigger: `shield_press_threshold = 0.25`, `analog_shoulder_deadzone = 0.3`, `z_press_analog_value = 0.35`. [S12] ✅ — lightshield begint rond 0.25–0.3. Air dodge, tech en L-cancel gebruiken de **digitale** L/R-bit (hardware “klik”, volledig ingedrukt). `TRIGGER_FULL = 0.95` is een redelijke benadering voor XInput (⚠️ er bestaat geen vaste Melee-analoge drempel voor de digitale klik). Powershield-venster: `powershield_input_window` frames na trigger ≠ 0 (waarde onbekend ⚠️).
@@ -170,9 +170,9 @@ Per `sim_tick`: `state_frame += 1` → `anim()` (tijd-overgangen: jumpsquat klaa
 |---|---|---|---|
 | Wait | idle | traction, ×2 boven walk | jump, dash/smash-turn, squat, turn, walk |
 | Walk (Slow/Middle/Fast) | walk | accel naar stick·walk_max ⚠️ | jump, dash, squat, turn; stick los → Wait |
-| Dash | dash | gr_vel = ±initial dash, frame 0 geen accel, dan dash/run-formule | jump, omgekeerde dash-flick → Turn(smash) (dash-dance) |
+| Dash | dash | gr_vel = ±initial dash, frame 0 geen accel, dan dash/run-formule | jump, omgekeerde dash-flick → Turn(smash) (dash-dance), venster 4 ⚠️ |
 | Run | run | dash/run-formule | jump; terug → RunTurn; < run-drempel → RunBrake |
-| RunBrake | skid | traction ×1 | jump; squat vanaf frame 1; terug → RunTurn |
+| RunBrake | skid | traction ×1 | jump; dash-flick → Dash/Turn-dash ⚠️; squat vanaf frame 1; echte terug-input → RunTurn |
 | Turn (tilt/smash) | turn | facing direct om; traction ×2-regel | jump; smash-turn frame 1 → Dash of pivot (actionable); UCF-dashback; squat |
 | RunTurn | skid → turn | remmen met traction tot 0, omdraaien, dan run-accel | jump |
 | Squat / SquatWait / SquatRv | crouch | traction | jump, platform drop; SquatRv = Wait-interrupts |
@@ -198,8 +198,18 @@ Platform drop gebruikt Fall (geen aparte Pass-state); van de rand af gaat ook na
 - Stage-interface: `get_ground_segments()` (objecten of dictionaries met `a`, `b`, `type`: `StageSegment.Type` 0/1 of `"solid"`/`"platform"`), `get_blast_zone()` (Rect2, position = links/onder), optioneel `get_respawn(i)`. Sandbox-stub: `scenes/sandbox_stage.gd`.
 - Blast zone: buiten de Rect2 → tijdelijk respawn op `get_respawn()` (+40 als dat op de grond ligt) in Fall.
 
+
+### Speeltest-feedback M1 (Xbox-controller): leniency-keuzes
+Reproductie in `tests/test_movement.gd` (sectie "Xbox-stickprofielen": flicks van 1-4 frames, 0-2 deadzone-frames bij omklappen, terugveer-overshoot). Alle ⚠️ hieronder zijn bewuste leniency-keuzes, niet Melee-waarden; constanten staan in `MeleeStick`.
+- **Dash-venster `DASH_FLICK_WINDOW = 4`** (Melee/`SMASH_WINDOW` = 2, blijft voor smash-aanvallen). Oorzaak "dash-dance werkt niet": een Xbox-stick doet 3-4 frames over 0 → vol, venster 2 liet die flicks niet slagen (0/8 dashes bij 3-4-frames flicks). Langzaam duwen (≥ 5 frames) geeft nog steeds Walk / tilt-turn.
+- **Dash uit Turn in elke frame:** een verse dash-flick in de kijkrichting geeft altijd Dash (smash-turn én, met `ucf_dashback`, tilt-turn). Voorheen werd een tilt-turn (11 frames) alleen op frame 1 gedasht: na een dash-stop veert de Xbox-stick een paar frames de andere kant op → Turn → opnieuw dashen lukte niet ("momentum kwijt, lastig terug te krijgen").
+- **Dash uit RunBrake:** flick vooruit → Dash, flick achteruit → Turn(smash) → Dash (dashback tijdens skid). Wait/Walk/Dash hadden dit al.
+- **Fast fall-buffer `FAST_FALL_BUFFER = 6`:** een omlaag-flick (zelfde drempel/venster als eerst) in de lucht blijft 6 frames "geladen" en geeft fast fall zodra vy < 0 wordt, ook als de stick al is teruggeveerd. Oorzaak: bij een short hop duurt de stijging maar ~10 frames en een tik valt vaak vlak vóór de apex; de check eiste dat vy < 0 én de flick (venster 4) tegelijk waar waren, dus een tik 4+ frames vóór de apex was verloren. Melee-gedrag (flick ná de apex) blijft werken; een flick ver vóór de apex of stick-omlaag-vasthouden geeft nog steeds geen fast fall. Buffer wordt gewist bij het verlaten van de grond en bij een double jump.
+- **Run-turnaround (`Fighter.run_turn_intent()`, `RUN_TURN_DEBOUNCE = 5`):** oorzaak: de terugveer-overshoot van de Xbox-stick na het loslaten van de stick (even 0.3-0.6 de andere kant op) startte in Run/RunBrake direct een RunTurn (25+ frames, onderbreekbaar alleen met jump) en draaide de fighter om terwijl de speler wilde stoppen. Nu start RunTurn bij een flick tegen de run in (≥ 0.8) of na 5 frames vastgehouden terug-duw; anders gewoon RunBrake. Melee's RunTurn-duur (traag, tot 51 frames bij Marth) is ongewijzigd.
+  - RunTurn is nu onderbreekbaar (alle ⚠️): voor het omdraaien stick weer vooruit → Run, stick neutraal → RunBrake (facing blijft); een nieuwe dash-flick (begonnen ná het binnenkomen) → Dash/Turn-dash; na het omdraaien meteen Run zodra de stick vooruit staat (niet wachten op `run_turn_frames`).
+
 ### Overige ⚠️-keuzes in M1
-- Dash-dance gaat via een smash-turn van 1 frame (Dash → Turn(smash) → Dash); pivot = smash-turn waarbij de stick op frame 1 al terug is (rest van de turn actionable, momentum glijdt met de traction-×2-regel).
+- Dash-dance gaat via een smash-turn van 1 frame (Dash → Turn(smash) → Dash; venster 4, zie Speeltest-feedback); pivot = smash-turn waarbij de stick op frame 1 al terug is (rest van de turn actionable, momentum glijdt met de traction-×2-regel).
 - Dash-enter: is gr_vel in de dashrichting al groter dan initial dash, dan blijft die behouden.
 - Stick los tijdens de dash: de dash/run-formule met stick 0 remt met traction (target 0).
 - Run-accel zonder `run_accel_taper` (onbekend): zelfde formule als dash.

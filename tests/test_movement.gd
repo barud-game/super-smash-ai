@@ -44,6 +44,10 @@ func _initialize() -> void:
 	_test_crouch()
 	_test_run_turn()
 	_test_special_fall_platform()
+	_test_xbox_dash_dance()
+	_test_xbox_fast_fall()
+	_test_xbox_run_turn()
+	_test_xbox_run_stop_overshoot()
 	_test_determinism()
 	print("")
 	print("%d/%d checks geslaagd" % [_total - _fails, _total])
@@ -552,6 +556,216 @@ func _test_special_fall_platform() -> void:
 		f.free()
 
 
+# --- Xbox-stickprofielen (speeltest-feedback M1) ---------------------------------------------------
+## Een echte analoge stick doet ~1-4 frames over 0 -> vol; links -> rechts gaat in 0-3 frames door de
+## deadzone. Waarden zijn al rasterwaarden (-80..80); |v| < 23 is deadzone.
+const FLICK_1: Array = [80]
+const FLICK_2: Array = [45, 80]
+const FLICK_3: Array = [30, 50, 80]
+const FLICK_4: Array = [26, 40, 60, 80]
+## Een echt langzame duw: veel frames, nooit een flick.
+const PUSH_SLOW: Array = [25, 30, 35, 40, 48, 55, 62, 70, 78, 80]
+
+
+## Flick-profiel in richting dir (+1/-1), `hold` frames op vol, optioneel `gap` deadzone-frames ervoor.
+func flick_profile(profile: Array, dir: int, hold: int, gap: int = 0) -> Array:
+	var out: Array = []
+	for i in gap:
+		out.append(0)
+	for v: int in profile:
+		out.append(v * dir)
+	for i in hold:
+		out.append(80 * dir)
+	return out
+
+
+func play_x(f: Fighter, seq: Array, sy: int = 0, buttons: int = 0) -> void:
+	for v: int in seq:
+		step(f, v, sy, buttons)
+
+
+## Dash-dance: n keer afwisselend flicken met het gegeven profiel; telt hoeveel flicks een Dash gaven.
+## `hold` = frames op vol na de flick, `gap` = deadzone-frames bij het omklappen.
+func dash_dance_hits(id: String, profile: Array, hold: int, gap: int, n: int = 8) -> int:
+	var f := make(id, Vector2(0, 0))
+	idle(f, 3)
+	var hits: int = 0
+	var dir: int = 1
+	for i in n:
+		var seq: Array = flick_profile(profile, dir, hold, gap if i > 0 else 0)
+		var dashed: bool = false
+		for v: int in seq:
+			step(f, v, 0)
+			if f.state_name() == "Dash" and f.facing == dir:
+				dashed = true
+		if dashed:
+			hits += 1
+		dir = -dir
+	f.free()
+	return hits
+
+
+func _test_xbox_dash_dance() -> void:
+	print("-- Xbox dash-dance --")
+	var profs: Dictionary = {"F1": FLICK_1, "F2": FLICK_2, "F3": FLICK_3, "F4": FLICK_4}
+	for id in ["fast_faller", "allrounder", "floaty"]:
+		for pname: String in profs:
+			for gap in [0, 1, 2]:
+				for hold in [1, 3]:
+					var hits: int = dash_dance_hits(id, profs[pname], hold, gap)
+					check("dash-dance %s flick %s gap %d hold %d: 8/8 dashes" % [id, pname, gap, hold], hits == 8, "%d/8" % hits)
+	# Eerste dash uit Wait met elke Xbox-flick.
+	for prof: Array in [FLICK_1, FLICK_2, FLICK_3, FLICK_4]:
+		var f := make("allrounder")
+		idle(f, 3)
+		play_x(f, flick_profile(prof, 1, 0))
+		check("dash uit Wait met flick van %d frames" % prof.size(), f.state_name() == "Dash")
+		f.free()
+	# Langzaam duwen blijft walk (geen dash)
+	var s := make("allrounder")
+	idle(s, 3)
+	play_x(s, PUSH_SLOW)
+	check("langzame duw = Walk, geen Dash", s.state_name() == "Walk", s.state_name())
+	s.free()
+	var t := make("allrounder")
+	idle(t, 3)
+	play_x(t, PUSH_SLOW.map(func(v: int) -> int: return -v))
+	check("langzame duw achteruit = tilt-turn/walk, geen Dash", t.state_name() != "Dash", t.state_name())
+	t.free()
+	# Momentum kwijt (na run + stick los): flick terug/vooruit moet direct werken.
+	var r := make("fast_faller", Vector2(-60, 0))
+	idle(r, 3)
+	play_x(r, flick_profile(FLICK_3, 1, 40))
+	check("run voor 'momentum kwijt'", r.state_name() == "Run")
+	play_x(r, [0, 0])
+	check("stick los = RunBrake", r.state_name() == "RunBrake")
+	play_x(r, flick_profile(FLICK_3, -1, 0))
+	play_x(r, [-80])
+	check("flick terug uit RunBrake geeft een dash (geen lock)", r.state_name() == "Dash" and r.facing == -1, r.state_name())
+	r.free()
+	var b := make("fast_faller", Vector2(-60, 0))
+	idle(b, 3)
+	play_x(b, flick_profile(FLICK_2, 1, 30))
+	play_x(b, [0, 0])
+	play_x(b, flick_profile(FLICK_2, 1, 0))
+	check("flick vooruit uit RunBrake = Dash", b.state_name() == "Dash", b.state_name())
+	b.free()
+	# Dashback na een tilt-turn met een 2-4-frames flick (UCF-leniency)
+	for prof: Array in [FLICK_2, FLICK_3, FLICK_4]:
+		var u := make("allrounder")
+		idle(u, 3)
+		play_x(u, [-30])
+		play_x(u, flick_profile(prof, -1, 1, 1))
+		check("tilt-turn dan flick (%d fr) = Dash" % prof.size(), u.state_name() == "Dash" and u.facing == -1, u.state_name())
+		u.free()
+
+
+## Frame (sinds eerste step) waarop vy voor het eerst < 0 is.
+func _apex_frame(id: String, sh: bool) -> int:
+	var f := make(id)
+	var held: int = f.stats.jumpsquat_frames - 1 if sh else 400
+	var frame: int = 0
+	while frame < 200:
+		step(f, 0, 0, JUMP if frame < held else 0)
+		frame += 1
+		if f.state_name() in ["Jump", "Fall"] and f.vel.y < 0.0:
+			f.free()
+			return frame
+	f.free()
+	return -1
+
+
+## Jump (short/full hop) met een y-flick-profiel dat begint `onset` frames t.o.v. de apex
+## (negatief = vóór de apex). true als er fast fall wordt bereikt vóór het landen.
+func _ff_after_jump(id: String, sh: bool, prof: Array, onset: int, hold_after: bool = true) -> bool:
+	var apex: int = _apex_frame(id, sh)
+	var f := make(id)
+	var held: int = f.stats.jumpsquat_frames - 1 if sh else 400
+	var frame: int = 0
+	var got: bool = false
+	var start: int = apex + onset
+	while frame < 300:
+		var sy: int = 0
+		var k: int = frame - start
+		if k >= 0:
+			sy = -prof[k] if k < prof.size() else (-80 if hold_after else 0)
+		step(f, 0, sy, JUMP if frame < held else 0)
+		frame += 1
+		if f.fastfalling:
+			got = true
+		if f.state_name() == "Landing":
+			break
+	f.free()
+	return got
+
+
+func _test_xbox_fast_fall() -> void:
+	print("-- Xbox fast fall --")
+	for id in Archetypes.IDS:
+		for sh in [true, false]:
+			var tag: String = "short hop" if sh else "full hop"
+			var profs: Dictionary = {"F1": [80], "F3": [30, 50, 80]}
+			for pname: String in profs:
+				for onset in ([0, 1, 3] if sh else [0, 1, 3, 6]):
+					check("%s %s: fast fall flick (%s) %d fr na apex" % [id, tag, pname, onset], _ff_after_jump(id, sh, profs[pname], onset))
+				for onset in [-1, -2, -3]:
+					check("%s %s: fast fall flick (%s) %d fr vóór apex (leniency)" % [id, tag, pname, -onset], _ff_after_jump(id, sh, profs[pname], onset))
+			check("%s %s: flick ver vóór de apex en losgelaten = geen fast fall" % [id, tag], not _ff_after_jump(id, sh, [80], -12, false))
+			# Echte tap (korte flick, stick veert terug naar neutraal): telt tot FAST_FALL_BUFFER frames vóór de apex.
+			for onset in [-5, -3, -1, 0, 2]:
+				check("%s %s: omlaag-tik (stick veert terug) %d fr t.o.v. apex = fast fall" % [id, tag, onset], _ff_after_jump(id, sh, [60, 80, 80, 40], onset, false))
+		check("%s: stick omlaag al lang vóór de apex vastgehouden = geen fast fall" % id, not _ff_after_jump(id, true, [80], -12, true))
+
+
+func _run_right(id: String) -> Fighter:
+	var f := make(id, Vector2(-80, 0))
+	idle(f, 3)
+	play_x(f, flick_profile(FLICK_2, 1, 40))
+	return f
+
+
+func _test_xbox_run_turn() -> void:
+	print("-- Xbox run turnaround --")
+	for id in ["fast_faller", "allrounder", "heavyweight"]:
+		var s: FighterStats = Archetypes.load_stats(id)
+		for gap in [0, 1, 3]:
+			var f := _run_right(id)
+			check("%s: run voor turnaround" % id, f.state_name() == "Run")
+			var frames: int = 0
+			var ran_left: bool = false
+			for v: int in flick_profile(FLICK_2, -1, 80, gap):
+				step(f, v, 0)
+				frames += 1
+				if f.state_name() == "Run" and f.facing == -1 and f.gr_vel < -0.5:
+					ran_left = true
+					break
+			check("%s: run-turn (gap %d) eindigt in Run naar links, %d frames (limiet %d)" % [id, gap, frames, s.run_turn_frames + 20], ran_left and frames <= s.run_turn_frames + 20, "%s f%d gr_vel %.2f" % [f.state_name(), f.facing, f.gr_vel])
+			f.free()
+		# Stick terug en dan loslaten: komt tot rust, zonder lock.
+		var g := _run_right(id)
+		play_x(g, [-80, -80])
+		play_x(g, [0, 0, 0])
+		check("%s: run-turn + stick los: komt in Wait terecht" % id, until_state(g, "Wait", 120) >= 0, g.state_name())
+		g.free()
+		# Terug naar de oorspronkelijke richting tijdens de turn (bedacht): geen lange lock.
+		var h := _run_right(id)
+		play_x(h, [-80, -80])
+		var back: bool = false
+		for i in 40:
+			step(h, 80, 0)
+			if h.state_name() == "Run" and h.facing == 1 and h.gr_vel > 0.5:
+				back = true
+				break
+		check("%s: run-turn heen en terug: weer Run rechts" % id, back, "%s f%d gr %.2f" % [h.state_name(), h.facing, h.gr_vel])
+		h.free()
+		# Flick tegen de run in direct na RunBrake-begin = dash/pivot, niet de lange RunTurn
+		var k := _run_right(id)
+		play_x(k, [0])
+		play_x(k, flick_profile(FLICK_2, -1, 2))
+		check("%s: stick los en dan flick terug = Dash links (RunBrake-dash)" % id, k.state_name() == "Dash" and k.facing == -1, k.state_name())
+		k.free()
+
+
 func _script_input(i: int) -> Array:
 	# Gevarieerde maar vaste inputreeks: dash-dance, run, jump, double jump, drift, fast fall, wavedash.
 	var t: int = i % 120
@@ -591,3 +805,24 @@ func _test_determinism() -> void:
 	for snap: Array in runs[0]:
 		states[snap[0]] = true
 	print("      states in de reeks: ", ", ".join(PackedStringArray(states.keys())))
+
+
+## Run stoppen met een Xbox-stick: de terugveer-overshoot (kort de andere kant op) mag niet omdraaien.
+func _test_xbox_run_stop_overshoot() -> void:
+	print("-- Xbox run-stop overshoot --")
+	for id in ["fast_faller", "allrounder", "heavyweight"]:
+		for over in [[-30, -30], [-30, -45, -30], [-40, -40, -25, 0], [-35, -45, -40, -30, 0]]:
+			var f := _run_right(id)
+			play_x(f, [60, 20])
+			play_x(f, over)
+			check("%s: run stoppen + overshoot %s = geen RunTurn/facing blijft" % [id, str(over)], f.state_name() == "RunBrake" and f.facing == 1, "%s f%d" % [f.state_name(), f.facing])
+			f.free()
+		# Zelfde overshoot na een dash-stop in Wait: facing mag omdraaien (tilt-turn), maar een nieuwe flick
+		# vooruit moet direct een Dash geven (geen lock).
+		var g := make(id, Vector2(-80, 0))
+		idle(g, 3)
+		play_x(g, flick_profile(FLICK_2, 1, 2))
+		play_x(g, [0, 0, -30, -30, 0])
+		play_x(g, flick_profile(FLICK_3, 1, 0))
+		check("%s: dash, stick los + overshoot, dan flick vooruit = Dash (geen tilt-turn-lock)" % id, g.state_name() == "Dash", g.state_name())
+		g.free()

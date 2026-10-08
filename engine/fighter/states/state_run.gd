@@ -1,6 +1,7 @@
 class_name StateRun
 extends FighterState
-## Run: dash/run-formule. Stick onder run-drempel -> RunBrake; stick terug -> RunTurn.
+## Run: dash/run-formule. Stick onder run-drempel -> RunBrake; echte terug-input -> RunTurn.
+## ⚠️ Een korte terugveer-overshoot van de stick (stick los) draait niet om: zie Fighter.run_turn_intent().
 
 
 func id() -> String:
@@ -11,7 +12,7 @@ func iasa() -> void:
 	if f.check_ground_jump():
 		return
 	var d: float = f.stick_x() * f.facing
-	if d < 0.0 and MeleeStick.reaches(d, MeleeStick.TURN_THRESHOLD):
+	if f.run_turn_intent():
 		f.change_state("RunTurn")
 	elif d < MeleeStick.RUN_THRESHOLD - FighterConst.EPS:
 		f.change_state("RunBrake")

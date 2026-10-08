@@ -27,7 +27,7 @@ func iasa() -> void:
 	if f.check_ground_jump():
 		return
 	# Dash-dance: omgekeerde dash-flick.
-	if f.input.flick_x(MeleeStick.SMASH_THRESHOLD, MeleeStick.SMASH_WINDOW) == -f.facing:
+	if f.input.flick_x(MeleeStick.SMASH_THRESHOLD, MeleeStick.DASH_FLICK_WINDOW) == -f.facing:
 		f.change_state("Turn", {"smash": true})
 
 

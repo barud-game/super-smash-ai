@@ -35,10 +35,12 @@ func iasa() -> void:
 		if smash and sx * f.facing > 0.0 and MeleeStick.reaches(sx, MeleeStick.SMASH_THRESHOLD):
 			f.change_state("Dash")
 			return
-		if not smash and f.ucf_dashback \
-				and f.input.flick_x(MeleeStick.SMASH_THRESHOLD, MeleeStick.SMASH_WINDOW) == f.facing:
-			f.change_state("Dash")
-			return
+	# ⚠️ Leniency (UCF-achtig): in elke Turn-frame geeft een dash-flick in de nieuwe richting een Dash
+	# (tilt-turn niet meer op slot; voorkomt "stick terugveer -> Turn -> dash lukt niet" op Xbox).
+	if (smash or f.ucf_dashback) \
+			and f.input.flick_x(MeleeStick.SMASH_THRESHOLD, MeleeStick.DASH_FLICK_WINDOW) == f.facing:
+		f.change_state("Dash")
+		return
 	if smash and sf() >= 1:
 		# Pivot: smash-turn zonder dash is direct actionable.
 		f.check_wait_interrupts()

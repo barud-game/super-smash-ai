@@ -66,6 +66,8 @@ var visual: CharacterVisual
 var _states: Dictionary = {}
 var _segments: Array = []
 var _consumed_tap_jump: int = -1000
+## tick_count van de laatste omlaag-flick in de lucht (fast-fall-buffer).
+var _ff_flick_tick: int = -1000
 
 
 func _init() -> void:
@@ -273,7 +275,7 @@ func check_ground_jump() -> bool:
 
 ## Dash-flick vooruit -> Dash; achteruit -> smash-turn (die op het volgende frame een dash wordt).
 func check_dash() -> bool:
-	var d: int = input.flick_x(MeleeStick.SMASH_THRESHOLD, MeleeStick.SMASH_WINDOW)
+	var d: int = input.flick_x(MeleeStick.SMASH_THRESHOLD, MeleeStick.DASH_FLICK_WINDOW)
 	if d == 0:
 		return false
 	if d == facing:
@@ -281,6 +283,16 @@ func check_dash() -> bool:
 	else:
 		change_state("Turn", {"smash": true})
 	return true
+
+
+## Wil de speler tijdens een run/skid omdraaien? Een flick tegen de run in, of een tegen-duw die RUN_TURN_DEBOUNCE
+## frames wordt vastgehouden. Een korte terugveer-overshoot van de stick telt niet. ⚠️ leniency
+func run_turn_intent() -> bool:
+	var sx: float = stick_x()
+	if sx * facing >= 0.0 or not MeleeStick.reaches(sx, MeleeStick.TURN_THRESHOLD):
+		return false
+	return MeleeStick.reaches(sx, MeleeStick.SMASH_THRESHOLD) \
+		or input.stick_timer_x() >= MeleeStick.RUN_TURN_DEBOUNCE - 1
 
 
 func check_squat() -> bool:
@@ -389,13 +401,21 @@ func apply_air_drift(sx: float, mobility: float = 1.0) -> void:
 
 ## Verticaal in de lucht: fast-fall-check (alleen na de apex, vy < 0), dan gravity / fast fall.
 func apply_air_vertical(allow_fastfall: bool = true) -> void:
+	# ⚠️ Een omlaag-flick wordt FAST_FALL_BUFFER frames onthouden (short hop: flick vlak vóór de apex telt).
+	if allow_fastfall and input.flick_y(MeleeStick.FAST_FALL_THRESHOLD, MeleeStick.FAST_FALL_WINDOW) == -1:
+		_ff_flick_tick = tick_count
 	if allow_fastfall and not fastfalling and vel.y < 0.0 \
-			and input.flick_y(MeleeStick.FAST_FALL_THRESHOLD, MeleeStick.FAST_FALL_WINDOW) == -1:
+			and tick_count - _ff_flick_tick <= MeleeStick.FAST_FALL_BUFFER:
 		fastfalling = true
 	if fastfalling:
 		vel.y = -stats.fast_fall_velocity
 	else:
 		vel.y = maxf(vel.y - stats.gravity, -stats.terminal_velocity)
+
+
+## Vergeet de onthouden omlaag-flick (nieuwe sprong / landing).
+func reset_fast_fall_buffer() -> void:
+	_ff_flick_tick = -1000
 
 
 ## Standaard lucht-physics (Fall, Jump, JumpAerial).
@@ -415,6 +435,7 @@ func leave_ground(air_vel: Vector2) -> void:
 	vel = air_vel
 	air_jumps_used = 0
 	fastfalling = false
+	_ff_flick_tick = -1000
 
 
 ## Grondsprong (einde KneeBend). vx = gr_vel*g2a + sx*h_initial, begrensd op ±h_max.

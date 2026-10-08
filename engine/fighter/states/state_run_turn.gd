@@ -1,11 +1,19 @@
 class_name StateRunTurn
 extends FighterState
 ## RunTurn (TurnRun, run turnaround): remt met traction tot stilstand, draait dan om en versnelt met de
-## run-formule. Duurt minstens run_turn_frames ⚠️ en tot de snelheid is omgedraaid. Alleen jump onderbreekt.
+## run-formule. Melee: traag (tot ~51 frames bij Marth), dus alleen onderbreekbaar met:
+## - jump (altijd);
+## - een dash-flick (⚠️ leniency): in de oude richting = turnaround afbreken en weer dashen, in de nieuwe
+##   richting (na het omdraaien) = Dash;
+## - voor het omdraaien: stick weer vooruit (>= run-drempel) = terug naar Run, stick neutraal = RunBrake
+##   (de speler wilde stoppen, niet omdraaien: facing verandert dan niet).
+## Na het omdraaien: Run zodra de stick vooruit staat (≥ run-drempel), anders Wait na run_turn_frames.
 
 var new_dir: int = 1
 var flipped: bool = false
 var flip_frame: int = 0
+## Tick van binnenkomst: de flick die de turn startte telt niet als nieuwe dash-flick.
+var entry_tick: int = 0
 
 
 func id() -> String:
@@ -16,18 +24,32 @@ func enter(_args: Dictionary) -> void:
 	new_dir = -f.facing
 	flipped = false
 	flip_frame = 0
+	entry_tick = f.tick_count
 
 
 func anim() -> void:
-	if flipped and sf() >= f.stats.run_turn_frames:
-		if f.stick_x() * f.facing >= MeleeStick.RUN_THRESHOLD - FighterConst.EPS:
-			f.change_state("Run")
-		else:
-			f.change_state("Wait")
+	if not flipped:
+		return
+	var fwd: bool = f.stick_x() * f.facing >= MeleeStick.RUN_THRESHOLD - FighterConst.EPS
+	if fwd:
+		f.change_state("Run")
+	elif sf() >= f.stats.run_turn_frames:
+		f.change_state("Wait")
 
 
 func iasa() -> void:
-	f.check_ground_jump()
+	if f.check_ground_jump():
+		return
+	# Alleen een NIEUWE flick (begonnen na binnenkomst) onderbreekt; de flick die de turn startte niet.
+	if f.tick_count - f.input.stick_timer_x() > entry_tick and f.check_dash():
+		return
+	if not flipped:
+		var d: float = f.stick_x() * f.facing  # t.o.v. de oude richting (facing)
+		if d >= MeleeStick.RUN_THRESHOLD - FighterConst.EPS:
+			f.change_state("Run")
+		elif d >= 0.0:
+			# Stick (bijna) neutraal of licht vooruit: geen omdraai-intentie meer -> uitglijden.
+			f.change_state("RunBrake")
 
 
 func phys() -> void:

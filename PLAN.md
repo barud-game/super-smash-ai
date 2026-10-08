@@ -3,8 +3,13 @@
 ## Huidige status
 > Bijwerken aan het eind van elke sessie.
 
-- **Fase:** M1 movement gebouwd (286 movement-tests slagen). Wacht op speeltest van de gebruiker; daarna M2 (ledges) + M3 (gevecht).
-- **Laatste sessie (2026-10-08):** planning, director-werkwijze + agents, M0 door `engine-builder`.
+- **Fase:** M1 movement gebouwd + speeltest-feedback verwerkt (608 movement-tests). Wacht op 2e speeltest; daarna M2 (ledges) + M3 (gevecht).
+- **Laatste sessie (2026-10-08):** planning, agents, M0, M1, rig, stage, SFX, menu's. Speeltest 1: dash-dance te strikt,
+  fast fall bij short hop faalde, run turnaround bleef hangen → opgelost met Xbox-leniency (`DASH_FLICK_WINDOW=4`,
+  `FAST_FALL_BUFFER=6`, `RUN_TURN_DEBOUNCE=5` in `melee_stick.gd`). Wavedash, platform drop, run, walk, hops: goed.
+- **Onaf:** `engine/combat/` (M3-kernmodules: MoveData, HitboxData, Knockback, HitResolver, hitbox_draw) — agent werd
+  afgebroken; bestanden staan er (niet gecommit), `tests/test_combat.gd` en `docs/combat.md` ontbreken nog. Afmaken + reviewen.
+- **Tweede controller** nog niet bevestigd door de gebruiker.
 - **Code-overzicht:** `engine/sim.gd` (klok, frame advance), `engine/input/` (InputManager, MeleeStick,
   InputFrame, InputHistory), `engine/units.gd` (UNIT_TO_PX = 7), `ui/debug_overlay/`, `scenes/sandbox.tscn`,
   tests: zie `tests/README.md`.
