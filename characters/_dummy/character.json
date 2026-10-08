@@ -1,0 +1,8 @@
+{
+  "id": "_dummy",
+  "name": "Houten Pop",
+  "archetype": "Allrounder",
+  "op": false,
+  "tagline": "Oefenpop van hout. Doet alsof hij pijn voelt.",
+  "colors": { "primary": "#c9a26b", "secondary": "#6b4a2a" }
+}

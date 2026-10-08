@@ -11,13 +11,16 @@ config_version=5
 [application]
 
 config/name="Super Smash AI"
-run/main_scene="res://scenes/sandbox.tscn"
+run/main_scene="res://ui/main_menu/main_menu.tscn"
 config/features=PackedStringArray("4.6", "GL Compatibility")
 
 [autoload]
 
 InputManager="*res://engine/input/input_manager.gd"
 Sim="*res://engine/sim.gd"
+CharacterRegistry="*res://engine/roster/character_registry.gd"
+Settings="*res://ui/settings/settings.gd"
+MatchSetup="*res://ui/common/match_setup.gd"
 Sfx="*res://engine/audio/sfx.gd"
 
 [display]
