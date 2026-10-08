@@ -18,6 +18,9 @@ Exacte stats worden in M1 ingevuld op basis van Melee-referentiewaarden.
 | **Floaty** | Zweverig, luchtgevecht | Air drift, lange aerial-tijd, overleeft verticaal | Traag naar de grond, makkelijk te jugglen |
 | **Lichtgewicht** | Klein en razendsnel | Kleinste hurtbox, snelste grondbeweging | Sterft heel vroeg |
 
+Elk archetype heeft ook een **standaard-moveset** (alle normals, al geprijsd en gebalanceerd).
+Een nieuw character begint daarmee; alleen afwijkende moves worden opnieuw geprijsd.
+
 ## 2. Aanvullingen op movement (kosten punten)
 
 Spelers mogen aanvullen. Een aanvulling kost punten, een nadeel levert punten op.

@@ -37,6 +37,23 @@ Zie `docs/character-creatie.md` en de skill `/nieuw-character`.
 ## Input
 2× XInput-controller. A=attack, X=special, Y/B=jump, LT/RT=shield (analoog), RB=Z, rechterstick=C-stick.
 
+## Werkwijze: de hoofdchat is director
+De hoofdchat schrijft zelf (bijna) geen code of art. Die:
+1. plant en hakt werk op in afgebakende opdrachten met duidelijke "klaar als"-criteria;
+2. delegeert aan agents in `.claude/agents/` — onafhankelijke opdrachten **parallel**;
+3. reviewt het resultaat (code lezen, headless draaien, previews bekijken) en stuurt bij;
+4. integreert, werkt `PLAN.md` bij en commit.
+
+| Agent | Model | Werk |
+|---|---|---|
+| `engine-builder` | Sonnet 5.5 | Engine: input, movement, states, combat, UI, tools |
+| `special-builder` | Sonnet 5.5 | Eén special die niet in een sjabloon past |
+| `normals-builder` | Haiku 5.5 | Normals van score → `MoveData` |
+| `svg-artist` | Sonnet 5.5 | SVG-onderdelen voor het rig + preview-controle |
+
+Het gesprek met de speler en balanskeuzes blijven altijd bij de director.
+Het lokale Godot-pad staat in `CLAUDE.local.md` (niet in git).
+
 ## Werkafspraken
 - Na elke sessie: **status in `PLAN.md` bijwerken** en committen, zodat de volgende chat weet waar we zijn.
 - Commits klein en beschrijvend; push naar `main` tenzij anders afgesproken.

@@ -6,10 +6,17 @@ description: Start of hervat het gesprek waarin een speler een eigen Super Smash
 # Nieuw character maken
 
 1. Lees `CLAUDE.md`, `docs/character-creatie.md` en `docs/balans.md`.
-2. Bestaat er al een map `characters/<id>/` voor dit character? Lees dan `ontwerp.md` en ga verder waar het gebleven is.
-3. Check in `PLAN.md` of M5 (character-systeem) al af is. Zo niet: voer het gesprek wel, sla het
-   ontwerp op in `characters/<id>/ontwerp.md`, en zeg dat bouwen kan zodra de engine zover is.
-4. Voer het gesprek volgens `docs/character-creatie.md` — **één vraag per bericht**, Nederlands.
-5. Laat het voorstel + puntentabel zien en vraag om akkoord voordat je bouwt.
-6. Na akkoord: schrijf `ontwerp.md`, implementeer stats/moves/specials, test in training mode,
-   werk `PLAN.md` bij en commit.
+2. Bestaat `characters/<id>/` al? Lees `ontwerp.md` en ga verder waar het gebleven is.
+3. Check in `PLAN.md` welke onderdelen al bestaan (archetypes, sjablonen, skelet, validator).
+   Ontbreekt iets: voer het gesprek wel, sla `ontwerp.md` op, en zeg wat er nog niet gebouwd kan worden.
+4. Vraag: **"Wie wil je zijn?"** — en wacht op het antwoord.
+5. Doe meteen een **compleet voorstel**: naam, look, archetype (+aanvullingen), 4 specials in één zin,
+   afwijkende normals, puntentabel ≤ 200. Bekend personage genoemd → eigen variant met dezelfde sfeer.
+6. Stuur bij tot de speler akkoord geeft. Bij budgetproblemen: stel een ruil voor.
+7. Na akkoord:
+   - schrijf `ontwerp.md` en `stats.tres`; specials die in een sjabloon passen: configureer zelf
+   - start parallel: `svg-artist` voor het uiterlijk, `normals-builder` voor afwijkende normals,
+     `special-builder` per eigen special
+   - review: bekijk de SVG-preview, lees de special-code
+   - draai de validator, los fouten op, werk `PLAN.md` bij, commit
+8. Laat de speler testen in training mode (reload-knop), pas aan op feedback.
