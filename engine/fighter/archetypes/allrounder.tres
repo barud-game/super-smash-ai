@@ -1,0 +1,49 @@
+[gd_resource type="Resource" script_class="FighterStats" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://engine/fighter/fighter_stats.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+display_name = "Allrounder"
+reference = "Marth (NTSC). ⚠️ = geschat: g2a/jump_h/air_jump_h, walk-accel, turn/brake/runturn/squat-frames, ground/air max, landing lag, ECB"
+weight = 87.0
+gravity = 0.085
+terminal_velocity = 2.2
+fast_fall_velocity = 2.5
+jumpsquat_frames = 4
+jump_v_initial_velocity = 2.4
+hop_v_initial_velocity = 1.5
+air_jump_v_multiplier = 0.88
+air_jumps = 1
+ground_to_air_jump_momentum_multiplier = 0.7
+jump_h_initial_velocity = 0.9
+jump_h_max_velocity = 1.5
+air_jump_h_multiplier = 1.0
+dash_initial_velocity = 1.5
+dash_frames = 15
+dash_accel_base = 0.0
+dash_accel_additional = 0.06
+run_speed = 1.8
+walk_initial_velocity = 0.15
+walk_acceleration = 0.08
+walk_max_velocity = 1.6
+traction = 0.06
+ground_max_horizontal_velocity = 3.5
+turn_frames = 11
+run_brake_frames = 22
+run_turn_frames = 28
+squat_frames = 7
+squat_rv_frames = 10
+air_accel_base = 0.02
+air_accel_additional = 0.03
+max_air_speed = 0.9
+air_friction = 0.005
+air_max_horizontal_velocity = 3.5
+special_fall_mobility = 1.0
+normal_landing_lag = 4
+airdodge_landing_lag = 10
+airdodge_intangible_start = 4
+airdodge_intangible_end = 29
+ecb_height = 16.0
+ecb_mid_y = 8.0
+ecb_half_width = 4.0

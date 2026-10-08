@@ -3,7 +3,7 @@
 ## Huidige status
 > Bijwerken aan het eind van elke sessie.
 
-- **Fase:** M0 gebouwd (headless geverifieerd, 33/33 tests). Wacht op handmatige test met 2 controllers.
+- **Fase:** M1 movement gebouwd (286 movement-tests slagen). Wacht op speeltest van de gebruiker; daarna M2 (ledges) + M3 (gevecht).
 - **Laatste sessie (2026-10-08):** planning, director-werkwijze + agents, M0 door `engine-builder`.
 - **Code-overzicht:** `engine/sim.gd` (klok, frame advance), `engine/input/` (InputManager, MeleeStick,
   InputFrame, InputHistory), `engine/units.gd` (UNIT_TO_PX = 7), `ui/debug_overlay/`, `scenes/sandbox.tscn`,
@@ -19,7 +19,7 @@
   - `Settings.sfx_volume` wordt nog niet door `Sfx` toegepast. Geen code roept `Sfx` al aan in gameplay.
   - Stage: camera bounds en spawns zijn ⚠️ geschat. Ledge-snap-logica hoort bij de fighter (M2).
   - SFX moeten nog op het gehoor beoordeeld worden door de gebruiker.
-- **Volgende stap:** M1 — movement.
+- **Volgende stap:** feedback speeltest M1 verwerken; ledge-mechaniek (M2) en combat-kern (M3) starten. Sandbox: main menu → Sandbox (debug), F3/F4 = archetype wisselen, F5 = reset.
 
 ## Besluiten
 - **Visuals:** SVG's (Godot importeert ze native). Characters zijn originele ontwerpen.
@@ -51,7 +51,7 @@
 | # | Mijlpaal | Klaar als | Status |
 |---|---|---|---|
 | M0 | Fundament | Godot-project, 60 Hz-tick, 2× XInput met Melee-stickraster, debug overlay (frame, state, hitboxes), frame advance | 🟨 handmatige controllertest |
-| M1 | **Movement** | Dash-dance, run, jumpsquat/short hop, fast fall, air drift, wavedash/waveland, platform drop — voelt als Melee | ⬜ |
+| M1 | **Movement** | Dash-dance, run, jumpsquat/short hop, fast fall, air drift, wavedash/waveland, platform drop — voelt als Melee | 🟨 wacht op speeltest |
 | M2 | Stage | Vlakke stage (FD-achtig, eigen ontwerp), ledges (snap, hang, getups, invincibility), blast zones, camera | ⬜ |
 | M3 | Gevecht | Hitbox/hurtbox per frame, Melee-knockbackformule, hitstun, hitlag, DI/SDI/ASDI, L-cancel, test-moveset | ⬜ |
 | M4 | Verdediging | Shield + lightshield, shieldstun, shield break, rolls, spot dodge, grabs/pummel/throws, teching | ⬜ |

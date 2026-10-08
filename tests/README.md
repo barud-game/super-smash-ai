@@ -11,3 +11,7 @@ Headless, geen scène nodig. Exit code is 0 bij succes, 1 bij falen. Eerst één
 Visual/rig:
 
     <godot_console> --headless --path . --script res://tests/test_visual.gd
+
+Movement (M1, vergelijking met Melee-waarden per archetype; gescripte input, geen controller nodig):
+
+    <godot_console> --headless --path . --script res://tests/test_movement.gd

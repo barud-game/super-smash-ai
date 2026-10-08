@@ -79,18 +79,37 @@ func _test_history() -> void:
 	check("buiten bereik = neutraal", h2.get_frame(InputHistory.SIZE).stick == Vector2i.ZERO)
 
 
+func _frame_y(sy: int) -> InputFrame:
+	var f := InputFrame.new()
+	f.stick = Vector2i(0, sy)
+	return f
+
+
+## Melee-mechanisme: teller "frames sinds de deadzone verlaten" < venster en |as| >= drempel.
 func _test_smash() -> void:
 	var h := InputHistory.new()
 	h.push(_frame(0))
 	h.push(_frame(0))
 	h.push(_frame(80))
+	check("timer: eerste frame buiten deadzone = 0", h.stick_timer_x() == 0)
 	check("smash: neutraal -> vol in 1 frame", h.stick_smashed_x(2))
 	check("geen smash op y-as", not h.stick_smashed_y(2))
+	check("timer y in deadzone = neutraal", h.stick_timer_y() == MeleeStick.TIMER_NEUTRAL)
 	var slow := InputHistory.new()
 	for v in [0, 20, 40, 50, 60, 70, 80]:
 		slow.push(_frame(v))
+	# 20 valt binnen de deadzone; buiten vanaf 40 -> teller op 80 = 4.
+	check("timer telt frames sinds deadzone verlaten", slow.stick_timer_x() == 4)
 	check("geen smash bij langzame beweging", not slow.stick_smashed_x(3))
 	check("wel smash met groot venster", slow.stick_smashed_x(8))
+	var two := InputHistory.new()
+	for v in [0, 40, 80]:
+		two.push(_frame(v))
+	check("flick in 2 frames (teller 1 < 2) = smash", two.stick_smashed_x(2))
+	var three := InputHistory.new()
+	for v in [0, 30, 50, 80]:
+		three.push(_frame(v))
+	check("flick in 3 frames (teller 2) = geen dash-smash", not three.stick_smashed_x(MeleeStick.SMASH_WINDOW))
 	var held := InputHistory.new()
 	for i in 6:
 		held.push(_frame(80))
@@ -100,13 +119,35 @@ func _test_smash() -> void:
 	neg.push(_frame(-60))
 	neg.push(_frame(-80))
 	check("smash naar links", neg.stick_smashed_x(3))
+	check("flick_x geeft richting -1", neg.flick_x(MeleeStick.SMASH_THRESHOLD, 3) == -1)
 	var flip := InputHistory.new()
 	flip.push(_frame(-80))
+	flip.push(_frame(-80))
 	flip.push(_frame(80))
-	check("omklappen volledig = geen smash vanaf neutraal", not flip.stick_smashed_x(3))
+	check("omklappen links->rechts reset de teller (dash-dance)", flip.stick_timer_x() == 0 and flip.stick_smashed_x(2))
 	var short := InputHistory.new()
 	short.push(_frame(80))
-	check("te weinig historie = geen smash", not short.stick_smashed_x(3))
+	check("eerste frame ooit (daarvoor neutraal) = flick", short.stick_smashed_x(2))
+	var tj := InputHistory.new()
+	for v in [0, 53]:
+		tj.push(_frame_y(v))
+	check("tap jump: 53/80 = 0.6625 haalt de drempel", tj.flick_y(MeleeStick.TAP_JUMP_THRESHOLD, MeleeStick.TAP_JUMP_WINDOW) == 1)
+	var tj2 := InputHistory.new()
+	for v in [0, 52]:
+		tj2.push(_frame_y(v))
+	check("tap jump: 52/80 haalt de drempel niet", tj2.flick_y(MeleeStick.TAP_JUMP_THRESHOLD, MeleeStick.TAP_JUMP_WINDOW) == 0)
+	var tj3 := InputHistory.new()
+	for v in [0, 30, 40, 45, 50, 80]:
+		tj3.push(_frame_y(v))
+	check("tap jump: teller 4 = te laat", tj3.flick_y(MeleeStick.TAP_JUMP_THRESHOLD, MeleeStick.TAP_JUMP_WINDOW) == 0)
+	var tj4 := InputHistory.new()
+	for v in [0, 30, 40, 45, 80]:
+		tj4.push(_frame_y(v))
+	check("tap jump: teller 3 = op tijd", tj4.flick_y(MeleeStick.TAP_JUMP_THRESHOLD, MeleeStick.TAP_JUMP_WINDOW) == 1)
+	var ff := InputHistory.new()
+	for v in [0, -80]:
+		ff.push(_frame_y(v))
+	check("fast-fall flick omlaag = -1", ff.flick_y(MeleeStick.FAST_FALL_THRESHOLD, MeleeStick.FAST_FALL_WINDOW) == -1)
 
 
 func _test_units() -> void:

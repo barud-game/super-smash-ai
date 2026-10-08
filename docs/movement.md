@@ -36,8 +36,10 @@ Melee houdt per stickas een **teller “frames sinds de stick de deadzone verlie
 | Walk-drempel | `walk_stick_threshold` 0.18 (onbereikbaar door deadzone 0.28) | — | ✅ [S12] |
 | Teeter-walk | 0.75 | — | ✅ [S12] |
 
-- **Afwijking code:** `SMASH_LOW = 0.3` bestaat in Melee niet als zodanig. Melee’s equivalent is de “frames sinds deadzone verlaten”-teller. Voor de engine: houd per as een teller bij die op 0 begint wanneer |waarde| van < deadzone naar ≥ deadzone gaat (en die blijft tellen/saturaten), en laat `stick_smashed(N)`/dash/tap-jump/fast-fall testen op `|waarde| ≥ drempel && teller < N`. De flick moet dus *vanuit de deadzone* beginnen en snel genoeg de drempel halen; langzaam voorbij de drempel dwingen geeft tilt/walk.
-- **Afwijking code:** `SMASH_HIGH = 0.8` ligt op het raster gelijk aan de echte drempel (0.79 → 64/80 = 0.8). ✅ praktisch correct, ⚠️ exacte float.
+- **Geïmplementeerd (M1):** het oude `SMASH_LOW = 0.3`-mechanisme is vervangen door Melee's teller. `InputHistory.stick_timer_x/y()` = frames sinds de as de deadzone verliet (0 op het eerste frame buiten de deadzone; **per richting**, dus van links naar rechts in één frame reset de teller ook — nodig voor dash-dance; in de deadzone `TIMER_NEUTRAL` = 255). `flick_x/flick_y(drempel, venster)` = |as| ≥ drempel én teller < venster. De flick moet dus *vanuit de deadzone* beginnen en snel genoeg de drempel halen; langzaam voorbij de drempel geeft tilt/walk/crouch. ⚠️ Of Melee de teller ook reset bij een tekenwissel zonder deadzone-frame is niet in de decomp nagelezen; aangenomen van wel.
+- Alle drempels/vensters staan als constanten in `MeleeStick` (`engine/input/melee_stick.gd`). Gekozen ⚠️-waarden: dash/smash 0.8 met venster 2; fast fall 0.6625 / 4; crouch 0.6875 (ingehouden); platform drop 0.6875 / 4; door platform vallen in special fall 0.6875; tap-jump-loslaten (short hop met stick) 0.6625; run-drempel (`x58`) 0.62; turn-drempel (`x34`) = deadzone; walk-animatie slow < 0.5 ≤ middle < 0.8 ≤ fast. `RELAXED_TAP_JUMP_THRESHOLD` (0.5625) is gedefinieerd maar nog niet gebruikt (welke grondstates hem gebruiken is onbekend).
+- `SMASH_THRESHOLD = 0.8` ligt op het raster gelijk aan de echte drempel (0.79 → 64/80 = 0.8). ✅ praktisch correct, ⚠️ exacte float. Vergelijkingen via `MeleeStick.reaches()` (marge 1e-6) zodat rasterwaarden als 53/80 = 0.6625 exact meetellen.
+- **Eén flick = één tap jump:** de fighter onthoudt welke stick-omhoog-beweging al een sprong gaf, zodat dezelfde flick (teller nog < 4 na een 3-frame jumpsquat) geen double jump geeft. ⚠️ Melee doet dit op een eigen manier (niet nagelezen); effect is hetzelfde.
 - Analoge trigger: `shield_press_threshold = 0.25`, `analog_shoulder_deadzone = 0.3`, `z_press_analog_value = 0.35`. [S12] ✅ — lightshield begint rond 0.25–0.3. Air dodge, tech en L-cancel gebruiken de **digitale** L/R-bit (hardware “klik”, volledig ingedrukt). `TRIGGER_FULL = 0.95` is een redelijke benadering voor XInput (⚠️ er bestaat geen vaste Melee-analoge drempel voor de digitale klik). Powershield-venster: `powershield_input_window` frames na trigger ≠ 0 (waarde onbekend ⚠️).
 - Historie: ringbuffer van 32 `InputFrame`s per speler (`InputHistory`) met `pressed/released/held`.
 - Layout (XInput): A=attack, X=special, Y/B=jump, LT/RT=shield, RB=Z, rechterstick=C-stick, Start=start. Toetsenbord speler 1: WASD=stick, pijltjes=C-stick, J=A, K=special, Space=jump, L=shield, I=Z.
@@ -136,11 +138,105 @@ KB = ((((p/10 + p*d/20) * 200/(w+100) * 1.4) + 18) * g/100) + b
 - DI: tot 18° verandering van de lanceerhoek.
 - Weight-waarden (NTSC) voor de formule staan in tabel B.
 
-## Samenvatting afwijkingen t.o.v. de code in `engine/input/melee_stick.gd`
+## Samenvatting: code in `engine/input/` t.o.v. Melee
 | Constante | Code | Melee | Oordeel |
 |---|---|---|---|
 | `GRID` | 80 | cirkel straal 80 | ✅ correct |
 | `DEADZONE` | 23 (per as, <23 → 0) | 0.28 per as ⇒ ≥ 23/80 actief | ✅ correct |
-| `SMASH_HIGH` | 0.8 | 0.79 ⇒ 64/80 = 0.8 op raster | ✅ praktisch correct (⚠️ float) |
-| `SMASH_LOW` | 0.3 | bestaat niet; Melee gebruikt teller “frames sinds deadzone verlaten” < venster (dash/smash ≈ 2, tap jump 4) | ⚠️ afwijkend mechanisme |
+| `SMASH_THRESHOLD` / `SMASH_WINDOW` | 0.8 / 2 | 0.79 ⇒ 64/80 = 0.8 op raster; venster ≈ 2 | ✅ drempel praktisch correct (⚠️ float), ⚠️ venster |
+| flick-detectie | teller “frames sinds deadzone verlaten” < venster (`InputHistory`) | idem | ✅ zelfde mechanisme sinds M1 (`SMASH_LOW` verwijderd) |
+| `TAP_JUMP_THRESHOLD` / `TAP_JUMP_WINDOW` | 0.6625 / 4 | idem | ✅ |
+| overige stickdrempels | zie Input-sectie | deels onbekend | ⚠️ |
 | `TRIGGER_FULL` | 0.95 | digitale hardware-klik; analoog shield vanaf 0.25–0.3, Z-analoog 0.35 | ⚠️ benadering |
+
+## M1-implementatie (`engine/fighter/`)
+Status: gebouwd en headless getest (`tests/test_movement.gd`, 286 checks). Gevoel met controller nog te testen.
+
+### Opbouw
+- `Fighter` (`fighter.gd`, Node2D): registreert zich bij `Sim`, leest `InputManager.history(player)` (tests geven een eigen `InputHistory`), houdt `pos`/`vel`/`gr_vel` in Melee-units bij. Node-positie (px) is alleen presentatie.
+- `FighterState` (`fighter_state.gd`): basis met `anim()`, `iasa()`, `phys()`, `coll()` + flags (`is_grounded`, `stops_at_edge`, `lands_on_platforms`, `on_land`, `intangible`, `pose`). Eén class per state in `states/`. Nieuwe states (Guard, Attack*, Cliff*) erven hiervan en gaan erbij met `Fighter.register_state()`; gedeelde interrupt-checks staan als `check_*()` op `Fighter` (zoals de `ftCo_*_CheckInput`-functies in Melee), dus een aanval/shield-check wordt één extra regel in de betreffende `iasa()`.
+- `FighterStats` (`fighter_stats.gd`, Resource): alle movement-attributen (tabel B1/B2 + geschatte ⚠️-velden), met `jump_height(v0)`.
+- Presets: `archetypes/*.tres`, lijst in `archetypes.gd` (`Archetypes.IDS`).
+- Tap jump per speler: `Settings.tap_jump_enabled(player)` als die autoload bestaat, anders aan; `Fighter.tap_jump_override` voor tests.
+
+### Frame-volgorde (zoals Melee: Anim → IASA → Phys → Coll)
+Per `sim_tick`: `state_frame += 1` → `anim()` (tijd-overgangen: jumpsquat klaar, landing lag op, einde animatie) → `iasa()` van de state die er dán is (een state die in `anim()` begon krijgt dus op hetzelfde frame zijn IASA: na landing lag ben je op dat frame actionable) → `phys()` → `coll()` → blast zone → visual. `state_frame` = 0 op het frame dat een state begint; een state van N frames beslaat frames 0..N−1.
+- Grondsprong: KneeBend begint op het input-frame (frame 0); op frame `jumpsquat` zet `anim()` de sprong in en draait de IASA van Jump nog op dat frame. Daardoor kan een air dodge op het eerste luchtframe (frame-perfecte wavedash) en landt die direct.
+- Jump: eerste frame geen gravity/drift (✅ Melee), dus hoogte = Σ(v0 − g·n): de tests reproduceren de full/short-hop-hoogtes van Fox, Marth, Ganondorf, Peach en Pikachu tot op 0.01.
+- JumpAerial: gravity en drift werken al op frame 0 (✅).
+
+### States
+| State | Pose | Kern | Interrupts (IASA) |
+|---|---|---|---|
+| Wait | idle | traction, ×2 boven walk | jump, dash/smash-turn, squat, turn, walk |
+| Walk (Slow/Middle/Fast) | walk | accel naar stick·walk_max ⚠️ | jump, dash, squat, turn; stick los → Wait |
+| Dash | dash | gr_vel = ±initial dash, frame 0 geen accel, dan dash/run-formule | jump, omgekeerde dash-flick → Turn(smash) (dash-dance) |
+| Run | run | dash/run-formule | jump; terug → RunTurn; < run-drempel → RunBrake |
+| RunBrake | skid | traction ×1 | jump; squat vanaf frame 1; terug → RunTurn |
+| Turn (tilt/smash) | turn | facing direct om; traction ×2-regel | jump; smash-turn frame 1 → Dash of pivot (actionable); UCF-dashback; squat |
+| RunTurn | skid → turn | remmen met traction tot 0, omdraaien, dan run-accel | jump |
+| Squat / SquatWait / SquatRv | crouch | traction | jump, platform drop; SquatRv = Wait-interrupts |
+| KneeBend | jumpsquat | traction; short-hop-check frames 1..js−1 | (sprong in `anim`) |
+| Jump (F/B) | jump | ground→air-formule; vy < 0 → Fall | air dodge, double jump |
+| JumpAerial (F/B) | jump_aerial | momentum vervangen; 30 frames ⚠️ dan Fall | air dodge, double jump |
+| Fall | fall / fastfall | gravity/terminal, fast fall, air drift | air dodge, double jump |
+| EscapeAir | airdodge | 3.1·(cos,sin) ⚠️, ×0.9 tot frame 30 ⚠️, 49 frames, intangible 4–29 | — |
+| FallSpecial | fall / fastfall | helpless, drift × mobility ⚠️ 1.0, omlaag = door platforms | — |
+| Landing | land | normal_landing_lag ⚠️ 4 | (→ Wait) |
+| LandingFallSpecial | wavedash / landfall | 10 frames, gr_vel = vx, traction ×2 boven walk | (→ Wait) |
+
+Platform drop gebruikt Fall (geen aparte Pass-state); van de rand af gaat ook naar Fall (luchtsprong blijft beschikbaar, zoals Melee).
+
+### UCF
+- **Dashback:** vanilla Melee: leest het eerste frame van een terugflick nog in het tilt-gebied, dan wordt het een tilt-turn waar je niet uit kunt dashen. UCF (aan, `Fighter.ucf_dashback`): haalt de stick op Turn-frame 1 alsnog ≥ 0.8 met teller < 2, dan alsnog Dash. Getest: met UCF Dash, zonder UCF Turn.
+- Shield drop (UCF) volgt in M4.
+
+### ECB en grond (keuze)
+- **ECB = diamant** met het onderpunt op `pos` (voeten), bovenpunt op `ecb_height`, zijpunten op `ecb_mid_y` ± `ecb_half_width` (per preset ⚠️; zichtbaar met F2). Voor M1 doet alleen het **onderpunt** mee: landen = het onderpunt kruist een segment van boven naar beneden met vy ≤ 0 (lijnstuk van vorige naar nieuwe positie, hoogste segment wint). Geen muren/plafonds nog. Melee verschuift de ECB-onderkant in de lucht per animatie omhoog; dat doen we (nog) niet ⚠️ — gevolg: landen gebeurt exact op voethoogte.
+- Op de grond: `x += gr_vel` langs het segment (y = segmenthoogte; schuine segmenten via interpolatie, aansluitende segmenten worden gevolgd). Aan de rand: `stops_at_edge()` per state. Stoppen: Wait, Walk met |x| < 0.75 (teeter-walk ✅), Turn, Squat*, KneeBend, RunBrake ⚠️, RunTurn ⚠️. Eraf: Dash, Run, Walk ≥ 0.75, Landing, LandingFallSpecial (wavedash van de rand af). Geen Teeter-state nog.
+- Pass-through platforms: landen alleen van boven en met vy ≤ 0; in FallSpecial niet als stick-y ≤ −0.6875. Platform drop zet `ignore_platform` tot je 0.5 unit onder het platform bent.
+- Stage-interface: `get_ground_segments()` (objecten of dictionaries met `a`, `b`, `type`: `StageSegment.Type` 0/1 of `"solid"`/`"platform"`), `get_blast_zone()` (Rect2, position = links/onder), optioneel `get_respawn(i)`. Sandbox-stub: `scenes/sandbox_stage.gd`.
+- Blast zone: buiten de Rect2 → tijdelijk respawn op `get_respawn()` (+40 als dat op de grond ligt) in Fall.
+
+### Overige ⚠️-keuzes in M1
+- Dash-dance gaat via een smash-turn van 1 frame (Dash → Turn(smash) → Dash); pivot = smash-turn waarbij de stick op frame 1 al terug is (rest van de turn actionable, momentum glijdt met de traction-×2-regel).
+- Dash-enter: is gr_vel in de dashrichting al groter dan initial dash, dan blijft die behouden.
+- Stick los tijdens de dash: de dash/run-formule met stick 0 remt met traction (target 0).
+- Run-accel zonder `run_accel_taper` (onbekend): zelfde formule als dash.
+- RunTurn: remt met traction (×1), draait om bij gr_vel = 0, versnelt daarna met de run-formule; einde na ≥ `run_turn_frames` → Run (stick vooruit) of Wait.
+- Tilt-turn duurt `turn_frames` = 11 en is (behalve via UCF op frame 1) niet te dashen; smash-turn is na frame 1 actionable.
+- Walk: `walk_initial_velocity × |stick|` als beginsnelheid, dan `walk_acceleration` per frame.
+- KneeBend met tap jump: short hop als stick-y tijdens frames 1..js−1 onder 0.6625 zakt.
+- Platform drop: vy start op 0 (Melee `x46C` onbekend).
+- Air dodge: geen decay op frame 0; decay op frames 1..29, vanaf frame 30 alleen gravity (geen drift, geen fast fall). Wavedash-grondsnelheid = 3.1·cos θ (≈ 2.92 bij de test-stick 75/−27).
+- Special fall na air dodge: drift × 1.0 en landing lag 10 (⚠️ beide).
+- `air_max_horizontal_velocity` en `ground_max_horizontal_velocity` = 3.5 (alleen als vangnet; boven max air speed remt de lucht met air_friction, `aerial_friction_oob` niet apart).
+
+## Archetype-presets
+`engine/fighter/archetypes/<id>.tres`. Alle ✅-waarden 1-op-1 uit `docs/melee-referentie.md` (tabel B1/B2); de rest is geschat (⚠️, ook vermeld in het `reference`-veld van elke preset).
+
+| Preset (`id`) | Referentie | Waarom deze | Afwijkend/geschat ⚠️ |
+|---|---|---|---|
+| `allrounder` | Marth | gemiddeld in alles, lange wavedash | alleen de algemene ⚠️-velden |
+| `fast_faller` | Fox | zware gravity, hoge fast fall, 3f jumpsquat | alleen de algemene ⚠️-velden |
+| `heavyweight` | Ganondorf | gewicht 109, trage grond, 6f jumpsquat (Bowser 8f zou te traag voelen) | air friction 0.02 (alleen karakterpagina) |
+| `floaty` | Peach (zonder float) | lage gravity/terminal, 1 luchtsprong (de 5 sprongen van Jigglypuff worden wel ondersteund via `air_jump_forces`) | initial dash/run 1.3 (bronnen 1.2/1.3), dash accel 0.02/0.06, air jump mult 0.7, intangible 4–19 ✅ |
+| `lightweight` | Pikachu | lichtst van de complete referenties (80), snel, 3f jumpsquat | alleen de algemene ⚠️-velden |
+
+Algemene ⚠️-velden (geen bron, zelfde redenering voor elke preset):
+
+| Veld | Gekozen | Redenering |
+|---|---|---|
+| `ground_to_air_jump_momentum_multiplier` | 0.75 (Fox, Pikachu) / 0.7 (rest) | forum noemt 0.6–0.75 [S17] |
+| `jump_h_initial_velocity` | 0.72–0.9 | stick-bijdrage bij afzet |
+| `jump_h_max_velocity` | 1.1–1.7 | grens op run-jump-momentum; snelle characters hoger |
+| `air_jump_h_multiplier` | 0.85–1.0 | ≈ 1.1 × max air speed |
+| `walk_initial_velocity` / `walk_acceleration` | 0.1–0.2 / 0.05–0.1 | snelle characters sneller op gang |
+| `turn_frames` | 11 | typische Turn-animatielengte |
+| `run_brake_frames` | 18–24 | snelle characters korter |
+| `run_turn_frames` | 20–30 | Melee: tot 51 frames bij Marth (incl. remmen); hier een minimum, remmen komt erbij |
+| `squat_frames` / `squat_rv_frames` | 7 / 10 | typische animatielengtes |
+| `normal_landing_lag` | 4 | gangbaar, niet geverifieerd |
+| ECB (`ecb_height`, `ecb_mid_y`, `ecb_half_width`) | 10–18 / 5–9 / 3.5–5 | geschat naar postuur; nog alleen visueel (F2) |
+
+Gemeten wavedash-afstand (test-stick 75/−27, frame-perfect): Marth 47.5, Fox 34.9, Ganondorf 33.5, Pikachu 28.6, Peach 24.0 units — de volgorde (Marth lang, Peach kort) klopt met Melee.

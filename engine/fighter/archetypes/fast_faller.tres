@@ -1,0 +1,49 @@
+[gd_resource type="Resource" script_class="FighterStats" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://engine/fighter/fighter_stats.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+display_name = "Fast-faller"
+reference = "Fox (NTSC). ⚠️ = geschat: g2a/jump_h/air_jump_h, walk-accel, turn/brake/runturn/squat-frames, ground/air max, landing lag, ECB"
+weight = 75.0
+gravity = 0.23
+terminal_velocity = 2.8
+fast_fall_velocity = 3.4
+jumpsquat_frames = 3
+jump_v_initial_velocity = 3.68
+hop_v_initial_velocity = 2.1
+air_jump_v_multiplier = 1.2
+air_jumps = 1
+ground_to_air_jump_momentum_multiplier = 0.75
+jump_h_initial_velocity = 0.72
+jump_h_max_velocity = 1.7
+air_jump_h_multiplier = 0.9
+dash_initial_velocity = 1.9
+dash_frames = 11
+dash_accel_base = 0.02
+dash_accel_additional = 0.1
+run_speed = 2.2
+walk_initial_velocity = 0.2
+walk_acceleration = 0.1
+walk_max_velocity = 1.6
+traction = 0.08
+ground_max_horizontal_velocity = 3.5
+turn_frames = 11
+run_brake_frames = 18
+run_turn_frames = 20
+squat_frames = 7
+squat_rv_frames = 10
+air_accel_base = 0.02
+air_accel_additional = 0.06
+max_air_speed = 0.83
+air_friction = 0.02
+air_max_horizontal_velocity = 3.5
+special_fall_mobility = 1.0
+normal_landing_lag = 4
+airdodge_landing_lag = 10
+airdodge_intangible_start = 4
+airdodge_intangible_end = 29
+ecb_height = 13.0
+ecb_mid_y = 6.5
+ecb_half_width = 3.5
