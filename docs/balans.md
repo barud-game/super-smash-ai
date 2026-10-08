@@ -58,6 +58,10 @@ Elke move scoort Claude op vier assen (0–5):
 Specials krijgen daarnaast **Utility (0–10)**: recovery-afstand, projectiel, armor, counter, reflector,
 command grab, teleport, etc.
 
+De conversie van scores naar concrete frame data, hitboxen en knockback staat in `docs/move-conversie.md`.
+
+**Throws** scoren alleen op Snelheid en Kracht (max 10); Bereik en Veiligheid tellen niet mee.
+
 **Kosten van een move = som van de assen.** Een "gemiddelde" move kost ~8. De 22 moves samen,
 plus de movement-aanvullingen, moeten **≤ 200** uitkomen.
 
