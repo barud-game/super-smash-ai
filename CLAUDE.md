@@ -62,6 +62,12 @@ Het lokale Godot-pad staat in `CLAUDE.local.md` (niet in git).
   `get_usage`; vanaf ~85% van het 5-uurs- of weeklimiet geen nieuwe agents starten, lopend werk
   afronden, `PLAN.md` bijwerken en committen, zodat een volgende sessie naadloos verder kan.
 
+## Screenshots en zichtbare vensters
+De gebruiker werkt vaak op dezelfde pc. Gebruik voor logica/tests altijd `--headless`.
+Alleen screenshot-/preview-runs mogen een venster openen (headless rendert niet), en dan **buiten beeld en klein**:
+voeg altijd `--position -20000,-20000 --resolution 1280x720` toe (of de resolutie die de tool nodig heeft).
+Zo min mogelijk screenshot-runs; bundel waar kan (contactsheets).
+
 ## Werkafspraken
 - Na elke sessie: **status in `PLAN.md` bijwerken** en committen, zodat de volgende chat weet waar we zijn.
 - Commits klein en beschrijvend; push naar `main` tenzij anders afgesproken.
