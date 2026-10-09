@@ -3,21 +3,18 @@
 ## Huidige status
 > Bijwerken aan het eind van elke sessie.
 
-- **Fase (2026-10-09, gestopt op 5-uurslimiet):** M0 ✅, M1 ✅, M2 ledges gebouwd, M3 gevecht in de fighter gebouwd
-  (137 tests), M6 wedstrijd + HUD + VFX gebouwd. Standaard-movesets 90/90 PASS in de validator. Wacht op speeltest.
-- **Volgende (in deze volgorde):**
-  1. **Fix aerial-hoogtes:** short-hop-fair raakt geen staande tegenstander → aerial-hitboxes lager
-     (afspraak 8 in `docs/standaard-movesets.md` aanpassen naar ~35% van `visual_height`, onderste box lager),
-     validator + 5 movesets bijwerken, test toevoegen "SH-fair raakt staande fighter".
-  2. **Fix VFX-grootte:** hit-spark is ~2× character-hoogte; schalen naar het Melee-formaat (zie screenshot-review).
-  3. **`docs/verificatie.md` doorvoeren** (✅ 32 · ❌ 24 · ❓ 14). Top-afwijkingen: geen ledge-steal (bezette ledge =
-     grab faalt), regrab geeft elke keer 30 intangible frames (ledgestall), DI kwadratisch (`c*|c|`), hitlag
-     `int(int(d/3+3)*mul)` + electric alleen slachtoffer + crouch ×2/3 + cap 20, preset-waarden (sectie 5),
-     ledge-getup-frames (sectie 3), ledge-cooldown 30, missed-tech lig 220, SDI ×6 / ASDI ×3, ledge-grab vanuit tumble.
-  4. **M4 verdediging:** shield + lightshield + shield-HP/break, shieldstun voor de verdediger, OoS-opties,
-     rolls, spotdodge, grab/dash grab/pummel/throws (hook `check_grab()`), grab-release.
-  5. **Special-sjablonen/toolkit** (`docs/special-sjablonen.md`, bouwstenen-lijst).
-  6. **M7:** eerste character **Captain Pep** (voorstel in `characters/_concepten/captain_pep/ontwerp.md`, wacht op akkoord gebruiker).
+- **Fase (2026-10-09):** M0–M4 ✅ gebouwd, M5 special-toolkit ✅ (16 sjablonen, aangesloten op fighter + wedstrijd),
+  M6 wedstrijd ✅. Ledge-fix (hangpositie uit rig, elke lengte 8–30), aerials lager, VFX geschaald, combat-formules
+  volgens `docs/verificatie.md` — allemaal gecommit. ~2.300 headless checks over 15 suites slagen.
+- **Wacht op gebruiker:** speeltest ledges + M4 (shield/grabs); akkoord op **Captain Pep**
+  (`characters/_concepten/captain_pep/ontwerp.md`: hamburger-neutral-B, racefiets-side-B, taunt "DA'S PAS SPUL!").
+- **Volgende:**
+  1. **M7 Captain Pep** bouwen na akkoord (svg-artist, normals-builder voor Jitter Knee, specials als sjabloon-config,
+     ko-effect-builder; props hamburger + racefiets).
+  2. **Special-VFX:** `VfxLayer.spawn_special_fx(...)` bestaat nog niet (events staan nu alleen in `SpecialKit.fx_log`).
+  3. **Intercept-hook in `CombatSystem`** voor armor tegen grabs en buff-`damage_dealt_mult` op normals.
+  4. Rest-⚠️ uit `docs/verificatie.md` (❓-punten), attacker-pushback op shield, shield-tilt.
+- **Screenshots:** alleen de director, na waarschuwing in de chat (zie CLAUDE.md).
 - **Gebouwd (overzicht):** sim + input (`engine/sim.gd`, `engine/input/`), fighter + states (`engine/fighter/`),
   combat-modules (`engine/combat/`, `docs/combat.md`), rig + poses (`engine/visual/`, `docs/rig.md`),
   stage Eindpunt + camera, SFX, VFX (`docs/vfx.md`), menu's + character select, wedstrijd/HUD/results/training
