@@ -17,3 +17,4 @@ var shielding: bool = false
 var shield_center: Vector2 = Vector2.ZERO
 var shield_radius: float = 0.0
 var shield_analog: float = 1.0 ## ruwe analoge stand s, 0..1 (1 = vol/digitaal); shieldstun normaliseert (s-0.3)/0.7
+var grabbable: bool = true    ## false = kan niet gegrepen worden (al gegrepen, zelf aan het grijpen/gooien)

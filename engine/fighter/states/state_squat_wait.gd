@@ -8,7 +8,7 @@ func id() -> String:
 
 
 func iasa() -> void:
-	if f.check_ground_attack():
+	if f.check_ground_attack() or f.check_guard():
 		return
 	if f.check_ground_jump() or f.check_platform_drop():
 		return

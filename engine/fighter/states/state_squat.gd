@@ -13,7 +13,7 @@ func anim() -> void:
 
 
 func iasa() -> void:
-	if f.check_ground_attack():
+	if f.check_ground_attack() or f.check_guard():
 		return
 	if f.check_ground_jump():
 		return

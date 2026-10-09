@@ -120,6 +120,30 @@ var last_hit_by: int = -1
 ## Optioneel: VfxLayer voor effecten. Leeg = eerste node in groep "vfx_layer".
 var vfx: Node = null
 
+# --- Verdediging (M4, docs/combat.md "M4-implementatie") ---
+## Shield-HP (0..60). Slijt in GuardOn/Guard, herstelt daarbuiten; <= 0 = shield break.
+var shield_hp: float = FighterConst.SHIELD_MAX_HP
+## UCF shield drop: ook een schuine omlaag-flick (|x| >= UCF_SHIELD_DROP_MIN_X) zakt door een platform.
+@export var ucf_shield_drop: bool = true
+## Grab: de andere kant van de grab (holder <-> victim), anders null. Alleen geldig in de grab-familie-states.
+var grab_partner: Fighter = null
+## Holder: afstand (units, vooruit) van de voeten van de holder tot de voeten van de victim.
+var grab_hold_dx: float = 0.0
+## Victim: frames tot hij loskomt (mashen trekt eraf); in de lucht gegrepen = lucht-release.
+var grab_timer: int = 0
+var grabbed_airborne: bool = false
+## Specials (B): de special-toolkit zet deze hook: Callable(fighter: Fighter, input: Dictionary) -> bool. Zie check_special().
+var special_hook: Callable = Callable()
+## SDI/ASDI in de huidige hitlag toegestaan (niet bij throws en pummels).
+var _sdi_allowed: bool = true
+## tick_count van de laatste digitale shield-klik (powershield).
+var _ps_tick: int = -1000
+## Grab-acties van deze frame (zie queue_pummel/queue_throw).
+var _pending_pummel: bool = false
+var _pending_throw: HitboxData = null
+var _pending_throw_set: bool = false
+var _shield_node: Node2D = null
+
 var _states: Dictionary = {}
 ## Teller van state-wissels (visual: dezelfde pose opnieuw starten bij een nieuwe aanval).
 var _serial: int = 0
@@ -173,6 +197,13 @@ func setup() -> void:
 		_debug_node.z_index = 100
 		_debug_node.draw.connect(_draw_debug)
 		add_child(_debug_node)
+	if use_visual and _shield_node == null:
+		# Shield-bubble (spelerskleur, krimpt met de HP) boven de visual, onder de debug-laag.
+		_shield_node = Node2D.new()
+		_shield_node.name = "ShieldBubble"
+		_shield_node.z_index = 50
+		_shield_node.draw.connect(_draw_shield)
+		add_child(_shield_node)
 	if moves.is_empty():
 		reload_moves()
 	if auto_register and is_inside_tree():
@@ -208,6 +239,10 @@ func _register_default_states() -> void:
 		StateDead.new(),
 		StateAttack.new(), StateAttackAir.new(), StateDamage.new(), StateDamageFly.new(), StateDamageFall.new(),
 		StateTech.new(), StateDownBound.new(), StateDownWait.new(), StateDownGetup.new(), StateRebound.new(),
+		StateGuardOn.new(), StateGuard.new(), StateGuardSetOff.new(), StateGuardOff.new(),
+		StateShieldBreak.new(), StateShieldBreakDown.new(), StateDizzy.new(), StateEscape.new(), StateEscapeN.new(),
+		StateGrab.new(), StateGrabHold.new(), StatePummel.new(), StateThrow.new(), StateGrabbed.new(),
+		StateThrown.new(), StateGrabRelease.new(),
 	]:
 		register_state(s)
 
@@ -234,6 +269,9 @@ func change_state(id: String, args: Dictionary = {}) -> void:
 	# Een state die de ledge niet vasthoudt geeft hem vrij (ook bij spawn/KO/ledge-steal).
 	if ledge_key != "" and not next.holds_ledge():
 		_free_ledge_slot()
+	# Een state buiten de grab-familie verbreekt de grab (geraakt, KO, ...); de partner gaat naar zijn release-state.
+	if grab_partner != null and not next.keeps_grab():
+		_drop_grab()
 	prev_state_name = old
 	state = next
 	state_frame = 0
@@ -264,6 +302,8 @@ func sim_tick(_frame: int = 0) -> void:
 		ledge_cooldown_frames -= 1
 	if ledge_key != "":
 		ledge_hang_frames += 1
+	if not state.is_shielding():
+		shield_hp = minf(shield_hp + FighterConst.SHIELD_REGEN, FighterConst.SHIELD_MAX_HP)
 	_segments = _read_segments()
 	_ledges = _read_ledges()
 	state_frame += 1
@@ -295,6 +335,7 @@ func spawn(at: Vector2, dir: int = 1) -> void:
 	reset_combat()
 	intangible_frames = 0
 	ledge_cooldown_frames = 0
+	shield_hp = FighterConst.SHIELD_MAX_HP
 	var seg: int = _segment_at(at, 0.01)
 	if seg >= 0:
 		_set_grounded(seg, at.x)
@@ -330,6 +371,7 @@ func respawn_at(p: Vector2, invincible_frames: int) -> void:
 	ignore_platform = -1
 	reset_combat()
 	ledge_cooldown_frames = 0
+	shield_hp = FighterConst.SHIELD_MAX_HP
 	if absf(p.x) > 1.0:
 		facing = -1 if p.x > 0.0 else 1
 	reset_fast_fall_buffer()
@@ -416,9 +458,10 @@ func _y_excursion() -> int:
 # =============================================================================================
 
 ## Volledige lijst van Wait (en states die "actionable" zijn zoals Wait).
+## Volgorde: special, grab, aanval (check_ground_attack), shield, sprong, dash, squat, turn, walk.
 func check_wait_interrupts() -> bool:
-	return check_ground_attack() or check_ground_jump() or check_dash() or check_squat() or check_turn() \
-		or check_walk()
+	return check_ground_attack() or check_guard() or check_ground_jump() or check_dash() or check_squat() \
+		or check_turn() or check_walk()
 
 
 func check_ground_jump() -> bool:
@@ -704,6 +747,9 @@ func reset_combat() -> void:
 	hitboxes_off = false
 	already_hit.clear()
 	last_hitboxes.clear()
+	_pending_pummel = false
+	_pending_throw = null
+	_pending_throw_set = false
 
 
 # --- input --------------------------------------------------------------------------------------
@@ -715,6 +761,8 @@ func _track_presses() -> void:
 	var trig: float = fr.shield_analog()
 	var trig_press: bool = trig >= FighterConst.TRIGGER_PRESS and _prev_trigger < FighterConst.TRIGGER_PRESS
 	_prev_trigger = trig
+	if input.pressed(InputFrame.BTN_SHIELD):
+		_ps_tick = tick_count
 	var shield_press: bool = input.pressed(InputFrame.BTN_SHIELD) or trig_press
 	if shield_press or input.pressed(InputFrame.BTN_Z):
 		_lc_tick = tick_count
@@ -744,16 +792,44 @@ func cstick_dir() -> Vector2i:
 	return Vector2i(1 if c.x > 0.0 else -1, 0)
 
 
-## TODO M4: grab (Z, shield + A, JC/dash grab). Nu doen deze inputs bewust niets (en geven geen jab).
-func check_grab() -> bool:
-	return input.pressed(InputFrame.BTN_Z) \
-		or (input.pressed(InputFrame.BTN_ATTACK) and input.held(InputFrame.BTN_SHIELD))
+## Grab-input: Z, of A terwijl de shield (analoog) vastgehouden wordt. Start de grab (dash = dash grab uit Dash/Run).
+## Geeft true als de input een grab-input was (ook als de moveset geen grab heeft: dan geen jab).
+func check_grab(dash: bool = false) -> bool:
+	if not (input.pressed(InputFrame.BTN_Z) or (input.pressed(InputFrame.BTN_ATTACK) and shield_held())):
+		return false
+	start_grab(dash)
+	return true
+
+
+## Special-hook (B = BTN_SPECIAL). Aangeroepen in alle grond-actionable states (via check_ground_attack,
+## check_dash_attack en check_jc_usmash, dus ook up-B uit shield via jumpsquat) en lucht-actionable states (via
+## check_aerial), vóór grab en aanvallen. Doet nu niets: de special-toolkit zet `special_hook`
+## (Callable(fighter, special_input()) -> bool, true = er is een special gestart) of vervangt deze body.
+func check_special() -> bool:
+	if not input.pressed(InputFrame.BTN_SPECIAL) or not special_hook.is_valid():
+		return false
+	return bool(special_hook.call(self, special_input()))
+
+
+## Richting van een special-input t.o.v. de kijkrichting:
+##   dir: "neutral" / "side" / "up" / "down" (dominante as; up/down vanaf SPECIAL_UPDOWN_THRESHOLD, side vanaf
+##        SPECIAL_SIDE_THRESHOLD ⚠️), back: stick-x tegen de kijkrichting (side-B achteruit / B-reverse), grounded.
+func special_input() -> Dictionary:
+	var s: Vector2 = stick()
+	var dir: String = "neutral"
+	if absf(s.y) >= absf(s.x) and MeleeStick.reaches(s.y, FighterConst.SPECIAL_UPDOWN_THRESHOLD):
+		dir = "up" if s.y > 0.0 else "down"
+	elif MeleeStick.reaches(s.x, FighterConst.SPECIAL_SIDE_THRESHOLD):
+		dir = "side"
+	var back: bool = s.x * facing < 0.0 and MeleeStick.reaches(s.x, MeleeStick.TURN_THRESHOLD)
+	return {"dir": dir, "back": back, "grounded": grounded}
 
 
 ## Grond-aanval zoals Melee: C-stick = smash; A + flick (teller < SMASH_ATTACK_WINDOW) = smash;
 ## A + stick = tilt (dominante as); A neutraal = jab. Smash/ftilt naar achteren draaien de fighter om.
+## Eerst special en grab.
 func check_ground_attack() -> bool:
-	if check_grab():
+	if check_special() or check_grab():
 		return true
 	var c: Vector2i = cstick_dir()
 	if c != Vector2i.ZERO:
@@ -784,7 +860,7 @@ func _start_smash(dir: Vector2i, with_a: bool) -> bool:
 
 ## Dash/Run: A of C-stick = dash attack. In de initial dash ook usmash (A + omhoog-flick of C-stick omhoog). ⚠️
 func check_dash_attack(allow_usmash: bool) -> bool:
-	if check_grab():
+	if check_special() or check_grab(true):
 		return true
 	var c: Vector2i = cstick_dir()
 	var a: bool = input.pressed(InputFrame.BTN_ATTACK)
@@ -796,18 +872,21 @@ func check_dash_attack(allow_usmash: bool) -> bool:
 	return false
 
 
-## Jumpsquat: A + stick omhoog (of C-stick omhoog) = jump-cancelled usmash (de sprong vervalt).
+## Jumpsquat: A + stick omhoog (of C-stick omhoog) = jump-cancelled usmash (de sprong vervalt). Ook special
+## (up-B uit shield) en JC grab (staande grab; na usmash, zodat shield vast + A + omhoog een OoS-usmash blijft).
 func check_jc_usmash() -> bool:
-	if check_grab():
+	if check_special():
 		return true
 	var a: bool = input.pressed(InputFrame.BTN_ATTACK)
 	if cstick_dir().y > 0 or (a and stick_y() >= FighterConst.JC_USMASH_THRESHOLD - FighterConst.EPS):
 		return start_attack("usmash", {"charge": a})
-	return false
+	return check_grab()
 
 
 ## Aerial: C-stick of A + stick (dominante as, t.o.v. facing): nair / fair / bair / uair / dair.
 func check_aerial() -> bool:
+	if check_special():
+		return true
 	var c: Vector2i = cstick_dir()
 	var d: Vector2
 	if c != Vector2i.ZERO:
@@ -874,6 +953,12 @@ func combat_target() -> CombatTarget:
 	t.crouching = grounded and state != null and state.is_crouching()
 	t.intangible = is_intangible() or not active
 	t.charging = state != null and state.id() == "Attack" and (state as StateAttack).charging
+	t.shielding = state != null and state.is_shielding()
+	if t.shielding:
+		t.shield_center = pos + shield_center_local()
+		t.shield_radius = shield_radius()
+		t.shield_analog = shield_value()
+	t.grabbable = grab_partner == null
 	return t
 
 
@@ -904,10 +989,12 @@ func on_clank(hitlag: int, rebound: bool) -> void:
 
 ## Slachtoffer: percent, ledge-reset, damage-state, hitlag. De launch wacht tot het einde van de hitlag
 ## (SDI tijdens, ASDI en DI op het laatste hitlag-frame). Geeft true als de hit (vrijwel zeker) killt.
-func receive_hit(ev: HitEvent) -> bool:
+## allow_sdi = false bij throws: wel DI, geen SDI/ASDI.
+func receive_hit(ev: HitEvent, allow_sdi: bool = true) -> bool:
 	var kb: KnockbackResult = ev.knockback
 	last_hit_by = ev.attacker
 	_victim_tick = tick_count
+	_sdi_allowed = allow_sdi
 	set_percent(minf(percent + ev.damage, MAX_PERCENT))
 	# Melee (ftCo_Damage): geraakt worden laat de ledge los en zet dezelfde ledge-lock (30) als loslaten.
 	release_ledge(stats.ledge_cooldown)
@@ -933,9 +1020,11 @@ func _hitlag_tick() -> void:
 	hitlag_frames -= 1
 	if hitlag_victim:
 		var cur: Vector2 = stick()
-		var off: Vector2 = Knockback.sdi_offset(input.get_frame(1).stick_f(), cur)
+		var off: Vector2 = Vector2.ZERO
+		if _sdi_allowed:
+			off = Knockback.sdi_offset(input.get_frame(1).stick_f(), cur)
 		var asdi_stick: Vector2 = cur
-		if hitlag_frames == 0:
+		if hitlag_frames == 0 and _sdi_allowed:
 			# ASDI: C-stick heeft voorrang op de stick (Melee).
 			var cs: Vector2 = input.get_frame(0).cstick_f()
 			if cs != Vector2.ZERO:
@@ -944,7 +1033,7 @@ func _hitlag_tick() -> void:
 		if off != Vector2.ZERO:
 			_nudge(off)
 		if hitlag_frames == 0:
-			_end_victim_hitlag(cur, asdi_stick)
+			_end_victim_hitlag(cur, asdi_stick if _sdi_allowed else Vector2.ZERO)
 	elif hitfall_allowed and not grounded and not fastfalling \
 			and input.flick_y(MeleeStick.FAST_FALL_THRESHOLD, MeleeStick.FAST_FALL_WINDOW) == -1:
 		# Hitfall (Rivals-aanpak): ook tijdens het stijgen; vy wordt in de volgende phys() gezet.
@@ -1040,6 +1129,355 @@ func _flies_out(launch: Vector2, hitstun: int, bz: Rect2) -> bool:
 		if k == Vector2.ZERO and i > hitstun:
 			return false
 	return false
+
+
+# =============================================================================================
+# Verdediging (M4): shield, OoS, rolls/spotdodge, grab/pummel/throws. Zie docs/combat.md, "M4-implementatie".
+# =============================================================================================
+
+## Analoge shield-stand s (0..1): de digitale klik telt als vol (1.0), anders de sterkste trigger.
+func shield_value() -> float:
+	var fr: InputFrame = input.get_frame(0)
+	if fr.has(InputFrame.BTN_SHIELD):
+		return 1.0
+	return fr.shield_analog()
+
+
+## Shield vastgehouden (analoog >= 0.3 of digitaal).
+func shield_held() -> bool:
+	return shield_value() >= FighterConst.SHIELD_ON_THRESHOLD - FighterConst.EPS
+
+
+## Lichtheid van de shield: 0 = vol (digitaal), 1 = lichtste (s = 0.3). = 1 - Knockback.shield_norm(s).
+func shield_lightness() -> float:
+	return 1.0 - Knockback.shield_norm(shield_value())
+
+
+## Grond-actionable: shield vast -> GuardOn.
+func check_guard() -> bool:
+	if not grounded or not shield_held():
+		return false
+	change_state("GuardOn")
+	return true
+
+
+## Shield-middelpunt t.o.v. de voeten (units, y omhoog).
+func shield_center_local() -> Vector2:
+	return Vector2(0.0, stats.shield_center_ratio * stats.visual_height)
+
+
+## Straal van de shield-bubble: krimpt met de HP, groter bij een lightshield. ⚠️ (zie FighterConst)
+func shield_radius() -> float:
+	var hp: float = clampf(shield_hp / FighterConst.SHIELD_MAX_HP, 0.0, 1.0)
+	var k: float = FighterConst.SHIELD_MIN_SCALE + (1.0 - FighterConst.SHIELD_MIN_SCALE) * hp
+	return stats.shield_size_ratio * stats.visual_height * k * (1.0 + FighterConst.SHIELD_LIGHT_GROW * shield_lightness())
+
+
+## Vasthouden in GuardOn/Guard: shield slijt; <= 0 -> shield break. Geeft true bij een break (state gewisseld).
+func drain_shield() -> bool:
+	shield_hp -= FighterConst.SHIELD_DEPLETION
+	if shield_hp <= 0.0:
+		break_shield()
+		return true
+	return false
+
+
+## Powershield: digitale klik in de eerste POWERSHIELD_WINDOW frames van GuardOn.
+func powershield_active() -> bool:
+	return state != null and state.id() == "GuardOn" and state_frame < FighterConst.POWERSHIELD_WINDOW \
+		and tick_count - _ps_tick < FighterConst.POWERSHIELD_WINDOW
+
+
+## Verdediger: treffer op de shield (CombatSystem). Shield-schade × (0.7 .. 1.35), hitlag (met shield-SDI), dan
+## GuardSetOff met shieldstun + pushback weg van de hitbox. Powershield: niets daarvan. HP <= 0 = shield break.
+func on_shield_hit(ev: HitEvent) -> void:
+	last_hit_by = ev.attacker
+	var light: float = shield_lightness()
+	var dir: float = signf(pos.x - ev.hitbox.pos.x)
+	if dir == 0.0:
+		dir = float(ev.hitbox.facing)
+	var v: Node = get_vfx()
+	if powershield_active():
+		if v != null and v.has_method("spawn_shield_hit"):
+			v.spawn_shield_hit(ev.hitbox.pos, 1.0, Color.WHITE, 0.0 if dir < 0.0 else 180.0)
+		_sfx("shield_hit")
+		return
+	shield_hp -= ev.shield_damage * (FighterConst.SHIELD_DAMAGE_MULT + FighterConst.SHIELD_DAMAGE_LIGHT_EXTRA * light)
+	_victim_tick = tick_count
+	_sdi_allowed = true
+	hitlag_victim = true
+	hitfall_allowed = false
+	pending_kb = null
+	hitlag_frames = ev.defender_hitlag
+	hitlag_strength = clampf(1.0 + ev.damage * 0.2, 1.0, 5.0)
+	if v != null and v.has_method("spawn_shield_hit"):
+		v.spawn_shield_hit(ev.hitbox.pos, clampf(ev.damage / 20.0, 0.1, 1.0), player_color(), 0.0 if dir < 0.0 else 180.0)
+	if shield_hp <= 0.0:
+		break_shield()
+		return
+	_sfx("shield_hit")
+	var push: float = FighterConst.SHIELD_PUSH_BASE \
+		+ ev.damage * (0.65 * light + 0.3) * FighterConst.SHIELD_PUSH_PER_DAMAGE
+	change_state("GuardSetOff", {"stun": ev.shield_stun, "push": dir * minf(push, FighterConst.SHIELD_PUSH_MAX)})
+
+
+## Shield break: HP terug op 30, omhoog gelanceerd (ShieldBreak -> ShieldBreakDown -> Dizzy).
+func break_shield() -> void:
+	shield_hp = FighterConst.SHIELD_BREAK_RESET_HP
+	_sfx("shield_break")
+	var v: Node = get_vfx()
+	if v != null and v.has_method("spawn_shield_hit"):
+		v.spawn_shield_hit(pos + shield_center_local(), 1.0, player_color(), 90.0)
+	change_state("ShieldBreak")
+
+
+## Uit shield (Guard/GuardOn): grab (A/Z), sprong (JC: usmash/up-B/grab volgen in KneeBend), shield drop,
+## spotdodge (omlaag-flick), roll (x-flick). Geeft true bij een wissel.
+func check_oos() -> bool:
+	if input.pressed(InputFrame.BTN_ATTACK) or input.pressed(InputFrame.BTN_Z):
+		start_grab(false)
+		return true
+	if check_ground_jump():
+		return true
+	if check_shield_drop():
+		return true
+	if input.flick_y(FighterConst.SPOTDODGE_THRESHOLD, FighterConst.SPOTDODGE_WINDOW) == -1:
+		change_state("EscapeN")
+		return true
+	var fx: int = input.flick_x(MeleeStick.SMASH_THRESHOLD, MeleeStick.DASH_FLICK_WINDOW)
+	if fx != 0:
+		change_state("Escape", {"dir": fx * facing})
+		return true
+	return false
+
+
+## Shield drop (Melee ftCo_8009A080: shield vast + verse omlaag-flick, op een platform). Vanilla: alleen in de smalle
+## band -0.7 < y <= -0.6875 (anders wint spotdodge); UCF: ook schuin omlaag (|x| >= UCF_SHIELD_DROP_MIN_X).
+func check_shield_drop() -> bool:
+	if not grounded or not _is_platform(ground_seg):
+		return false
+	if input.flick_y(MeleeStick.PLATFORM_DROP_THRESHOLD, MeleeStick.PLATFORM_DROP_WINDOW) != -1:
+		return false
+	var s: Vector2 = stick()
+	var notch: bool = s.y > -FighterConst.SPOTDODGE_THRESHOLD + FighterConst.EPS
+	var ucf: bool = ucf_shield_drop and MeleeStick.reaches(s.x, FighterConst.UCF_SHIELD_DROP_MIN_X)
+	if not notch and not ucf:
+		return false
+	ignore_platform = ground_seg
+	leave_ground(Vector2(gr_vel, 0.0))
+	change_state("Fall")
+	return true
+
+
+func player_color() -> Color:
+	return Color(Rig.PLAYER_PALETTES[posmod(player, Rig.PLAYER_PALETTES.size())]["main"])
+
+
+# --- grab / throws ------------------------------------------------------------------------------
+
+## Start een (dash) grab met de move "grab" uit de moveset. false als die er niet is.
+func start_grab(dash: bool) -> bool:
+	if not grounded or not moves.has("grab"):
+		return false
+	change_state("Grab", {"dash": dash})
+	return true
+
+
+## Mag een grab-treffer van deze frame nog vastpakken? (De grab-state loopt nog en er is geen partner.)
+func can_land_grab() -> bool:
+	return state != null and state.id() == "Grab" and grab_partner == null
+
+
+## Verste grab-hitbox vooruit (units): de vasthoudpositie (afspraak 3: de throw-hitbox zit op de grab-tip).
+func grab_tip() -> float:
+	var m: MoveData = get_move("grab")
+	var tip: float = 0.0
+	if m != null:
+		for h: HitboxData in m.hitboxes:
+			tip = maxf(tip, h.offset.x)
+	return tip
+
+
+## Grab raakt (CombatSystem): holder -> GrabHold, victim -> Grabbed op de grab-tip, timer volgens % (mashen verkort).
+func on_grab_landed(victim: Fighter, _ev: HitEvent = null) -> void:
+	grab_partner = victim
+	grab_hold_dx = grab_tip() + FighterConst.GRAB_HOLD_BODY_RATIO * victim.stats.visual_height
+	victim.grab_partner = self
+	victim.grabbed_airborne = not victim.grounded
+	victim.last_hit_by = player
+	victim.grab_timer = int(FighterConst.GRAB_TIMER_BASE + FighterConst.GRAB_TIMER_PER_PERCENT * victim.percent)
+	victim.reset_combat()
+	victim.release_ledge(victim.stats.ledge_cooldown)
+	victim.fastfalling = false
+	victim.facing = -facing
+	change_state("GrabHold")
+	victim.change_state("Grabbed")
+	place_grab_victim()
+	_sfx("grab")
+
+
+## Holder: zet de victim op de vasthoudpositie (voeten op grab-tip + lijf), kijkend naar de holder.
+## Staat daar grond, dan grounded (voor throws: 361/grond-bounce), anders hangt hij in de lucht (lucht-release).
+func place_grab_victim() -> void:
+	var v: Fighter = grab_partner
+	if v == null or not is_instance_valid(v):
+		return
+	var p := Vector2(pos.x + facing * grab_hold_dx, pos.y)
+	v.vel = Vector2.ZERO
+	v.kb_vel = Vector2.ZERO
+	v.gr_vel = 0.0
+	v.facing = -facing
+	var seg: int = _segment_at(p, 0.5) if grounded else -1
+	if seg >= 0:
+		v._segments = _segments
+		v._set_grounded(seg, p.x)
+	else:
+		v.pos = p
+		v.grounded = false
+		v.ground_seg = -1
+	v._update_visual()
+
+
+## Victim: mash-input (nieuwe knop of verse stickrichting) verkort de grab-timer.
+func grab_mash_input() -> bool:
+	for b: int in [InputFrame.BTN_ATTACK, InputFrame.BTN_SPECIAL, InputFrame.BTN_JUMP, InputFrame.BTN_Z,
+			InputFrame.BTN_SHIELD]:
+		if input.pressed(b):
+			return true
+	return input.stick_timer_x() == 0 or input.stick_timer_y() == 0 or cstick_dir() != Vector2i.ZERO
+
+
+## Victim: grab-timer op -> loskomen. Holder -> GrabRelease (kleine pushback), victim -> grond- of lucht-release.
+func grab_escape() -> void:
+	var g: Fighter = grab_partner
+	grab_partner = null
+	if g != null and is_instance_valid(g) and g.grab_partner == self:
+		g.grab_partner = null
+		g.change_state("GrabRelease", {"push": -g.facing * FighterConst.GRAB_RELEASE_PUSH * 0.5})
+	_release_victim()
+
+
+## Victim komt los: in de lucht gegrepen (of hangend boven de afgrond) = lucht-release (omhoog, direct actionable),
+## anders grond-release (GrabRelease, weggeduwd van de holder).
+func _release_victim() -> void:
+	var away: float = -float(facing)
+	if grabbed_airborne or not grounded:
+		leave_ground(Vector2(away * 0.5, FighterConst.GRAB_AIR_RELEASE_VY))
+		change_state("Fall")
+	else:
+		change_state("GrabRelease", {"push": away * FighterConst.GRAB_RELEASE_PUSH})
+
+
+## Verbreek de grab omdat deze fighter de grab-familie verlaat (geraakt, KO, ...). De partner gaat naar zijn release.
+func _drop_grab() -> void:
+	var p: Fighter = grab_partner
+	grab_partner = null
+	if p == null or not is_instance_valid(p) or p.grab_partner != self:
+		return
+	p.grab_partner = null
+	if p.state == null or not p.state.keeps_grab():
+		return
+	if p.state.id() == "Grabbed" or p.state.id() == "Thrown":
+		p._release_victim()
+	else:
+		p.change_state("GrabRelease", {"push": 0.0})
+
+
+## Holder in GrabHold: throw-richting uit stick (dominante as >= THROW_STICK_THRESHOLD) of verse C-stick,
+## t.o.v. de kijkrichting. "" = geen throw-input.
+func throw_input() -> String:
+	var d: Vector2 = Vector2(cstick_dir())
+	if d == Vector2.ZERO:
+		var s: Vector2 = stick()
+		if maxf(absf(s.x), absf(s.y)) < FighterConst.THROW_STICK_THRESHOLD - FighterConst.EPS:
+			return ""
+		d = s
+	if absf(d.y) > absf(d.x):
+		return "uthrow" if d.y > 0.0 else "dthrow"
+	return "fthrow" if d.x * facing > 0.0 else "bthrow"
+
+
+## Holder: pummel-treffer / throw-launch van deze frame klaarzetten. CombatSystem.step past ze toe ná alle
+## fighter-ticks (apply_grab_actions), zodat holder en victim hun hitlag symmetrisch krijgen, net als bij hits.
+func queue_pummel() -> void:
+	_pending_pummel = true
+
+
+func queue_throw(hb: HitboxData) -> void:
+	_pending_throw = hb
+	_pending_throw_set = true
+
+
+## Aangeroepen door CombatSystem.step (post-tick, fighters op volgorde van `player`).
+func apply_grab_actions() -> void:
+	if _pending_pummel:
+		_pending_pummel = false
+		pummel_hit()
+	if _pending_throw_set:
+		var hb: HitboxData = _pending_throw
+		_pending_throw_set = false
+		_pending_throw = null
+		if grab_partner != null and hb != null:
+			throw_victim(hb)
+		elif grab_partner != null and state != null and state.id() == "Throw":
+			change_state("Wait")   # throw zonder hitbox: grab verbreekt zonder launch
+
+
+## Holder: pummel-treffer (kan niet missen): damage op de victim, hitlag voor beiden (geen SDI).
+func pummel_hit() -> void:
+	var v: Fighter = grab_partner
+	if v == null or not is_instance_valid(v):
+		return
+	var d: float = stats.pummel_damage
+	v.set_percent(minf(v.percent + d, MAX_PERCENT))
+	v.last_hit_by = player
+	var hl: int = Knockback.hitlag_frames(d)
+	hitlag_frames = hl
+	hitlag_victim = false
+	hitfall_allowed = false
+	v.hitlag_frames = hl
+	v.hitlag_victim = true
+	v._sdi_allowed = false
+	v.pending_kb = null
+	v._victim_tick = v.tick_count
+	v.hitlag_strength = clampf(1.5 + d * 0.35, 1.5, 9.0)
+	var fx: Node = get_vfx()
+	if fx != null and fx.has_method("spawn_hit"):
+		fx.spawn_hit(v.pos + Vector2(0.0, v.stats.visual_height * 0.55), 0.08, 0, 0.0, false, 2.0)
+	_sfx("hit_weak")
+
+
+## Holder: de throw lanceert (launch-frame van de throw-hitbox). Throws kunnen niet missen: de knockback van de
+## throw-hitbox wordt direct op de victim toegepast (gewicht/percent van de victim, hoek t.o.v. de holder, DI wel,
+## SDI/ASDI niet). Achterwaartse throws (hoek 90..270) zetten de victim eerst achter de holder.
+func throw_victim(hb: HitboxData) -> void:
+	var v: Fighter = grab_partner
+	if v == null or not is_instance_valid(v) or hb == null:
+		return
+	grab_partner = null
+	v.grab_partner = null
+	if hb.angle > 90.0 and hb.angle < 270.0:
+		var p := Vector2(pos.x - facing * grab_hold_dx, pos.y)
+		var seg: int = _segment_at(p, 0.5) if grounded else -1
+		if seg >= 0:
+			v._segments = _segments
+			v._set_grounded(seg, p.x)
+		else:
+			v.pos = p
+			v.grounded = false
+			v.ground_seg = -1
+	var kb: KnockbackResult = Knockback.compute(hb, hb.damage, v.percent, v.stats.weight, v.grounded, false, facing)
+	var ev := HitEvent.new()
+	ev.kind = HitEvent.Kind.HIT
+	ev.attacker = player
+	ev.defender = v.player
+	ev.damage = hb.damage
+	ev.knockback = kb
+	ev.hitbox = ActiveHitbox.make(hb, player, move_instance, v.pos + Vector2(0.0, v.stats.visual_height * 0.5), facing)
+	ev.attacker_hitlag = 0
+	ev.defender_hitlag = Knockback.hitlag_frames(hb.damage, hb.element, hb.hitlag_mult, true, false)
+	v.receive_hit(ev, false)
+	_sfx("throw")
 
 
 # --- effecten (alleen presentatie) --------------------------------------------------------------
@@ -1446,6 +1884,8 @@ func _update_visual() -> void:
 		queue_redraw()
 		if _debug_node != null:
 			_debug_node.queue_redraw()
+		if _shield_node != null:
+			_shield_node.queue_redraw()
 
 
 func _draw() -> void:
@@ -1455,6 +1895,24 @@ func _draw() -> void:
 		var w: float = 14.0 * k0
 		draw_rect(Rect2(Vector2(-w, 0.0), Vector2(2.0 * w, 3.0 * k0)), Color(0.55, 0.85, 1.0, 0.85))
 		draw_rect(Rect2(Vector2(-w, 3.0 * k0), Vector2(2.0 * w, 1.0 * k0)), Color(0.3, 0.5, 0.9, 0.6))
+
+
+## Shield-bubble: cirkel in de spelerskleur op shield_center_local() met shield_radius() (krimpt met de HP, groter
+## bij een lightshield). Doorschijnender bij een lightshield; wit tijdens het powershield-venster.
+func _draw_shield() -> void:
+	if state == null or not active or not state.is_shielding() or stats == null:
+		return
+	var c: Color = player_color()
+	if powershield_active():
+		c = c.lerp(Color.WHITE, 0.7)
+	var k: float = Units.UNIT_TO_PX
+	var ctr: Vector2 = Units.to_px(shield_center_local())
+	var r: float = shield_radius() * k
+	var alpha: float = 0.42 - 0.17 * shield_lightness()
+	var hp: float = clampf(shield_hp / FighterConst.SHIELD_MAX_HP, 0.0, 1.0)
+	_shield_node.draw_circle(ctr, r, Color(c.r, c.g, c.b, alpha))
+	_shield_node.draw_circle(ctr + Vector2(-0.3, -0.35) * r, r * 0.28, Color(1, 1, 1, 0.18 * alpha / 0.42))
+	_shield_node.draw_arc(ctr, r, 0.0, TAU, 48, Color(c.lightened(0.35), 0.55 + 0.35 * hp), 2.5, true)
 
 
 ## F2 (Sim.debug_hitboxes): ECB, hurtboxes en hitboxes, boven de visual (CombatDebug-node, z 100).
@@ -1494,10 +1952,16 @@ func get_debug_state_name() -> String:
 		s += "  INTANGIBLE"
 		if intangible_frames > 0:
 			s += "(%d)" % intangible_frames
+	if shield_hp < FighterConst.SHIELD_MAX_HP or (state != null and state.is_shielding()):
+		s += "  shield %.1f" % shield_hp
+		if state != null and state.is_shielding():
+			s += " (s %.2f%s)" % [shield_value(), ", POWERSHIELD" if powershield_active() else ""]
+	if grab_partner != null and state != null and (state.id() == "Grabbed" or state.id() == "Thrown"):
+		s += "  grab-timer %d" % grab_timer
 	return s
 
 
 ## Momentopname voor tests/determinisme.
 func snapshot() -> Array:
 	return [state_name(), state_frame, pos, vel, gr_vel, facing, grounded, air_jumps_used, fastfalling,
-		intangible_frames, ledge_key, active, percent, kb_vel, hitlag_frames]
+		intangible_frames, ledge_key, active, percent, kb_vel, hitlag_frames, snappedf(shield_hp, 0.0001), grab_timer]

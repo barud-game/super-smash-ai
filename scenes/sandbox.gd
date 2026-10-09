@@ -14,6 +14,7 @@ extends Node2D
 ##   --ledge-option getup|roll|attack|jump|drop + --ledge-at N: die optie op frame N (standaard getup op 70).
 ##   --vh N: andere visual_height (8-30) voor die fighter.
 ##   Voorbeeld: ... -- --stage eindpunt --ledge-demo heavyweight --frames 40 --screenshot C:/tmp/hang.png
+## --defense-demo shield|lightshield|grab|throw: shield-bubble, grab en throw (M4), zie _defense_demo_inputs().
 
 const EINDPUNT_SCENE: String = "res://stages/eindpunt/eindpunt.tscn"
 
@@ -33,6 +34,8 @@ var _demo: bool = false
 var _demo_inputs: Array[InputHistory] = []
 var _frames_seen: int = 0
 var _demo_fight: bool = false
+## --defense-demo shield|lightshield|grab|throw: zie _defense_demo_inputs().
+var _defense_demo: String = ""
 var _p2_percent: float = 0.0
 var _ledge_demo: String = ""
 var _ledge_option: String = "getup"
@@ -57,6 +60,8 @@ func _ready() -> void:
 		f.pos = stage.get_spawn(p)
 		if _demo_fight:
 			f.pos = Vector2(-14.0 if p == 0 else 2.0, 0.0)
+		if _defense_demo != "":
+			f.pos = Vector2(-8.0 if p == 0 else 2.0, 0.0)
 		f.facing = 1 if p == 0 else -1
 		if _ledge_demo != "" and p == 0:
 			f.stats = Archetypes.load_stats(_ledge_demo)
@@ -123,6 +128,10 @@ func _parse_args() -> void:
 			"--demo-fight":
 				_demo = true
 				_demo_fight = true
+			"--defense-demo":
+				_demo = true
+				if i + 1 < a.size():
+					_defense_demo = a[i + 1]
 			"--hitboxes":
 				var sim: Node = get_node_or_null("/root/Sim")
 				if sim != null:
@@ -167,6 +176,9 @@ func _physics_process(_delta: float) -> void:
 	var t: int = _frames_seen
 	if _demo_fight:
 		_demo_fight_inputs(t)
+		return
+	if _defense_demo != "":
+		_defense_demo_inputs(t)
 		return
 	if _ledge_demo != "":
 		_ledge_demo_inputs(t)
@@ -284,6 +296,39 @@ func _save_shot(path: String, quit_after: bool) -> void:
 		print("  ", f, ": ", f.get_debug_state_name())
 	if quit_after or err != OK:
 		get_tree().quit(0 if err == OK else 1)
+
+
+## --defense-demo (M4), P1 op x=-8, P2 op x=2 (binnen grab-bereik):
+##   shield      P2 houdt de shield (digitaal) vanaf frame 5; P1 ftilt op frame 30 (shieldstun + pushback).
+##   lightshield idem met de trigger op 0.45 (grotere, lichtere bubble).
+##   grab        P1 Z op frame 20 -> GrabHold/Grabbed; pummel op frame 40.
+##   throw       P1 Z op frame 20, fthrow (stick vooruit) op frame 32.
+func _defense_demo_inputs(t: int) -> void:
+	var p1 := InputFrame.new()
+	var p2 := InputFrame.new()
+	match _defense_demo:
+		"shield", "lightshield":
+			if t >= 5:
+				if _defense_demo == "shield":
+					p2.buttons |= InputFrame.BTN_SHIELD
+					p2.trigger_l = 1.0
+				else:
+					p2.trigger_l = 0.45
+			if t == 30:
+				p1.stick = Vector2i(40, 0)
+				p1.buttons |= InputFrame.BTN_ATTACK
+		"grab":
+			if t == 20:
+				p1.buttons |= InputFrame.BTN_Z
+			if t == 40:
+				p1.buttons |= InputFrame.BTN_ATTACK
+		"throw":
+			if t == 20:
+				p1.buttons |= InputFrame.BTN_Z
+			if t >= 32 and t < 36:
+				p1.stick = Vector2i(80, 0)
+	_demo_inputs[0].push(p1)
+	_demo_inputs[1].push(p2)
 
 
 ## --demo-fight: P1 short hop + fair op P2 (P2 staat stil, eventueel op --p2-percent). Daarna niets.

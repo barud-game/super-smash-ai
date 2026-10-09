@@ -40,7 +40,7 @@ Melee houdt per stickas een **teller “frames sinds de stick de deadzone verlie
 - Alle drempels/vensters staan als constanten in `MeleeStick` (`engine/input/melee_stick.gd`). Gekozen ⚠️-waarden: dash/smash 0.8 met venster 2 (grondstates: `DASH_FLICK_WINDOW` 4, zie M1-speeltestfeedback); fast fall 0.6625 / 4; crouch 0.6875 (ingehouden); platform drop 0.6875 / 4; door platform vallen in special fall 0.6875; tap-jump-loslaten (short hop met stick) 0.6625; run-drempel (`x58`) 0.62; turn-drempel (`x34`) = deadzone; walk-animatie slow < 0.5 ≤ middle < 0.8 ≤ fast. `RELAXED_TAP_JUMP_THRESHOLD` (0.5625) is gedefinieerd maar nog niet gebruikt (welke grondstates hem gebruiken is onbekend).
 - `SMASH_THRESHOLD = 0.8` ligt op het raster gelijk aan de echte drempel (0.79 → 64/80 = 0.8). ✅ praktisch correct, ⚠️ exacte float. Vergelijkingen via `MeleeStick.reaches()` (marge 1e-6) zodat rasterwaarden als 53/80 = 0.6625 exact meetellen.
 - **Eén flick = één tap jump:** de fighter onthoudt welke stick-omhoog-beweging al een sprong gaf, zodat dezelfde flick (teller nog < 4 na een 3-frame jumpsquat) geen double jump geeft. ⚠️ Melee doet dit op een eigen manier (niet nagelezen); effect is hetzelfde.
-- Analoge trigger: `shield_press_threshold = 0.25`, `analog_shoulder_deadzone = 0.3`, `z_press_analog_value = 0.35`. [S12] ✅ — lightshield begint rond 0.25–0.3. Air dodge, tech en L-cancel gebruiken de **digitale** L/R-bit (hardware “klik”, volledig ingedrukt). `TRIGGER_FULL = 0.95` is een redelijke benadering voor XInput (⚠️ er bestaat geen vaste Melee-analoge drempel voor de digitale klik). Powershield-venster: `powershield_input_window` frames na trigger ≠ 0 (waarde onbekend ⚠️).
+- Analoge trigger: `shield_press_threshold = 0.25`, `analog_shoulder_deadzone = 0.3`, `z_press_analog_value = 0.35`. [S12] ✅ — lightshield begint rond 0.25–0.3. Air dodge, tech en L-cancel gebruiken de **digitale** L/R-bit (hardware “klik”, volledig ingedrukt). `TRIGGER_FULL = 0.95` is een redelijke benadering voor XInput (⚠️ er bestaat geen vaste Melee-analoge drempel voor de digitale klik). Powershield-venster: `powershield_input_window` frames na trigger ≠ 0 (waarde onbekend ⚠️; M4 gebruikt 4 frames na de digitale klik).
 - Historie: ringbuffer van 32 `InputFrame`s per speler (`InputHistory`) met `pressed/released/held`.
 - Layout (XInput): A=attack, X=special, Y/B=jump, LT/RT=shield, RB=Z, rechterstick=C-stick, Start=start. Toetsenbord speler 1: WASD=stick, pijltjes=C-stick, J=A, K=special, Space=jump, L=shield, I=Z.
 - Schaal: `UNIT_TO_PX = 7.0` (`engine/units.gd`); ±85 units = 1190 px.
@@ -189,7 +189,7 @@ Platform drop gebruikt Fall (geen aparte Pass-state); van de rand af gaat ook na
 
 ### UCF
 - **Dashback:** vanilla Melee: leest het eerste frame van een terugflick nog in het tilt-gebied, dan wordt het een tilt-turn waar je niet uit kunt dashen. UCF (aan, `Fighter.ucf_dashback`): haalt de stick op Turn-frame 1 alsnog ≥ 0.8 met teller < 2, dan alsnog Dash. Getest: met UCF Dash, zonder UCF Turn.
-- Shield drop (UCF) volgt in M4.
+- Shield drop (UCF): gebouwd in M4, zie "M4-implementatie" hieronder.
 
 ### ECB en grond (keuze)
 - **ECB = diamant** met het onderpunt op `pos` (voeten), bovenpunt op `ecb_height`, zijpunten op `ecb_mid_y` ± `ecb_half_width` (per preset ⚠️; zichtbaar met F2). Voor M1 doet alleen het **onderpunt** mee: landen = het onderpunt kruist een segment van boven naar beneden met vy ≤ 0 (lijnstuk van vorige naar nieuwe positie, hoogste segment wint). Geen muren/plafonds nog. Melee verschuift de ECB-onderkant in de lucht per animatie omhoog; dat doen we (nog) niet ⚠️ — gevolg: landen gebeurt exact op voethoogte.
@@ -340,3 +340,18 @@ Volledige beschrijving in `docs/combat.md`, sectie "M3-integratie" (tests: `test
 | Grond-bounce | tumble-launch de grond in → vy × −0.8 | ⚠️ |
 | Hitfall | fast fall tijdens eigen hitlag na een echte treffer, ook tijdens stijgen (Rivals-besluit) | besluit |
 | Rebound (clank) | 20 frames; aerials clanken niet | ⚠️ duur, ✅ regel |
+
+## M4-implementatie: input van shield, OoS en grab
+Volledige beschrijving en alle waarden in `docs/combat.md`, sectie "M4-implementatie" (tests: `tests/test_defense.gd`).
+
+| Input | Waarde | Zekerheid |
+|---|---|---|
+| Shield aan | analoog ≥ 0.3 (`analog_shoulder_deadzone`) of digitale klik (= 1.0); lightshield-stand `s` = trigger | ✅ |
+| Powershield | digitale klik, treffer in de eerste 4 frames van GuardOn | ⚠️ |
+| Spotdodge uit shield | stick-y ≤ −0.7, teller < 4 | ⚠️ |
+| Roll uit shield | stick-x ≥ 0.8, teller < 4 (Xbox-venster zoals dash) | ⚠️ |
+| Shield drop (platform) | verse omlaag-flick (platform-drop-drempel 0.6875, venster 4, verificatie #20) in de notch −0.7 < y ≤ −0.6875; UCF ook schuin met \|x\| ≥ 0.4 | ✅ regel, ⚠️ zones |
+| Grab | Z, of A met shield vast; Dash/Run = dash grab; jumpsquat = staande (JC) grab, ná de JC-usmash-check | ✅ |
+| Throw-richting | stick ≥ 0.6625 (dominante as) of verse C-stick | ⚠️ |
+| Grab-mash | elke nieuwe knop of verse stickrichting −6 frames van de grab-timer (90 + 1.7·%) | ⚠️ |
+| Special-hook | B; up/down ≥ 0.6625, side ≥ 0.6 (dominante as) | ⚠️ |

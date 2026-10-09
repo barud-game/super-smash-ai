@@ -11,7 +11,8 @@ func id() -> String:
 
 
 func iasa() -> void:
-	if f.check_ground_attack() or f.check_ground_jump() or f.check_dash() or f.check_squat() or f.check_turn():
+	if f.check_ground_attack() or f.check_guard() or f.check_ground_jump() or f.check_dash() or f.check_squat() \
+			or f.check_turn():
 		return
 	var e: int = f.edge_side()
 	if e == 0 or e != f.facing:

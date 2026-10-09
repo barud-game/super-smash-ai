@@ -206,15 +206,18 @@ func _test_input_mapping() -> void:
 	tick([r], [fr(80, 0, A)])
 	check("Run + A = dash_attack", _move_of(r) == "dash_attack")
 	r.free()
-	# Z / shield + A doen nog niets (grab = M4).
+	# Z = grab (M4); shield + A = grab uit shield, nooit een jab (details in tests/test_defense.gd).
 	var z: Fighter = make(Vector2(0, 0), 1)
 	settle([z])
 	tick([z], [fr(0, 0, Z)])
-	check("Z doet niets (grab M4)", z.state_name() == "Wait")
-	tick([z], [fr(0, 0, SHIELD)])
-	tick([z], [fr(0, 0, SHIELD | A)])
-	check("shield + A doet niets (grab M4)", z.state_name() == "Wait")
+	check("Z = grab (M4)", z.state_name() == "Grab")
 	z.free()
+	var sa: Fighter = make(Vector2(0, 0), 1)
+	settle([sa])
+	tick([sa], [fr(0, 0, SHIELD)])
+	tick([sa], [fr(0, 0, SHIELD | A)])
+	check("shield + A = grab (M4), geen jab", sa.state_name() == "Grab")
+	sa.free()
 	# Jab vanuit crouch-houding: stick omlaag + A = dtilt.
 	var s: Fighter = make(Vector2(0, 0), 1)
 	settle([s])

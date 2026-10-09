@@ -9,7 +9,7 @@ func id() -> String:
 
 
 func iasa() -> void:
-	if f.check_dash_attack(false):
+	if f.check_dash_attack(false) or f.check_guard():
 		return
 	if f.check_ground_jump():
 		return

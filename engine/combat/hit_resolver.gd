@@ -2,7 +2,7 @@ class_name HitResolver
 extends RefCounted
 ## Bepaalt treffers uit actieve hitboxes en doelwitten. Puur: geen side effects, geen state.
 ## Het geheugen "dit is al geraakt" (already_hit) beheert de aanroeper: voeg event.key van elke
-## HIT/SHIELD toe aan zijn set. Zie docs/combat.md.
+## HIT/SHIELD/GRAB toe aan zijn set. Grab-hitboxes (ActiveHitbox.is_grab) geven Kind.GRAB. Zie docs/combat.md.
 
 const CLANK_DAMAGE_DIFF: float = 9.0
 
@@ -49,11 +49,12 @@ static func resolve(active: Array[ActiveHitbox], targets: Array[CombatTarget], a
 	var removed: Dictionary = {}
 	for i in boxes.size():
 		var a: ActiveHitbox = boxes[i]
-		if removed.has(i) or not a.data.clank or no_clank.has(a.owner):
+		if removed.has(i) or a.is_grab or not a.data.clank or no_clank.has(a.owner):
 			continue
 		for j in range(i + 1, boxes.size()):
 			var b: ActiveHitbox = boxes[j]
-			if removed.has(j) or removed.has(i) or not b.data.clank or a.owner == b.owner or no_clank.has(b.owner):
+			if removed.has(j) or removed.has(i) or b.is_grab or not b.data.clank or a.owner == b.owner \
+					or no_clank.has(b.owner):
 				continue
 			if a.pos.distance_to(b.pos) >= a.data.radius + b.data.radius:
 				continue
@@ -94,17 +95,20 @@ static func resolve(active: Array[ActiveHitbox], targets: Array[CombatTarget], a
 				continue
 			if d.aerial_only and t.grounded:
 				continue
+			if h.is_grab and not t.grabbable:
+				continue
 			var gkey: String = hit_key(h.owner, h.instance, d.group, t.id)
 			if already_hit.has(gkey):
 				continue
 			var fkey: String = "%d:%d:%d" % [h.owner, h.instance, t.id]
 			if taken.has(fkey):
 				continue
-			var shielded: bool = t.shielding and not d.ignores_shield
-			var touched: bool = false
-			if shielded:
-				touched = h.pos.distance_to(t.shield_center) < d.radius + t.shield_radius
-			else:
+			# Shield: raakt de hitbox de bubble, dan SHIELD. Zo niet, dan tellen de hurtboxes gewoon (shield poke: delen van
+			# het lijf buiten een gekrompen bubble zijn raakbaar). Grabs en ignores_shield negeren de bubble.
+			var shielded: bool = t.shielding and not d.ignores_shield and not h.is_grab \
+				and h.pos.distance_to(t.shield_center) < d.radius + t.shield_radius
+			var touched: bool = shielded
+			if not shielded:
 				for hb in t.hurtboxes:
 					if hb.intangible:
 						continue
@@ -122,7 +126,11 @@ static func resolve(active: Array[ActiveHitbox], targets: Array[CombatTarget], a
 			ev.damage = h.damage
 			ev.attacker_hitlag = Knockback.hitlag_frames(h.damage, d.element, d.hitlag_mult)
 			ev.defender_hitlag = Knockback.hitlag_frames(h.damage, d.element, d.hitlag_mult, true, t.crouching)
-			if shielded:
+			if h.is_grab:
+				ev.kind = HitEvent.Kind.GRAB
+				ev.attacker_hitlag = 0
+				ev.defender_hitlag = 0
+			elif shielded:
 				ev.kind = HitEvent.Kind.SHIELD
 				ev.shield_stun = Knockback.shieldstun_frames(h.damage, t.shield_analog)
 				ev.shield_damage = h.damage + d.shield_damage

@@ -104,6 +104,19 @@ func is_crouching() -> bool:
 	return false
 
 
+# --- Verdediging (M4) ---
+
+## Shield staat op (GuardOn/Guard/GuardSetOff): CombatTarget.shielding, shield-HP slijt, geen regen.
+func is_shielding() -> bool:
+	return false
+
+
+## Grab-familie (GrabHold/Pummel/Throw en Grabbed/Thrown): de koppeling Fighter.grab_partner blijft alleen bestaan
+## zolang de fighter in zo'n state zit; elke andere state verbreekt hem (Fighter.change_state -> _drop_grab).
+func keeps_grab() -> bool:
+	return false
+
+
 ## [startup, active, total] voor CharacterVisual.play_timed (aanvalsposes), leeg = gewone play().
 func pose_timing() -> Array:
 	return []

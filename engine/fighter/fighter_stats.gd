@@ -97,6 +97,29 @@ extends Resource
 const VISUAL_HEIGHT_MIN: float = 8.0
 const VISUAL_HEIGHT_MAX: float = 30.0
 
+@export_group("Verdediging")
+## Shield-bubble bij volle HP en volle shield: straal = dit × visual_height, middelpunt op shield_center_ratio × visual_height
+## boven de voeten. ⚠️ (Melee: per-character shield_size; hier zo dat de volle bubble het hele lijf dekt.)
+@export var shield_size_ratio: float = 0.62
+@export var shield_center_ratio: float = 0.5
+## Spotdodge (EscapeN): totale duur en intangible frames (1-based). ⚠️ Melee-referentie per archetype, zie docs/combat.md.
+@export var spotdodge_frames: int = 27
+@export var spotdodge_intangible_start: int = 2
+@export var spotdodge_intangible_end: int = 16
+## Roll (EscapeF/B): totale duur, intangible frames (1-based) en afstand als factor op visual_height. ⚠️
+@export var roll_frames: int = 35
+@export var roll_intangible_start: int = 4
+@export var roll_intangible_end: int = 19
+@export var roll_distance_ratio: float = 1.9
+## Damage per pummel (afspraak 4: 2–3). ⚠️
+@export var pummel_damage: float = 3.0
+
+
+## Roll-afstand in units.
+func roll_distance() -> float:
+	return roll_distance_ratio * visual_height
+
+
 @export_group("ECB / hurtbox")
 ## ⚠️ ECB-diamant: onderpunt = voeten (positie), bovenpunt op ecb_height, zijpunten op ecb_mid_y.
 @export var ecb_height: float = 16.0

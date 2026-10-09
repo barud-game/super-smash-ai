@@ -15,7 +15,7 @@ func anim() -> void:
 
 
 func iasa() -> void:
-	if f.check_ground_jump():
+	if f.check_guard() or f.check_ground_jump():
 		return
 	if f.check_dash():
 		return

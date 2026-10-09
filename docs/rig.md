@@ -199,8 +199,9 @@ key vast) · `damage_fly` (8f) -> `tumble` (loop, hip draait -360°/24f) · `tec
 `missed_tech_lie` (op de rug, loop) · `missed_tech_lie_down` (op de buik, loop) · `getup_from_lie` · `shield_break_dizzy` (loop) ·
 `grabbed` (loop, wordt vastgehouden) · `thrown`.
 
-- **Cliff-poses**: de hang-houding (`cliff_wait`) heeft de handen ~165 px **boven de oorsprong** (voeten-midden). Plaats
-  de root dus ~165 px onder het ledge-greeppunt. De poses veranderen alleen de vorm; de beweging van de root
+- **Cliff-poses**: de fighter berekent het greeppunt uit de `cliff_wait`-pose zelf (`LedgeGrip`, forward kinematics over
+  de handpalmen, geschaald met `visual_height`) en zet de root zo dat de handen op de ledge-hoek liggen; geen vaste hoogte
+  nodig, dus een eigen hang-pose van een character werkt vanzelf. De poses veranderen alleen de vorm; de beweging van de root
   (omhoog klimmen, rollen) doet de fighter. `cliff_getup/attack/jump` starten in de hang-houding.
 - **Liggen**: `missed_tech_lie*` laten de hip 52 px zakken en draaien het lichaam ±90°; de root blijft op de grond.
   `missed_tech_lie` = gezicht omhoog (hoofd naar achteren), `_down` = gezicht omlaag (hoofd naar voren).

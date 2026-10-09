@@ -69,3 +69,78 @@ const DAMAGE_POSE_HIGH_KB: float = 55.0
 const ASDI_DOWN_THRESHOLD: float = 0.7
 ## Grond-bounce: tumble-launch de grond in vanaf de grond -> vy wordt gespiegeld × dit. ⚠️
 const GROUND_BOUNCE_FACTOR: float = 0.8
+
+# --- Verdediging (M4). Zie docs/combat.md, "M4-implementatie". ---
+## Shield-HP (Melee ✅ [W] Shield): max 60, slijt 0.28/frame bij vasthouden, herstelt 0.07/frame als je niet shieldt,
+## na een shield break begint hij weer op 30.
+const SHIELD_MAX_HP: float = 60.0
+const SHIELD_DEPLETION: float = 0.28
+const SHIELD_REGEN: float = 0.07
+const SHIELD_BREAK_RESET_HP: float = 30.0
+## Shield-schade = (damage + hitbox.shield_damage) × (0.65·(1 − a) + 0.7), a = Knockback.shield_norm(s):
+## volle shield ×0.7 ✅ [W], lichtste shield ×1.35 (verificatie C17 "a + 0.7" met a = 0.65·(1 − norm)).
+const SHIELD_DAMAGE_MULT: float = 0.7
+const SHIELD_DAMAGE_LIGHT_EXTRA: float = 0.65
+## Shield aan: analoge trigger >= dit (Melee analog_shoulder_deadzone 0.3 ✅; lightshield-normalisatie begint hier) of de digitale klik.
+const SHIELD_ON_THRESHOLD: float = 0.3
+## Shield-bubble: straal = shield_size_ratio · visual_height · (MIN + (1 − MIN)·hp/60) · (1 + LIGHT_GROW·(1 − a)).
+## ⚠️ Melee: bubble krimpt met de HP en een lightshield is groter; exacte schaal niet gevonden.
+const SHIELD_MIN_SCALE: float = 0.15
+const SHIELD_LIGHT_GROW: float = 0.3
+## GuardOn (opzetten) en GuardOff (loslaten). GuardOff 15 ✅ [W]; GuardOn 8 ⚠️ (minimale shield-tijd, niet geverifieerd).
+const GUARD_ON_FRAMES: int = 8
+const GUARD_OFF_FRAMES: int = 15
+## Shield-pushback van de verdediger: gr_vel = PUSH_BASE + d · (0.65·(1 − a) + 0.3) · PUSH_PER_DAMAGE, max PUSH_MAX,
+## remt met traction ×1. ⚠️ structuur (lightshield = meer pushback ✅ [W]), getallen gekozen.
+const SHIELD_PUSH_BASE: float = 0.3
+const SHIELD_PUSH_PER_DAMAGE: float = 0.15
+const SHIELD_PUSH_MAX: float = 2.2
+## Powershield: een digitale klik (BTN_SHIELD) die GuardOn start; een treffer binnen de eerste POWERSHIELD_WINDOW frames
+## van GuardOn = geen shield-schade, geen shieldstun, geen pushback, geen hitlag voor de verdediger. Reflecteert niets.
+## ⚠️ Melee: 4 frames voor projectielen (2 voor fysieke aanvallen volgens sommige bronnen); hier 4 voor alles.
+const POWERSHIELD_WINDOW: int = 4
+## Shield break: omhoog gelanceerd (ShieldBreak, vy ⚠️), landen -> ShieldBreakDown (⚠️ frames) -> Dizzy.
+const SHIELD_BREAK_VY: float = 2.5
+const SHIELD_BREAK_DOWN_FRAMES: int = 30
+## Dizzy-duur (FuraFura) = max(DIZZY_BASE − percent, DIZZY_MIN): hoger percentage = korter. ⚠️ (Melee: afhankelijk van %;
+## exacte formule niet gevonden; mashen verkort het hier niet).
+const DIZZY_BASE: float = 400.0
+const DIZZY_MIN: int = 120
+
+# --- OoS-inputs (M4) ---
+## Roll uit shield: x-flick (>= SMASH_THRESHOLD, teller < DASH_FLICK_WINDOW 4 ⚠️ leniency).
+## Spotdodge: y-flick omlaag <= -SPOTDODGE_THRESHOLD met teller < SPOTDODGE_WINDOW. ⚠️
+const SPOTDODGE_THRESHOLD: float = 0.7
+const SPOTDODGE_WINDOW: int = 4
+## Shield drop (op een platform, verse omlaag-flick, verificatie #20): vanilla alleen in de smalle band
+## PLATFORM_DROP_THRESHOLD (0.6875) <= -y < SPOTDODGE_THRESHOLD ("notch"); UCF ook schuin omlaag met |x| >= dit. ⚠️
+const UCF_SHIELD_DROP_MIN_X: float = 0.4
+
+# --- Grab / throws (M4) ---
+## Dash grab: hitboxes en totale duur DASH_GRAB_DELAY frames later (afspraak 2: +7), bereik × DASH_GRAB_REACH ⚠️.
+const DASH_GRAB_DELAY: int = 7
+const DASH_GRAB_REACH: float = 1.2
+## Victim-positie: voeten op grab-tip + dit × visual_height van de gegrepen fighter (het lijf zit achter de hand). ⚠️
+const GRAB_HOLD_BODY_RATIO: float = 0.1
+## Frames na de grab voordat throw/pummel-input telt (Melee CatchPull). ⚠️
+const GRAB_PULL_FRAMES: int = 4
+## Grab-timer van de gegrepen fighter: BASE + PER_PERCENT · percent frames; elke mash-input (nieuwe knop of verse
+## stickrichting) trekt er GRAB_MASH_FRAMES af. ⚠️ (Melee: afhankelijk van % en mashen verkort ✅ structuur; getallen gekozen)
+const GRAB_TIMER_BASE: float = 90.0
+const GRAB_TIMER_PER_PERCENT: float = 1.7
+const GRAB_MASH_FRAMES: int = 6
+## Throw-richting: stick (dominante as) >= dit, of een verse C-stick-input. ⚠️
+const THROW_STICK_THRESHOLD: float = 0.6625
+## Pummel: totale duur en het (0-based) frame waarop de damage valt (kan niet missen). ⚠️
+const PUMMEL_FRAMES: int = 24
+const PUMMEL_HIT_FRAME: int = 6
+## Grab release (timer op): grond-release = beide GrabRelease (frames ⚠️), gegrepen fighter wordt weggeduwd (gr_vel ⚠️).
+## Lucht-release (gegrepen in de lucht): gegrepen fighter springt omhoog weg en is direct actionable (Fall). ⚠️
+const GRAB_RELEASE_FRAMES: int = 30
+const GRAB_RELEASE_PUSH: float = 1.0
+const GRAB_AIR_RELEASE_VY: float = 2.0
+
+# --- Special-hook (Fighter.check_special / special_input) ---
+## Up/down-B: stick-y (dominante as) >= dit; side-B: |stick-x| >= dit; anders neutral-B. ⚠️ (Melee-drempels niet nagelezen)
+const SPECIAL_UPDOWN_THRESHOLD: float = 0.6625
+const SPECIAL_SIDE_THRESHOLD: float = 0.6
