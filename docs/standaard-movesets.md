@@ -146,3 +146,7 @@ Gelden voor archetypes én characters. De validator controleert ze.
 7. **"Sterk begin, zwak einde"** (sex kick): zelfde positie, twee frame-blokken; late blok = sourspot-regel.
 8. **Hoogtes:** horizontale moves op ~55% van `visual_height`, lage moves (dtilt/dsmash) op y=2, aerials op ~50%,
    omhoog/omlaag gemeten vanaf de voeten.
+9. **Lengte-schaal:** de reach-posities in `docs/move-conversie.md` gelden voor een character van 15 units (allrounder).
+   Hitbox-**posities** (offsets) worden geschaald met `visual_height / 15`; **radius** niet. Zo blijft een omhoog-move
+   net boven het hoofd en een dair net onder de voeten, ook bij een klein of groot character.
+10. **"Rondom"-moves** (nair, dsmash met twee kanten): minimaal één box voor én één achter, ook bij Bereik 1.
