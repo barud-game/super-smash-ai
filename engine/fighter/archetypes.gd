@@ -45,7 +45,7 @@ static func id_for_stats(s: FighterStats) -> String:
 
 ## Archetype-id uit characters/<id>/character.json ("" als onbekend).
 static func id_for_character(character_id: String) -> String:
-	var path: String = "res://characters/%s/character.json" % character_id
+	var path: String = CharacterLoader.dir(character_id).path_join("character.json")
 	if character_id == "" or not FileAccess.file_exists(path):
 		return ""
 	var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(path))

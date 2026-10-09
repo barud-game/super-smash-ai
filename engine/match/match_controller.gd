@@ -177,15 +177,10 @@ func _make_fighter(p: int) -> Node2D:
 	return f
 
 
-## Movement-stats van een character via zijn archetype (character.json); onbekend = Allrounder.
+## Movement-stats van een character (archetype + visual_height + movement_extras + optionele stats.tres):
+## alles via CharacterLoader, zodat match, training en sandbox hetzelfde uitrekenen. Onbekend = Allrounder.
 static func stats_for(character_id: String) -> FighterStats:
-	var arch_id: String = "allrounder"
-	var reg: Node = (Engine.get_main_loop() as SceneTree).root.get_node_or_null("CharacterRegistry")
-	if reg != null:
-		var info: CharacterInfo = reg.get_info(character_id)
-		if info != null:
-			arch_id = String(ARCHETYPE_IDS.get(info.archetype, "allrounder"))
-	return Archetypes.load_stats(arch_id)
+	return CharacterLoader.stats_for(character_id)
 
 
 func _build_camera() -> void:

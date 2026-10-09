@@ -4,5 +4,9 @@
   "archetype": "Allrounder",
   "op": false,
   "tagline": "Oefenpop van hout. Doet alsof hij pijn voelt.",
+  "taunt_text": "Hout is goed!",
+  "taunt_props": [
+    { "prop": "flag", "attach": "hand_r", "from_frame": 36, "to_frame": 72, "offset": [0, 0], "rotation": 0, "scale": 0.8 }
+  ],
   "colors": { "primary": "#c9a26b", "secondary": "#6b4a2a" }
 }

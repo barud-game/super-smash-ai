@@ -65,13 +65,78 @@ Subagents krijgen alleen `characters/<id>/ontwerp.md` en hun eigen opdracht.
 - `svg-artist` tekent de onderdelen, rendert een preview naar PNG en verbetert die; de director keurt de preview goed vóór de commit.
 
 ## Opslag per character: `characters/<id>/`
-| Bestand | Inhoud |
+
+Mappen die met `_` beginnen zijn geen spelbare characters (`_dummy` = oefenpop/voorbeeld, `_concepten` = nog niet akkoord).
+Alles hieronder wordt door `CharacterLoader` (`engine/roster/character_loader.gd`) en de engine gelezen; match, training en sandbox
+gebruiken dezelfde code.
+
+| Bestand / map | Inhoud | Verplicht |
+|---|---|---|
+| `ontwerp.md` | Concept, archetype, moves in gewone taal, puntentabel, wijzigingslog — **bron van waarheid** | ja |
+| `character.json` | Manifest: naam, archetype, lengte, taunt, kleuren (zie hieronder) | ja |
+| `scores.json` | Scores voor afwijkende moves, specials en `movement_extras` (zie hieronder) | ja |
+| `stats.tres` | `FighterStats` die de archetype-preset **volledig vervangt** (negeert `visual_height` en `movement_extras`) | nee |
+| `moves/<move>.tres` | `MoveData` voor alleen de normals die afwijken; elke aanwezige move overschrijft de archetype-move (jab, ftilt, utilt, dtilt, dash_attack, fsmash, usmash, dsmash, nair, fair, bair, uair, dair, grab, fthrow, bthrow, uthrow, dthrow; ook `ledge_attack`/`getup_attack`) | nee |
+| `specials/<slot>.tres` (+ `<slot>.gd`) | `SpecialDef` per slot (`neutral`, `side`, `up`, `down`); eigen script alleen als geen sjabloon past. Een `SpecialDef` kan `prop_events` hebben (docs/specials.md §7) | ja (4 slots) |
+| `art/*.svg` | Lichaamsonderdelen van het rig (docs/rig.md §3) | ja |
+| `art/props/<naam>.svg` | Losse rekwisieten voor specials en taunt (docs/rig.md §9); optioneel `art/props/props.json` met pivots | nee |
+| `poses/*.json` | Eigen of overschreven poses, **per naam** (bv. een eigen `taunt`); docs/rig.md §6 | nee |
+| `ko_effect/ko_effect.gd` | Eigen KO-effect (docs/vfx.md) | nee (standaard KO-effect) |
+| `sfx/<naam>.json` | Eigen geluidsrecepten (docs/audio.md) | nee |
+
+### `character.json`
+
+```json
+{
+  "id": "captain_pep",
+  "name": "Captain Pep",
+  "archetype": "Fast-faller",
+  "op": false,
+  "visual_height": 14.0,
+  "tagline": "Korte zin onder de naam op de character select.",
+  "taunt_text": "DA'S PAS SPUL!",
+  "taunt_frames": 80,
+  "taunt_props": [ { "prop": "zoutvaatje", "attach": "hand_l", "from_frame": 8, "to_frame": 40 } ],
+  "colors": { "primary": "#7b2fbf", "secondary": "#7dff3a", "accent": "#1b1b1f" }
+}
+```
+
+| Veld | Betekenis |
 |---|---|
-| `ontwerp.md` | Concept, archetype, moves in gewone taal, puntentabel, wijzigingslog — **bron van waarheid** |
-| `stats.tres` | `FighterStats` (archetype + aanvullingen) |
-| `moves/*.tres` | Alleen normals die afwijken van de archetype-standaard |
-| `specials/*.tres` / `*.gd` | Sjabloon-configuratie, of eigen script |
-| `art/*.svg` | Lichaamsonderdelen |
+| `id` | = mapnaam (anders wordt de mapnaam gebruikt, met waarschuwing) |
+| `name` | Weergavenaam |
+| `archetype` | `Zwaargewicht`, `Allrounder`, `Fast-faller`, `Floaty` of `Lichtgewicht` — bepaalt de movement-preset én de standaard-moveset |
+| `op` | `true` = bewust buiten het 200-budget (character select toont OP) |
+| `visual_height` | Lengte vloer-kruin in Melee-units, **8–30** (buiten het bereik: geklemd + waarschuwing; validator FAIL). Standaard: die van het archetype (11–19). Kleiner dan het archetype kost −2 per unit |
+| `tagline` | Max. ~2 regels voor het spelerspaneel |
+| `taunt_text` | Tekst in het wolkje boven het hoofd tijdens de taunt (max. ~28 tekens; leeg = geen wolkje) |
+| `taunt_frames` | Duur van de taunt, 30–180 (standaard 80) |
+| `taunt_props` | Lijst prop-events (zelfde formaat als `SpecialDef.prop_events`, frames = taunt-frames, 0 = eerste taunt-frame) |
+| `colors.primary/secondary/accent` | Hex; UI-accent (niet de spelerskleur van het rig) |
+
+Het formaat van het manifest voor de UI staat ook in `docs/ui.md`.
+
+### `scores.json`
+
+```json
+{
+  "fair": {"S": 3, "K": 5, "B": 1, "V": 2},
+  "specials": {
+    "neutral_b": {"S": 0, "K": 5, "B": 2, "V": 0, "U": 2},
+    "side_b": {...}, "up_b": {...}, "down_b": {...}
+  },
+  "movement_extras": {"zwaarder": -5},
+  "op": false
+}
+```
+
+Een move-sleutel (`jab`, `fair`, ...) staat er alleen als er ook een `moves/<move>.tres` is. `movement_extras`: naam -> punten;
+de naam bepaalt het effect op de stats (tabel in `docs/balans.md` sectie 2).
+
+### Tekst en pose van de taunt
+Taunt = D-pad omhoog / toets `T` (alleen vanuit stilstaan op de grond; niet cancelbaar). Pose `taunt`: standaard de gedeelde pose
+(`engine/visual/poses/combat.json`, 80 frames: neus afvegen, dan beide armen omhoog); een character levert een eigen pose met
+de naam `taunt` in `poses/*.json` (overschrijft de gedeelde, docs/rig.md §6). De pose wordt uitgerekt/ingekrompen naar `taunt_frames`.
 
 Een nieuwe chat moet het character kunnen aanpassen door alleen `ontwerp.md` te lezen.
 

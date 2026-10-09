@@ -121,3 +121,27 @@ Bij match-einde: `SpecialWorld.dispose(stage)`.
 - Reflect/absorb/grab/reflect-radius zijn stralen (units), niet de "30–70u" uit de doc (die lijken diameters/veel te groot).
 - Dode entities blijven 120 frames als object bestaan (graveyard) voordat ze worden vrijgegeven.
 - Buff-modifiers `damage_dealt_mult`/`kb_dealt_mult` werken alleen op specials (normals hebben een hook nodig), `armor_during` niet.
+
+## 7. Rekwisieten (props) bij een special
+Een character kan losse SVG-rekwisieten hebben (hamburger, racefiets, ...) in `characters/<id>/art/props/<naam>.svg`
+(canvas, pivot en kleuren: `docs/rig.md` §9). `SpecialDef.prop_events` (en `taunt_props` in `character.json`) zegt wanneer ze zichtbaar zijn:
+
+| Veld | Betekenis | Standaard |
+|---|---|---|
+| `prop` | bestandsnaam zonder `.svg` in `art/props/` | verplicht |
+| `attach` | `hand_r` \| `hand_l` (aan de palm van die hand) \| `root` (voeten-midden, vóór het lijf) \| `under_feet` (voeten-midden, achter het lijf; bv. een fiets) | `hand_r` |
+| `from_frame`, `to_frame` | zichtbaar van `from_frame` t/m `to_frame` (inclusief). **Frames sinds de knopdruk** (0 = drukframe = `Fighter.state_frame` in de Special-state; loopt door over sequenties/charge-release); bij de taunt: taunt-frames. `to_frame` −1 = tot het einde | 0, −1 |
+| `offset` | `[x, y]` in rig-px (vóór `visual_height`-schaal), t.o.v. de bot (hand: t.o.v. de palm) | 0,0 |
+| `rotation` | graden, kloksgewijs, t.o.v. de bot-oriëntatie | 0 |
+| `scale` | factor | 1 |
+| `pivot` | greeppunt in canvas-px; wint van `props.json`/`data-pivot` | zie rig.md §9 |
+
+```gdscript
+d.prop_events = [{"prop": "racefiets", "attach": "under_feet", "from_frame": 0, "to_frame": 40, "offset": [0, 0]}]
+```
+- Het tonen doet `CharacterVisual.set_props()`, aangeroepen door `Fighter._update_visual` met `state.props()` (`StateSpecial.props()` /
+  `StateTaunt.props()`); props meeschalen met `visual_height` en spiegelen met `facing` gaat vanzelf (ze hangen aan het skelet).
+  Een ontbrekend prop-bestand geeft één waarschuwing en wordt overgeslagen.
+- `.tres`: `prop_events` is een `Array[Dictionary]`; `offset` mag een `Vector2` zijn. In JSON (`taunt_props`) een lijst `[x, y]`.
+- Validator: formaat (`PropEvent.problems`) en bestaan van `art/props/<prop>.svg` -> FAIL (regel `special_def/<slot>` resp. `character_fields/taunt`).
+- Props zijn alleen presentatie: geen hitbox, geen collision. Een hitbox (bv. een fiets die raakt) blijft in de special-hitboxes.

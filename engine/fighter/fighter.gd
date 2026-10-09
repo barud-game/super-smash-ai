@@ -143,6 +143,7 @@ var _pending_pummel: bool = false
 var _pending_throw: HitboxData = null
 var _pending_throw_set: bool = false
 var _shield_node: Node2D = null
+var _bubble_node: Node2D = null
 
 var _states: Dictionary = {}
 ## Teller van state-wissels (visual: dezelfde pose opnieuw starten bij een nieuwe aanval).
@@ -204,6 +205,13 @@ func setup() -> void:
 		_shield_node.z_index = 50
 		_shield_node.draw.connect(_draw_shield)
 		add_child(_shield_node)
+	if use_visual and _bubble_node == null:
+		# Taunt-tekstwolkje boven het hoofd (niet gespiegeld, leesbaar), boven de visual.
+		_bubble_node = Node2D.new()
+		_bubble_node.name = "TauntBubble"
+		_bubble_node.z_index = 60
+		_bubble_node.draw.connect(_draw_bubble)
+		add_child(_bubble_node)
 	if moves.is_empty():
 		reload_moves()
 	# B-moves: koppelt special_hook + states; de SpecialWorld ontstaat zodra er een stage is (idempotent).
@@ -244,7 +252,7 @@ func _register_default_states() -> void:
 		StateGuardOn.new(), StateGuard.new(), StateGuardSetOff.new(), StateGuardOff.new(),
 		StateShieldBreak.new(), StateShieldBreakDown.new(), StateDizzy.new(), StateEscape.new(), StateEscapeN.new(),
 		StateGrab.new(), StateGrabHold.new(), StatePummel.new(), StateThrow.new(), StateGrabbed.new(),
-		StateThrown.new(), StateGrabRelease.new(),
+		StateThrown.new(), StateGrabRelease.new(), StateTaunt.new(),
 	]:
 		register_state(s)
 
@@ -407,6 +415,22 @@ func _sfx(sfx_name: String) -> void:
 func set_stats(s: FighterStats) -> void:
 	stats = s
 	reload_moves()
+
+
+## Wisselt van character in een lopende fighter (sandbox, hot reload): stats via CharacterLoader, moveset, art, specials.
+## `new_stats`: eigen stats (bv. een archetype uit de sandbox) i.p.v. die van het character.
+func set_character(new_id: String, new_stats: FighterStats = null) -> void:
+	character_id = new_id
+	archetype_id = ""
+	stats = new_stats if new_stats != null else CharacterLoader.stats_for(new_id)
+	Specials.clear_cache()
+	var kit: SpecialKit = SpecialKit.of(self)
+	kit.reset_for_character()
+	if visual != null:
+		visual.character_id = new_id
+		LedgeGrip.clear_cache(new_id)
+	reload_moves()
+	_update_visual()
 
 
 # =============================================================================================
@@ -825,6 +849,14 @@ func special_input() -> Dictionary:
 		dir = "side"
 	var back: bool = s.x * facing < 0.0 and MeleeStick.reaches(s.x, MeleeStick.TURN_THRESHOLD)
 	return {"dir": dir, "back": back, "grounded": grounded}
+
+
+## Taunt (D-pad omhoog / T): alleen aangeroepen vanuit Wait. true = Taunt gestart.
+func check_taunt() -> bool:
+	if not input.pressed(InputFrame.BTN_TAUNT) or not has_state("Taunt"):
+		return false
+	change_state("Taunt")
+	return true
 
 
 ## Grond-aanval zoals Melee: C-stick = smash; A + flick (teller < SMASH_ATTACK_WINDOW) = smash;
@@ -1878,6 +1910,7 @@ func _update_visual() -> void:
 			visual.play(p, false)
 		_vis_key = key
 		visual.tick(state.pose_frame(), state.pose_speed())
+		visual.set_props(state.props())
 		var off: Vector2 = state.visual_offset_px() * sc
 		if hitlag_frames > 0 and hitlag_victim:
 			off += VfxConst.hitlag_jitter(hitlag_frames, hitlag_strength)
@@ -1888,6 +1921,8 @@ func _update_visual() -> void:
 			_debug_node.queue_redraw()
 		if _shield_node != null:
 			_shield_node.queue_redraw()
+		if _bubble_node != null:
+			_bubble_node.queue_redraw()
 
 
 func _draw() -> void:
@@ -1897,6 +1932,54 @@ func _draw() -> void:
 		var w: float = 14.0 * k0
 		draw_rect(Rect2(Vector2(-w, 0.0), Vector2(2.0 * w, 3.0 * k0)), Color(0.55, 0.85, 1.0, 0.85))
 		draw_rect(Rect2(Vector2(-w, 3.0 * k0), Vector2(2.0 * w, 1.0 * k0)), Color(0.3, 0.5, 0.9, 0.6))
+
+
+## Tekst van het taunt-wolkje op dit frame ("" = geen). Zie StateTaunt.bubble_text().
+func bubble_text() -> String:
+	if state is StateTaunt:
+		return (state as StateTaunt).bubble_text()
+	return ""
+
+
+## Actieve rekwisieten op dit frame (PropEvent-dictionaries), uit de huidige state.
+func active_props() -> Array:
+	return state.props() if state != null else []
+
+
+const BUBBLE_FONT_SIZE: int = 26
+const BUBBLE_GAP_PX: float = 34.0
+
+
+## Taunt-wolkje: witte afgeronde balk met spelerskleur-rand en staartje, boven het hoofd; popt in over ~5 frames.
+func _draw_bubble() -> void:
+	var txt: String = bubble_text()
+	if txt == "" or stats == null or not active:
+		return
+	var font: Font = ThemeDB.fallback_font
+	var ts: Vector2 = font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, BUBBLE_FONT_SIZE)
+	var pad := Vector2(18.0, 10.0)
+	var size := Vector2(ts.x + 2.0 * pad.x, ts.y + 2.0 * pad.y)
+	var tail := Vector2(0.0, -stats.visual_height * Units.UNIT_TO_PX - BUBBLE_GAP_PX + 14.0)
+	var rect := Rect2(Vector2(-size.x * 0.5, tail.y - 14.0 - size.y), size)
+	var t: float = clampf(float(state_frame - FighterConst.TAUNT_BUBBLE_IN) / 5.0, 0.0, 1.0)
+	t = 1.0 - pow(1.0 - t, 3.0)
+	_bubble_node.draw_set_transform(tail, 0.0, Vector2.ONE * maxf(t, 0.05))
+	var local := Rect2(rect.position - tail, rect.size)
+	var col: Color = player_color()
+	var box := StyleBoxFlat.new()
+	box.bg_color = Color(1.0, 1.0, 1.0, 0.97)
+	box.border_color = col
+	box.set_border_width_all(5)
+	box.set_corner_radius_all(16)
+	box.draw(_bubble_node.get_canvas_item(), local)
+	# Staartje: rand in spelerskleur, vulling wit.
+	var tx: float = 0.0
+	var by: float = local.end.y
+	_bubble_node.draw_colored_polygon(PackedVector2Array([Vector2(tx - 13.0, by - 4.0), Vector2(tx + 13.0, by - 4.0), Vector2(tx, by + 16.0)]), col)
+	_bubble_node.draw_colored_polygon(PackedVector2Array([Vector2(tx - 8.0, by - 4.0), Vector2(tx + 8.0, by - 4.0), Vector2(tx, by + 9.0)]), Color(1, 1, 1, 0.97))
+	var base := Vector2(local.position.x + pad.x, local.position.y + pad.y + font.get_ascent(BUBBLE_FONT_SIZE))
+	_bubble_node.draw_string(font, base, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, BUBBLE_FONT_SIZE, Color(0.1, 0.1, 0.14))
+	_bubble_node.draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
 
 
 ## Shield-bubble: cirkel in de spelerskleur op shield_center_local() met shield_radius() (krimpt met de HP, groter

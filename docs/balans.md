@@ -24,7 +24,7 @@ Een nieuw character begint daarmee; alleen afwijkende moves worden opnieuw gepri
 ### Lengte
 Elk character heeft een `visual_height` (vloer tot kruin, Melee-units). Toegestaan: **8–30 units** (archetypes: 11–19).
 Groot zijn is een eigen nadeel (grotere hurtbox) en kost niets. **Kleiner dan het archetype** maakt je moeilijker te raken
-en kost **−2 per unit** onder de archetype-lengte. Alle systemen (ledge, hitboxes, hurtboxes, VFX) schalen mee met de lengte.
+en kost **−2 per unit** onder de archetype-lengte. De validator rekent dat mee in het budget (`height_cost`, `Validator.HEIGHT_COST_PER_UNIT`): archetype 12, character 9 = 3 units = 6 punten. De lengte komt uit `visual_height` in `character.json` (buiten 8–30 wordt hij geklemd en geeft de validator een FAIL). Alle systemen (ledge, hitboxes, hurtboxes, VFX) schalen mee met de lengte.
 
 ## 2. Aanvullingen op movement (kosten punten)
 
@@ -42,6 +42,27 @@ Voorbeelden (prijzen voorlopig):
 | Lichter binnen archetype | +5 |
 | Geen double jump | +20 |
 | Tragere dash | +5 |
+
+### Naam -> effect in de engine
+
+De sleutel in `movement_extras` van `scores.json` (waarde = punten uit de tabel hierboven) bepaalt welke stat-aanpassing
+`CharacterLoader.stats_for(id)` op de archetype-preset toepast (`engine/roster/character_loader.gd`, tabel `EXTRAS`).
+Aliassen (Engels) staan tussen haakjes. Een onbekende sleutel geeft een waarschuwing en doet niets (validator: WARN).
+
+| Naam | Effect op `FighterStats` | Referentie / opmerking |
+|---|---|---|
+| `zwaarder` (`heavier`) | `weight` × 1,10 ⚠️ | Fox 75 -> 82,5 |
+| `lichter` (`lighter`) | `weight` × 0,90 ⚠️ | Fox 75 -> 67,5 |
+| `extra_jump` | `air_jumps` + 1 (zelfde `air_jump_v_multiplier`) | Melee: Jigglypuff 5 sprongen |
+| `geen_double_jump` (`no_double_jump`) | `air_jumps` = 0 | |
+| `snellere_jumpsquat` | `jumpsquat_frames` − 1, minimaal 2 ⚠️ | Fox/Falco 3 frames; 2 bestaat niet in Melee |
+| `tragere_dash` (`slower_dash`) | `dash_initial_velocity` × 0,8 en `dash_accel_additional` × 0,85 ⚠️ | run speed ongemoeid |
+| `langere_wavedash` (`longer_wavedash`) | `traction` × 0,8 ⚠️ | minder wrijving = langere slide (ook elke andere sliding) |
+| `glide` | `stats.glide = true` | ⚠️ alleen vlag, mechaniek nog niet gebouwd |
+| `wall_jump` (`walljump`) | `stats.wall_jump = true` | ⚠️ alleen vlag, stages hebben nog geen muren |
+
+Volgorde in `stats_for`: preset (kopie) -> `visual_height` uit `character.json` (8–30, geklemd + waarschuwing) -> extras in de
+volgorde van `scores.json`. Een `characters/<id>/stats.tres` vervangt dit alles (volledige override).
 
 ## 3. Moves
 

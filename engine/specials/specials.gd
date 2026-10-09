@@ -59,7 +59,7 @@ static func hook(f: Fighter, inp: Dictionary) -> bool:
 
 ## Definitie uit characters/<id>/specials/<slot>.tres (null als die niet bestaat). Gecachet.
 static func load_def(character_id: String, slot: String) -> SpecialDef:
-	var path: String = (DIR % character_id).path_join(slot + ".tres")
+	var path: String = CharacterLoader.dir(character_id).path_join("specials").path_join(slot + ".tres")
 	if _def_cache.has(path):
 		return _def_cache[path]
 	var d: SpecialDef = null
@@ -124,7 +124,7 @@ static func make_runner(def: SpecialDef, f: Fighter, index: int) -> SpecialMove:
 	if index == 0:
 		var path: String = def.script_path
 		if path == "":
-			var guess: String = (DIR % f.character_id).path_join(def.slot + ".gd")
+			var guess: String = CharacterLoader.dir(f.character_id).path_join("specials").path_join(def.slot + ".gd")
 			if ResourceLoader.exists(guess):
 				path = guess
 		if path != "" and ResourceLoader.exists(path):

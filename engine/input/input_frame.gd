@@ -9,6 +9,8 @@ const BTN_JUMP: int = 1 << 2
 const BTN_SHIELD: int = 1 << 3
 const BTN_Z: int = 1 << 4
 const BTN_START: int = 1 << 5
+## Taunt: D-pad omhoog (XInput) of T (toetsenbord speler 1).
+const BTN_TAUNT: int = 1 << 6
 
 ## Linkerstick, integer -80..80, y omhoog = positief.
 var stick: Vector2i = Vector2i.ZERO

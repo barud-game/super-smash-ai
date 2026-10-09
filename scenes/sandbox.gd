@@ -15,6 +15,10 @@ extends Node2D
 ##   --vh N: andere visual_height (8-30) voor die fighter.
 ##   Voorbeeld: ... -- --stage eindpunt --ledge-demo heavyweight --frames 40 --screenshot C:/tmp/hang.png
 ## --defense-demo shield|lightshield|grab|throw: shield-bubble, grab en throw (M4), zie _defense_demo_inputs().
+## --p1 ID / --p2 ID: laad een echt character (characters/<ID>, bv. captain_pep) i.p.v. een archetype; stats via CharacterLoader.
+## F11 / F12 = P1 / P2 door de echte roster (CharacterRegistry) wisselen. T / D-pad omhoog = taunt (P1).
+## --taunt-demo: P1 taunt op frame 10 (tekstwolkje + taunt-props). Voorbeeld voor screenshots:
+##   Godot_console.exe --path . --position -20000,-20000 res://scenes/sandbox.tscn -- --p1 _dummy --taunt-demo --frames 30,55 --screenshot C:/pad/taunt.png
 
 const EINDPUNT_SCENE: String = "res://stages/eindpunt/eindpunt.tscn"
 
@@ -36,6 +40,10 @@ var _frames_seen: int = 0
 var _demo_fight: bool = false
 ## --defense-demo shield|lightshield|grab|throw: zie _defense_demo_inputs().
 var _defense_demo: String = ""
+## --p1 / --p2: character-id per speler ("" = archetype).
+var _pick_ids: Array[String] = ["", ""]
+var roster_index: Array[int] = [-1, -1]
+var _taunt_demo: bool = false
 var _p2_percent: float = 0.0
 var _ledge_demo: String = ""
 var _ledge_option: String = "getup"
@@ -57,6 +65,9 @@ func _ready() -> void:
 		f.player = p
 		f.stage = stage
 		f.stats = Archetypes.load_stats(Archetypes.IDS[archetype_index[p]])
+		if _pick_ids[p] != "":
+			f.character_id = _pick_ids[p]
+			f.stats = CharacterLoader.stats_for(_pick_ids[p])
 		f.pos = stage.get_spawn(p)
 		if _demo_fight:
 			f.pos = Vector2(-14.0 if p == 0 else 2.0, 0.0)
@@ -132,6 +143,15 @@ func _parse_args() -> void:
 				_demo = true
 				if i + 1 < a.size():
 					_defense_demo = a[i + 1]
+			"--p1":
+				if i + 1 < a.size():
+					_pick_ids[0] = a[i + 1]
+			"--p2":
+				if i + 1 < a.size():
+					_pick_ids[1] = a[i + 1]
+			"--taunt-demo":
+				_demo = true
+				_taunt_demo = true
 			"--hitboxes":
 				var sim: Node = get_node_or_null("/root/Sim")
 				if sim != null:
@@ -177,6 +197,13 @@ func _physics_process(_delta: float) -> void:
 	if _demo_fight:
 		_demo_fight_inputs(t)
 		return
+	if _taunt_demo:
+		var tp1 := InputFrame.new()
+		if t >= 10 and t < 12:
+			tp1.buttons |= InputFrame.BTN_TAUNT
+		_demo_inputs[0].push(tp1)
+		_demo_inputs[1].push(InputFrame.new())
+		return
 	if _defense_demo != "":
 		_defense_demo_inputs(t)
 		return
@@ -207,6 +234,10 @@ func _input(event: InputEvent) -> void:
 				_cycle(0)
 			KEY_F4:
 				_cycle(1)
+			KEY_F11:
+				_cycle_roster(0)
+			KEY_F12:
+				_cycle_roster(1)
 			KEY_F5:
 				for f in fighters:
 					f.spawn(stage.get_spawn(f.player), 1 if f.player == 0 else -1)
@@ -246,11 +277,22 @@ func _cycle(p: int) -> void:
 	_update_hud()
 
 
+## F11/F12: volgende character uit de echte roster (CharacterRegistry) voor speler p.
+func _cycle_roster(p: int) -> void:
+	var reg: Node = get_node_or_null("/root/CharacterRegistry")
+	if reg == null or reg.ids().is_empty():
+		return
+	var ids: PackedStringArray = reg.ids()
+	roster_index[p] = (roster_index[p] + 1) % ids.size()
+	fighters[p].set_character(ids[roster_index[p]])
+	_update_hud()
+
+
 func _update_hud() -> void:
 	var parts: PackedStringArray = PackedStringArray()
 	for f in fighters:
-		parts.append("P%d: %s (%s)" % [f.player + 1, f.stats.display_name, f.stats.reference.get_slice(" ", 0)])
-	hud.text = "%s   [%s, KO: %s, P2: %s %.0f%%]     F3/F4 = archetype, F5 = reset, F6 = stage, F7 = KO-gedrag, F8 = dummy, F9/F10 = P2 %% -/+10, F1 = overlay, F2 = hitboxes, P = pauze, . = frame" % [
+		parts.append("P%d: %s [%s] (%s)" % [f.player + 1, f.stats.display_name, f.character_id, f.stats.reference.get_slice(" ", 0)])
+	hud.text = "%s   [%s, KO: %s, P2: %s %.0f%%]     F3/F4 = archetype, F11/F12 = character, T = taunt, F5 = reset, F6 = stage, F7 = KO-gedrag, F8 = dummy, F9/F10 = P2 %% -/+10, F1 = overlay, F2 = hitboxes, P = pauze, . = frame" % [
 		"   ".join(parts), "Eindpunt" if use_eindpunt else "stub", "auto-respawn" if fighters[0].auto_respawn else "blijft weg",
 		"dummy" if dummy_p2 else "speler", fighters[1].percent]
 

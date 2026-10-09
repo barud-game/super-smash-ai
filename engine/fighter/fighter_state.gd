@@ -134,6 +134,11 @@ func pick_pose(wanted: String, fallback: String) -> String:
 	return fallback
 
 
+## Actieve rekwisieten op dit frame (genormaliseerde PropEvent-dictionaries); CharacterVisual.set_props toont ze.
+func props() -> Array:
+	return []
+
+
 ## Pose-naam voor CharacterVisual (docs/rig.md §6).
 func pose() -> String:
 	return "idle"

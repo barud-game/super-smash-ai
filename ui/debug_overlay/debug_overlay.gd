@@ -6,7 +6,7 @@ const COL_DIM := Color(1, 1, 1, 0.35)
 const COL_ON := Color(0.4, 1.0, 0.4)
 const BUTTONS: Array = [
 	["A", InputFrame.BTN_ATTACK], ["SP", InputFrame.BTN_SPECIAL], ["JMP", InputFrame.BTN_JUMP],
-	["SH", InputFrame.BTN_SHIELD], ["Z", InputFrame.BTN_Z], ["ST", InputFrame.BTN_START],
+	["SH", InputFrame.BTN_SHIELD], ["Z", InputFrame.BTN_Z], ["ST", InputFrame.BTN_START], ["TA", InputFrame.BTN_TAUNT],
 ]
 
 var _ctl: Control

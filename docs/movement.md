@@ -363,3 +363,12 @@ Volledige beschrijving en alle waarden in `docs/combat.md`, sectie "M4-implement
 - Per-airtime-limiet reset bij landen, ledge grab, geraakt worden, respawn en wall jump (director-besluit 10).
 - Solide blok onder een SOLID-segment: 30 units diep ⚠️ (teleport-doelen, projectielen).
 - Slot-drempels B: up/down vanaf stick-y ±0.6625, side vanaf |x| 0.6 ⚠️.
+
+## Character-pipeline: stats per character en taunt
+- **Stats per character** (`CharacterLoader.stats_for(id)`, gebruikt door MatchController/training/sandbox): archetype-preset (kopie)
+  -> `visual_height` (8–30) -> `movement_extras` (tabel "naam -> effect" in `docs/balans.md` §2) -> of volledig `characters/<id>/stats.tres`.
+  Alle extra-waarden (weight ×1,10/×0,90, jumpsquat −1 min. 2, dash ×0,8/×0,85, traction ×0,8) zijn ⚠️ eigen keuzes.
+  `glide`/`wall_jump` zijn voorlopig alleen vlaggen op `FighterStats`.
+- **Taunt** (Melee: D-pad omhoog): `BTN_TAUNT` (XInput D-pad omhoog, toets `T` voor speler 1). Alleen vanuit `Wait` (`Fighter.check_taunt`);
+  state `Taunt` duurt `taunt_frames` (standaard `FighterConst.TAUNT_FRAMES` = 80 ⚠️; Melee ±80–100 per character), is niet cancelbaar,
+  heeft een gewone hurtbox (te raken) en eindigt in `Wait`. Tekstwolkje: `Fighter.bubble_text()` (vanaf frame 4 tot 4 frames voor het einde).

@@ -516,6 +516,16 @@ static func normals_total(all_scores: Dictionary) -> int:
 	return t
 
 
+## Lengte-regel (docs/balans.md): kleiner dan het archetype kost HEIGHT_COST_PER_UNIT punten per unit; groter kost niets.
+const HEIGHT_COST_PER_UNIT: float = 2.0
+
+
+static func height_cost(archetype_height_: float, height: float) -> int:
+	if height >= archetype_height_:
+		return 0
+	return roundi((archetype_height_ - height) * HEIGHT_COST_PER_UNIT)
+
+
 ## Movement-extras: waarden zijn punten t.o.v. het budget (extra_jump -15 = kost 15). Kosten = -som.
 static func extras_cost(extras: Dictionary) -> int:
 	var s := 0
@@ -525,22 +535,24 @@ static func extras_cost(extras: Dictionary) -> int:
 
 
 ## Budget voor een character: {normals, specials, extras, total, op, status, msg}.
-static func character_budget(all_scores: Dictionary, specials: Dictionary, extras: Dictionary, op: bool) -> Dictionary:
+static func character_budget(all_scores: Dictionary, specials: Dictionary, extras: Dictionary, op: bool,
+		height_cost: int = 0) -> Dictionary:
 	var n := normals_total(all_scores)
 	var sp := 0
 	for k in specials:
 		sp += special_cost(specials[k])
 	var ex := extras_cost(extras)
-	var total := n + sp + ex
-	var out := {"normals": n, "specials": sp, "extras": ex, "total": total, "op": op, "status": "PASS", "msg": ""}
+	var total := n + sp + ex + height_cost
+	var out := {"normals": n, "specials": sp, "extras": ex, "height": height_cost, "total": total, "op": op, "status": "PASS", "msg": ""}
+	var hint := " + lengte %d" % height_cost if height_cost != 0 else ""
 	if total > CT.BUDGET:
 		if op:
-			out["msg"] = "OP: %d punten (> %d), toegestaan (normals %d + specials %d + extras %d)" % [total, CT.BUDGET, n, sp, ex]
+			out["msg"] = "OP: %d punten (> %d), toegestaan (normals %d + specials %d + extras %d%s)" % [total, CT.BUDGET, n, sp, ex, hint]
 		else:
 			out["status"] = "FAIL"
-			out["msg"] = "budget %d > %d (normals %d + specials %d + extras %d)" % [total, CT.BUDGET, n, sp, ex]
+			out["msg"] = "budget %d > %d (normals %d + specials %d + extras %d%s)" % [total, CT.BUDGET, n, sp, ex, hint]
 	else:
-		out["msg"] = "budget %d/%d (normals %d + specials %d + extras %d)" % [total, CT.BUDGET, n, sp, ex]
+		out["msg"] = "budget %d/%d (normals %d + specials %d + extras %d%s)" % [total, CT.BUDGET, n, sp, ex, hint]
 	return out
 
 
@@ -692,7 +704,9 @@ func validate_character(id: String) -> Dictionary:
 	var ex: Variant = cs.get("movement_extras", {})
 	if ex is Dictionary:
 		extras = ex
-	out["budget"] = character_budget(merged, specials, extras, bool(cs.get("op", info.get("op", false))))
+	var hcost: int = height_cost(archetype_height(arch), vh)
+	_validate_character_fields(out, scope, base, info, cs, vh, arch)
+	out["budget"] = character_budget(merged, specials, extras, bool(cs.get("op", info.get("op", false))), hcost)
 	return out
 
 
@@ -741,6 +755,8 @@ func _validate_special_defs(out: Dictionary, scope: String, base: String, json_s
 		var d: SpecialDef = r
 		defs[slot] = d
 		var res: Dictionary = sv.validate_def(scope, d)
+		for ev in d.prop_events:
+			_check_prop_event(res, base, ev)
 		var js: Variant = json_specials.get(slot + "_b")
 		if js is Dictionary:
 			for a in ["S", "K", "B", "V", "U"]:
@@ -754,3 +770,70 @@ func _validate_special_defs(out: Dictionary, scope: String, base: String, json_s
 			var rr := _new_result(scope, "special_def/(recovery)", {})
 			_add(rr, "warn", w)
 			out["results"].append(_finish(rr))
+
+
+## Velden van de character-pipeline (docs/character-creatie.md): visual_height, taunt, taunt-props, movement_extras, stats.tres.
+## Eén resultaat per onderwerp onder `character_fields/<naam>`.
+func _validate_character_fields(out: Dictionary, scope: String, base: String, info: Dictionary, cs: Dictionary,
+		vh: float, arch: String) -> void:
+	# visual_height
+	var rh := _new_result(scope, "character_fields/visual_height", {})
+	if info.has("visual_height"):
+		var raw := float(info["visual_height"])
+		if raw < FighterStats.VISUAL_HEIGHT_MIN or raw > FighterStats.VISUAL_HEIGHT_MAX:
+			_add(rh, "fail", "visual_height %s buiten %.0f-%.0f" % [_fmt(raw), FighterStats.VISUAL_HEIGHT_MIN,
+				FighterStats.VISUAL_HEIGHT_MAX])
+		else:
+			var ah := archetype_height(arch)
+			var hc := height_cost(ah, raw)
+			if hc > 0:
+				_add(rh, "warn", "lengte %s < archetype %s: kost %d punten (-%d per unit)" % [_fmt(raw), _fmt(ah), hc,
+					int(HEIGHT_COST_PER_UNIT)])
+	out["results"].append(_finish(rh))
+	# taunt
+	var rt := _new_result(scope, "character_fields/taunt", {})
+	var text := str(info.get("taunt_text", ""))
+	if text == "":
+		_add(rt, "warn", "taunt_text ontbreekt (geen tekstwolkje)")
+	elif text.length() > 28:
+		_add(rt, "warn", "taunt_text is %d tekens; langer dan 28 past slecht in het wolkje" % text.length())
+	if info.has("taunt_frames"):
+		var tf := int(info["taunt_frames"])
+		if tf < FighterConst.TAUNT_FRAMES_MIN or tf > FighterConst.TAUNT_FRAMES_MAX:
+			_add(rt, "fail", "taunt_frames %d buiten %d-%d" % [tf, FighterConst.TAUNT_FRAMES_MIN, FighterConst.TAUNT_FRAMES_MAX])
+	var tprops: Variant = info.get("taunt_props", [])
+	if tprops is Array:
+		for ev: Variant in tprops:
+			_check_prop_event(rt, base, ev)
+	else:
+		_add(rt, "fail", "taunt_props moet een lijst zijn")
+	out["results"].append(_finish(rt))
+	# movement_extras en stats.tres
+	var rx := _new_result(scope, "character_fields/movement", {})
+	var extras: Variant = cs.get("movement_extras", {})
+	if extras is Dictionary:
+		for k in extras:
+			if CharacterLoader.canonical_extra(str(k)) == "":
+				_add(rx, "warn", "onbekende movement_extra '%s' (bekend: %s)" % [k, ", ".join(CharacterLoader.EXTRAS.keys())])
+	var stats_path := base + "/stats.tres"
+	if ResourceLoader.exists(stats_path):
+		var sr: Resource = ResourceLoader.load(stats_path, "", ResourceLoader.CACHE_MODE_IGNORE)
+		if not (sr is FighterStats):
+			_add(rx, "fail", "stats.tres is geen FighterStats")
+		else:
+			_add(rx, "warn", "stats.tres overschrijft preset, visual_height en movement_extras volledig")
+			var sh: float = (sr as FighterStats).visual_height
+			if sh < FighterStats.VISUAL_HEIGHT_MIN or sh > FighterStats.VISUAL_HEIGHT_MAX:
+				_add(rx, "fail", "stats.tres visual_height %s buiten %.0f-%.0f" % [_fmt(sh), FighterStats.VISUAL_HEIGHT_MIN,
+					FighterStats.VISUAL_HEIGHT_MAX])
+	out["results"].append(_finish(rx))
+
+
+## Eén prop-event (taunt of special): formaat via PropEvent.problems, plus bestaat art/props/<prop>.svg.
+func _check_prop_event(res: Dictionary, base: String, ev: Variant) -> void:
+	for p in PropEvent.problems(ev):
+		_add(res, "fail", p)
+	if ev is Dictionary and str((ev as Dictionary).get("prop", "")) != "":
+		var path := "%s/art/props/%s.svg" % [base, str((ev as Dictionary)["prop"])]
+		if not FileAccess.file_exists(path):
+			_add(res, "fail", "prop-bestand ontbreekt: %s" % path)

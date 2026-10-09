@@ -56,6 +56,9 @@ const TEMPLATE_IDS: Array[String] = [
 @export var cancel_window: Dictionary = {}
 ## Prijs-scores {S, K, B, V, U} (docs/balans.md). De validator controleert ze tegen de parameters.
 @export var scores: Dictionary = {}
+## Rekwisieten (PropEvent): losse SVG-props uit characters/<id>/art/props/ die op bepaalde frames (sinds de knopdruk)
+## aan een bot hangen. Zie docs/specials.md §7.
+@export var prop_events: Array[Dictionary] = []
 ## Optioneel eigen runner-script (extends SpecialMove). Leeg = `characters/<id>/specials/<slot>.gd` als dat bestaat.
 @export var script_path: String = ""
 

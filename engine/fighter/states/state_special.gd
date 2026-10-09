@@ -130,3 +130,10 @@ func pose_timing() -> Array:
 
 func pose_frame() -> int:
 	return move.pose_frame() if move != null else sf()
+
+
+## Rekwisieten van de special-definitie (SpecialDef.prop_events), frames sinds de knopdruk.
+func props() -> Array:
+	if move == null or move.def == null or move.def.prop_events.is_empty():
+		return []
+	return PropEvent.active(move.def.prop_events, f.state_frame)

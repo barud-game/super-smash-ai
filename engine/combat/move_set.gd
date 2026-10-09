@@ -9,6 +9,7 @@ extends RefCounted
 ## `clear_cache()` voor hot reload. Alleen lezen: MoveData-resources worden gedeeld tussen fighters.
 
 const ARCHETYPE_DIR: String = "res://engine/fighter/archetypes/%s/moves"
+## (characters/<id>/moves: map via CharacterLoader.dir(id), zodat tests een andere root kunnen gebruiken)
 const CHARACTER_DIR: String = "res://characters/%s/moves"
 ## Moves die het systeem zelf aanvult als er geen bestand is.
 const BUILTIN: Array[String] = ["ledge_attack", "ledge_attack_slow", "getup_attack"]
@@ -29,7 +30,7 @@ static func load_files(archetype_id: String, character_id: String) -> Dictionary
 	if archetype_id != "":
 		_load_dir(ARCHETYPE_DIR % archetype_id, out)
 	if character_id != "":
-		_load_dir(CHARACTER_DIR % character_id, out)
+		_load_dir(CharacterLoader.dir(character_id).path_join("moves"), out)
 	_cache[key] = out
 	return out
 

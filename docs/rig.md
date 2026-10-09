@@ -262,3 +262,26 @@ Meerdere (aanvals)poses tegelijk, frames automatisch uit de keytijden (nominale 
 omhoog/omlaag = tempo, spatie = pauze, `,` `.` = frame, F = spiegelen, P = spelerskleur, C = ander character, R = herladen.
 
 **Tests:** `Godot_console.exe --headless --path . --script res://tests/test_visual.gd`.
+
+## 9. Rekwisieten (props) en eigen poses per character
+
+### Eigen poses (bv. `taunt`)
+Een character mag `characters/<id>/poses/*.json` meeleveren (zelfde formaat als §6). `PoseLibrary.load_for(id)` laadt eerst de gedeelde
+poses en daarna die map: **een pose met dezelfde naam overschrijft de gedeelde** (alleen op naam; geen merge per bot). De
+taunt gebruikt pose `taunt` (gedeeld: `poses/combat.json`, 80 frames); `Taunt` rekt hem uit over `taunt_frames`. Voorbeeld:
+`characters/<id>/poses/taunt.json` = `{"taunt": {"length": 90, "blend": 4, "keys": [ ... ]}}`.
+
+### Props: `characters/<id>/art/props/<naam>.svg`
+Losse voorwerpen die op bepaalde frames aan het lijf hangen (zie `docs/specials.md` §7 voor de events).
+- **Canvas:** vrij (aanbevolen ≤ 256×256 px), **1 prop-px = 1 rig-px** (net als de lichaamsonderdelen; het hele rig wordt daarna met
+  `visual_height` geschaald), `viewBox` gelijk aan de canvasmaat, het voorwerp kijkt naar **rechts** (+x), gespiegeld door `facing`.
+- **Pivot = greeppunt** (canvas-px, linksboven = 0,0): dat punt komt op het aanhechtpunt. Volgorde: `pivot` in het event ->
+  `art/props/props.json` (`{"hamburger": {"pivot": [22, 18]}}`) -> `data-pivot="x,y"` op het `<svg>`-element ->
+  standaard: `hand_*` = (breedte/2, 24) (voorwerp wijst langs de arm omlaag, zoals `weapon.svg`); `root`/`under_feet` = (breedte/2, hoogte),
+  dus onderkant-midden op de voeten.
+- **Aanhechting:** `hand_r`/`hand_l` zitten aan de bot `hand_*` + palm-offset (0, 6) (draait mee met arm en pols), `root` en `under_feet`
+  aan de bot `root` (voeten-midden). Tekenvolgorde (z): `under_feet` achter alles (z 0, eerste kind), `hand_l` achter de romp (z 6), `hand_r` vóór de arm
+  en het wapen (z 31), `root` helemaal voor (z 32).
+- **Kleuren:** de gereserveerde teamkleuren (§5) worden ook in props vervangen; stijl en outline als §4.
+- Een prop is alleen presentatie. Hot reload: `CharacterVisual.reload()` bouwt de props opnieuw op (de actieve set blijft).
+- Voorbeeld: `characters/_dummy/art/props/flag.svg` (vlag in de hand tijdens de taunt, `taunt_props` in `character.json`).

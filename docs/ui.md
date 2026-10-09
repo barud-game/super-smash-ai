@@ -77,6 +77,8 @@ waarschuwingen, het character blijft bruikbaar).
 | `archetype` | `Zwaargewicht`, `Allrounder`, `Fast-faller`, `Floaty` of `Lichtgewicht` (zie `docs/balans.md`) |
 | `op` | `true` = buiten het 200-budget; wordt op de select gemarkeerd (standaard `false`) |
 | `tagline` | Max. ~2 regels, getoond in het spelerspaneel |
+| `visual_height` | Lengte in Melee-units, 8–30 (zie `docs/balans.md`); standaard die van het archetype |
+| `taunt_text`, `taunt_frames`, `taunt_props` | Taunt-wolkje, duur (30–180) en rekwisieten; zie `docs/character-creatie.md` (Opslag per character) |
 | `colors.primary/secondary` | Hex; accent van tegel en paneel (niet de spelerskleur van het rig) |
 
 **Ontdekking** (`CharacterRegistry`, autoload): mappen onder `res://characters/` zonder `_`-prefix zijn spelbaar;

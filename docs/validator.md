@@ -76,6 +76,14 @@ Per grond-/luchtmove, tegen de score (exacte tabelwaarde, geen interpolatie):
 - **Hoogtes (afspraak 8, WARN).** jab/ftilt/dash/fsmash/grab: y ~ 0,55 x visual_height (+-12%); nair/fair/bair: elke box op 15-40% van visual_height (doel 30%) en de onderste box <= 35% (onder de heup; `HEIGHT_AERIAL_*` in `conversion_table.gd`);
   dtilt/dsmash: y = 2 (+-1).
 
+## Character-velden (pipeline)
+
+Per character één resultaat per onderwerp, `character_fields/<naam>`:
+- `visual_height`: buiten 8–30 -> FAIL; kleiner dan het archetype -> WARN met de kosten (−2 per unit, ook in het budget: `budget.height`, '+ lengte N' in de budgetregel).
+- `taunt`: `taunt_text` ontbreekt of > 28 tekens -> WARN; `taunt_frames` buiten 30–180 -> FAIL; `taunt_props`: event-formaat (`PropEvent.problems`) en bestaan van `art/props/<prop>.svg` -> FAIL.
+- `movement`: onbekende `movement_extras`-naam -> WARN; `stats.tres` aanwezig -> WARN (volledige override), geen `FighterStats` of lengte buiten 8–30 -> FAIL.
+- `special_def/<slot>`: `prop_events` worden gecontroleerd zoals taunt-props (FAIL).
+
 ## Budget
 
 - Archetype: som van de normals (S+K+B+V; throws S+K; grab S+B) ≤ 200.

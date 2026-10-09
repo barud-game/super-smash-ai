@@ -56,6 +56,19 @@ func def_for(slot: String) -> SpecialDef:
 	return d
 
 
+## Nieuw character in dezelfde fighter (Fighter.set_character): definities, buffs, charges en limieten opnieuw beginnen.
+func reset_for_character() -> void:
+	defs.clear()
+	_loaded.clear()
+	air_uses.clear()
+	stored_charge.clear()
+	cooldowns.clear()
+	stock_uses.clear()
+	buffs.clear()
+	_base_stats = null
+	_base_moves.clear()
+
+
 # --- per-airtime-limieten ---------------------------------------------------------------------
 
 func uses(slot: String) -> int:

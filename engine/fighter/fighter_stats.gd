@@ -232,3 +232,14 @@ func ledge_grab_y_min() -> float:
 
 func ledge_grab_y_max() -> float:
 	return ledge_grab_y_max_ratio * visual_height
+
+
+# =============================================================================================
+# Movement-aanvullingen per character (CharacterLoader, docs/balans.md sectie 2). Alleen vlaggen: de bijbehorende
+# mechaniek hangt aan de vlag (zie docs/movement.md, "Character-aanvullingen").
+# =============================================================================================
+@export_group("Aanvullingen")
+## Glide (vasthouden van de sprongknop in de val houdt hoogte). ⚠️ Vlag; mechaniek nog niet gebouwd.
+@export var glide: bool = false
+## Wall jump (afzetten tegen een stage-muur). ⚠️ Vlag; mechaniek nog niet gebouwd (stages hebben nog geen muren).
+@export var wall_jump: bool = false

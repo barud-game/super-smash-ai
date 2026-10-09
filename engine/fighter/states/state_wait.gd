@@ -8,6 +8,8 @@ func id() -> String:
 
 
 func iasa() -> void:
+	if f.check_taunt():
+		return
 	if not f.check_wait_interrupts():
 		f.check_teeter()
 

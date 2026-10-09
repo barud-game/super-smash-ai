@@ -27,6 +27,8 @@ signal reloaded
 			_flip.scale.x = float(facing)
 ## Overschrijft de art-map (voor tests); leeg = res://characters/<id>/art
 var art_dir_override: String = ""
+## Overschrijft de props-map (voor tests); leeg = <art-map>/props.
+var props_dir_override: String = ""
 
 var errors: PackedStringArray = PackedStringArray()
 var warnings: PackedStringArray = PackedStringArray()
@@ -44,6 +46,11 @@ var _pose: Pose
 var _blend_from: Dictionary = {}   # snapshot {"r":..., "o":...} van de vorige pose
 var _since_play: float = 0.0
 var _warned_missing: Dictionary = {}
+## Rekwisieten (PropEvent): texturen per prop-naam, sprites per event-index, laatste set.
+var _prop_tex: Dictionary = {}     # naam -> {"tex": ImageTexture, "size": Vector2} (leeg = niet gevonden)
+var _prop_sprites: Dictionary = {}   # slot-index -> Sprite2D
+var _prop_sig: String = ""
+var _props_now: Array = []
 var _timed: bool = false           # play_timed actief: tick(frame) schaalt de pose naar de move-fases
 var _t_startup: float = 0.0
 var _t_active: float = 0.0
@@ -58,7 +65,7 @@ func _ready() -> void:
 func art_dir() -> String:
 	if art_dir_override != "":
 		return art_dir_override
-	return "res://characters/%s/art" % character_id
+	return CharacterLoader.dir(character_id).path_join("art")
 
 
 ## Bouwt het hele skelet + de sprites opnieuw op uit schijf. Veilig om vaak aan te roepen (hot reload).
@@ -91,6 +98,10 @@ func reload() -> bool:
 		play("idle")
 		_since_play = 1000.0
 		_apply(_sample_current())
+	if not _props_now.is_empty():
+		var again: Array = _props_now
+		_props_now = []
+		set_props(again)
 	reloaded.emit()
 	return is_valid
 
@@ -102,6 +113,9 @@ func _clear() -> void:
 	skeleton = null
 	bones.clear()
 	sprites.clear()
+	_prop_sprites.clear()
+	_prop_tex.clear()
+	_prop_sig = ""
 
 
 func _build_skeleton() -> void:
@@ -317,3 +331,142 @@ func clear_blend() -> void:
 	_blend_from = {}
 	if _pose != null:
 		_apply(_sample_current())
+
+
+# =============================================================================================
+# Rekwisieten (props): characters/<id>/art/props/<naam>.svg, zie docs/rig.md §9 en PropEvent.
+# =============================================================================================
+
+## Standaard prop-canvasmaat/pivot staan in docs/rig.md §9. Een prop zit in de bot-hiërarchie (meeschalen met
+## visual_height en spiegelen met facing gaat vanzelf via de visual).
+const PROP_Z: Dictionary = {"hand_r": 31, "hand_l": 6, "root": 32, "under_feet": 0}
+const PROP_HAND_PIVOT_Y: float = 24.0
+## Handprops hangen aan de palm (6 px onder de pols-bot, net als weapon_r); `offset` komt daar bovenop.
+const PROP_HAND_PALM := Vector2(0.0, 6.0)
+
+
+func props_dir() -> String:
+	return props_dir_override if props_dir_override != "" else art_dir().path_join("props")
+
+
+## Toont precies de gegeven prop-events (genormaliseerd door PropEvent.normalize) en verbergt de rest.
+## Goedkoop als er niets verandert; elke fighter-tick aanroepen mag.
+func set_props(events: Array) -> void:
+	var sig: String = str(events)
+	if sig == _prop_sig:
+		return
+	_prop_sig = sig
+	_props_now = events
+	var used: Dictionary = {}
+	for i in events.size():
+		var ev: Dictionary = events[i]
+		var spr: Sprite2D = _prop_sprite_for(i, ev)
+		if spr != null:
+			used[i] = true
+			spr.visible = true
+	for i: Variant in _prop_sprites:
+		if not used.has(i):
+			(_prop_sprites[i] as Sprite2D).visible = false
+
+
+## Namen van de nu zichtbare props (tests/debug).
+func visible_props() -> PackedStringArray:
+	var out := PackedStringArray()
+	for i: Variant in _prop_sprites:
+		var s: Sprite2D = _prop_sprites[i]
+		if is_instance_valid(s) and s.visible:
+			out.append(s.name.get_slice("#", 0))
+	out.sort()
+	return out
+
+
+## De sprite van een zichtbare prop (tests/debug); null als hij niet zichtbaar is.
+func prop_sprite(prop_name: String) -> Sprite2D:
+	for i: Variant in _prop_sprites:
+		var s: Sprite2D = _prop_sprites[i]
+		if is_instance_valid(s) and s.visible and s.name.get_slice("#", 0) == prop_name:
+			return s
+	return null
+
+
+func _prop_sprite_for(slot: int, ev: Dictionary) -> Sprite2D:
+	var data: Dictionary = _prop_data(String(ev["prop"]))
+	if data.is_empty():
+		return null
+	var attach: String = String(ev["attach"])
+	var bone_name: String = attach if attach.begins_with("hand_") else "root"
+	if not bones.has(bone_name):
+		return null
+	var s: Sprite2D = _prop_sprites.get(slot)
+	if s == null or not is_instance_valid(s):
+		s = Sprite2D.new()
+		s.centered = false
+		s.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+		_prop_sprites[slot] = s
+	var bone: Node = bones[bone_name]
+	if s.get_parent() != bone:
+		if s.get_parent() != null:
+			s.get_parent().remove_child(s)
+		bone.add_child(s)
+	if attach == "under_feet":
+		bone.move_child(s, 0)
+	s.name = "%s#%d" % [ev["prop"], slot]
+	s.texture = data["tex"]
+	var size: Vector2 = data["size"]
+	var pivot: Vector2
+	if ev.has("pivot"):
+		pivot = ev["pivot"]
+	elif data.has("pivot"):
+		pivot = data["pivot"]
+	elif attach.begins_with("hand_"):
+		pivot = Vector2(size.x * 0.5, PROP_HAND_PIVOT_Y)
+	else:
+		pivot = Vector2(size.x * 0.5, size.y)   # root / under_feet: voeten-midden onderaan het canvas
+	s.offset = -pivot * Rig.SCALE_SUPERSAMPLE
+	s.scale = Vector2.ONE * (float(ev["scale"]) / Rig.SCALE_SUPERSAMPLE)
+	s.rotation = deg_to_rad(float(ev["rotation"]))
+	s.position = Vector2(ev["offset"]) + (PROP_HAND_PALM if attach.begins_with("hand_") else Vector2.ZERO)
+	s.z_index = int(PROP_Z.get(attach, 31))
+	return s
+
+
+## Laadt (en cachet) de texture van een prop; leeg als het bestand ontbreekt/ongeldig is (één waarschuwing).
+func _prop_data(prop_name: String) -> Dictionary:
+	if _prop_tex.has(prop_name):
+		return _prop_tex[prop_name]
+	var path: String = props_dir().path_join(prop_name + ".svg")
+	var out: Dictionary = {}
+	if not FileAccess.file_exists(path):
+		push_warning("[CharacterVisual:%s] prop '%s' ontbreekt (verwacht %s)" % [character_id, prop_name, path])
+	else:
+		var palette: Dictionary = Rig.PLAYER_PALETTES[clampi(player_index, 0, Rig.PLAYER_PALETTES.size() - 1)]
+		var img := Image.new()
+		var err: Error = img.load_svg_from_string(recolor(FileAccess.get_file_as_string(path), palette), Rig.SCALE_SUPERSAMPLE)
+		if err != OK or img.is_empty():
+			push_warning("[CharacterVisual:%s] prop '%s' is geen geldige SVG (%s)" % [character_id, prop_name, error_string(err)])
+		else:
+			out = {"tex": ImageTexture.create_from_image(img),
+				"size": Vector2(img.get_width(), img.get_height()) / Rig.SCALE_SUPERSAMPLE}
+			var piv: Variant = _prop_pivot(prop_name, FileAccess.get_file_as_string(path))
+			if piv is Vector2:
+				out["pivot"] = piv
+	_prop_tex[prop_name] = out
+	return out
+
+
+## Greeppunt (canvas-px) van een prop, in volgorde: `art/props/props.json` {"<naam>": {"pivot": [x, y]}},
+## dan `data-pivot="x,y"` op het <svg>-element. null = standaard per attach (docs/rig.md §9).
+func _prop_pivot(prop_name: String, svg_text: String) -> Variant:
+	var meta_path: String = props_dir().path_join("props.json")
+	if FileAccess.file_exists(meta_path):
+		var parsed: Variant = JSON.parse_string(FileAccess.get_file_as_string(meta_path))
+		if parsed is Dictionary and (parsed as Dictionary).get(prop_name) is Dictionary:
+			var pv: Variant = ((parsed as Dictionary)[prop_name] as Dictionary).get("pivot")
+			if pv is Array and (pv as Array).size() >= 2:
+				return Vector2(float(pv[0]), float(pv[1]))
+	var re := RegEx.new()
+	re.compile('data-pivot\\s*=\\s*"\\s*(-?[0-9.]+)[ ,]+\\s*(-?[0-9.]+)\\s*"')
+	var m: RegExMatch = re.search(svg_text.substr(0, 600))
+	if m != null:
+		return Vector2(float(m.get_string(1)), float(m.get_string(2)))
+	return null

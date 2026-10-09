@@ -84,6 +84,8 @@ func _sample_pad(d: int) -> InputFrame:
 		b |= InputFrame.BTN_Z
 	if Input.is_joy_button_pressed(d, JOY_BUTTON_START):
 		b |= InputFrame.BTN_START
+	if Input.is_joy_button_pressed(d, JOY_BUTTON_DPAD_UP):
+		b |= InputFrame.BTN_TAUNT
 	f.buttons = b | _shield_bit(f)
 	return f
 
@@ -101,6 +103,8 @@ func _sample_keyboard() -> InputFrame:
 		b |= InputFrame.BTN_JUMP
 	if Input.is_physical_key_pressed(KEY_I):
 		b |= InputFrame.BTN_Z
+	if Input.is_physical_key_pressed(KEY_T):
+		b |= InputFrame.BTN_TAUNT
 	if Input.is_physical_key_pressed(KEY_L):
 		f.trigger_l = 1.0
 	f.buttons = b | _shield_bit(f)

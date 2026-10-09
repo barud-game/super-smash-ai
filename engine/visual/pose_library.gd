@@ -38,5 +38,5 @@ static func load_for(character_id: String) -> PoseLibrary:
 	var lib := PoseLibrary.new()
 	lib.load_dir(SHARED_DIR)
 	if character_id != "":
-		lib.load_dir("res://characters/%s/poses" % character_id)
+		lib.load_dir(CharacterLoader.dir(character_id).path_join("poses"))
 	return lib

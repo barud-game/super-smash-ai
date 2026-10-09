@@ -144,3 +144,12 @@ const GRAB_AIR_RELEASE_VY: float = 2.0
 ## Up/down-B: stick-y (dominante as) >= dit; side-B: |stick-x| >= dit; anders neutral-B. ⚠️ (Melee-drempels niet nagelezen)
 const SPECIAL_UPDOWN_THRESHOLD: float = 0.6625
 const SPECIAL_SIDE_THRESHOLD: float = 0.6
+
+# --- Taunt ---
+## Standaardduur van een taunt in frames (Melee: ~80-100 per character) ⚠️. `taunt_frames` in character.json overschrijft (30..180).
+const TAUNT_FRAMES: int = 80
+const TAUNT_FRAMES_MIN: int = 30
+const TAUNT_FRAMES_MAX: int = 180
+## Tekstwolkje: verschijnt na dit aantal taunt-frames en verdwijnt zoveel frames vóór het einde. ⚠️ presentatie
+const TAUNT_BUBBLE_IN: int = 4
+const TAUNT_BUBBLE_OUT: int = 4

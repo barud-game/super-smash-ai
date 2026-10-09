@@ -35,3 +35,7 @@ Verdediging (M4; shield, lightshield, shield-HP/break, powershield, OoS, rolls, 
 Aerial-bereik (afspraak 8, SH-aerials tegen staande hurtboxes; geometrisch, `-- --table` toont de invoer-vensters):
 
     <godot_console> --headless --path . --script res://tests/test_aerial_reach.gd
+
+Character-pipeline (stats per character, taunt + tekstwolkje, props, move-override, validator-velden, match/sandbox; gebruikt een tijdelijke map in `user://`):
+
+    <godot_console> --headless --path . --script res://tests/test_character_pipeline.gd
