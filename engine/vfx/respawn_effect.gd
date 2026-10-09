@@ -13,6 +13,7 @@ func setup(pos_px: Vector2, p_color: Color) -> void:
 
 
 func _draw() -> void:
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE * VfxConst.RESPAWN_SCALE)
 	var t: float = progress()
 	var fade: float = 1.0 - t
 	var w: float = 46.0 * (1.0 - ease_out(t) * 0.7)

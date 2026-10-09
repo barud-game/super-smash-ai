@@ -42,6 +42,7 @@ func _add(p: Vector2, v: Vector2, r0: float, r1: float) -> void:
 
 
 func _draw() -> void:
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE * VfxConst.DUST_SCALE)
 	var t: float = progress()
 	for pf: Dictionary in _puffs:
 		var drag: float = 1.0 - pow(1.0 - t, 2.0)   # snelle start, dan uitrollen

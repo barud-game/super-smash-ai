@@ -25,6 +25,7 @@ func _on_ko_setup() -> void:
 
 
 func _draw_ko(t: float, f: int) -> void:
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE * VfxConst.KO_SCALE)
 	var fade: float = 1.0 - t
 	var wood: Color = primary()
 	var dark: Color = secondary()

@@ -8,20 +8,29 @@ var strength: float = 0.5
 var dir: Vector2 = Vector2.RIGHT
 var radius: float = 40.0
 var kill: bool = false
+## Tekenschaal van het ontwerp (radius = referentie) naar de echte grootte.
+var vis: float = 1.0
 var _spikes: Array[Dictionary] = []   # {ang, len, w}
 var _bolts: Array[PackedVector2Array] = []
 var _bolt_seed: int = 0
 var _bits: Array[Dictionary] = []     # {dir, speed, size}
 
 
-func setup(pos_px: Vector2, p_strength: float, p_element: int, angle_deg: float, p_kill: bool = false) -> void:
+func setup(pos_px: Vector2, p_strength: float, p_element: int, angle_deg: float, p_kill: bool = false, hitbox_radius_units: float = -1.0) -> void:
 	position = pos_px
 	strength = clampf(p_strength, 0.0, 1.0)
 	element = p_element
 	dir = dir_from_deg(angle_deg)
 	kill = p_kill
-	radius = lerpf(26.0, 96.0, strength) * (1.25 if kill else 1.0)
-	duration = int(lerpf(9.0, 17.0, strength)) + (4 if kill else 0)
+	# Echte straal in units: sterkte-afhankelijk; met bekende hitbox-straal volgt de spark die (Melee: spark ~ hitbox).
+	var r_units: float = lerpf(VfxConst.HIT_RADIUS_MIN_UNITS, VfxConst.HIT_RADIUS_MAX_UNITS, strength)
+	if hitbox_radius_units > 0.0:
+		r_units = clampf(hitbox_radius_units * 0.85 + strength * 1.2, VfxConst.HIT_RADIUS_MIN_UNITS, VfxConst.HIT_RADIUS_MAX_UNITS)
+	if kill:
+		r_units *= VfxConst.HIT_KILL_FACTOR
+	radius = VfxConst.HIT_DESIGN_RADIUS_PX
+	vis = r_units * Units.UNIT_TO_PX / radius
+	duration = int(lerpf(8.0, 14.0, strength)) + (3 if kill else 0)
 	z_index = 20
 	var n: int = 8 + int(strength * 8.0)
 	for i in n:
@@ -76,6 +85,7 @@ func _palette() -> Dictionary:
 
 
 func _draw() -> void:
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE * vis)
 	var t: float = progress()
 	var pal: Dictionary = _palette()
 	var fade: float = 1.0 - t * t

@@ -96,19 +96,19 @@ func _launch(e: VfxEffect) -> void:
 
 ## `strength` 0..1 (bv. uit damage/knockback), `element` = VfxConst.EL_* (gelijk aan HitboxData.Element),
 ## `angle_deg` = knockback-richting (units-conventie), `kill` = dit is de slotslag (screen-flash).
-func spawn_hit(pos_units: Vector2, strength: float, element: int = 0, angle_deg: float = 0.0, kill: bool = false) -> HitEffect:
+func spawn_hit(pos_units: Vector2, strength: float, element: int = 0, angle_deg: float = 0.0, kill: bool = false, hitbox_radius_units: float = -1.0) -> HitEffect:
 	var e := HitEffect.new()
 	_add(e)
-	e.setup(Units.to_px(pos_units), strength, element, angle_deg, kill)
+	e.setup(Units.to_px(pos_units), strength, element, angle_deg, kill, hitbox_radius_units)
 	_launch(e)
 	if kill:
 		flash_screen(Color(1, 1, 1), 8, 0.45)
 	if camera != null:
 		var s: float = clampf(strength, 0.0, 1.0)
 		if kill:
-			camera.shake(1.8 + s * 1.2, 14)
+			camera.shake(0.9 + s * 0.6, 12)
 		elif s > 0.45:
-			camera.shake(0.35 + (s - 0.45) * 2.0, 6 + int(s * 6.0))
+			camera.shake(0.15 + (s - 0.45) * 0.8, 5 + int(s * 5.0))
 	return e
 
 
@@ -191,7 +191,7 @@ func spawn_ko(character_id: String, pos_units: Vector2, side: int, player_color:
 	_launch(e)
 	flash_screen(player_color.lerp(Color.WHITE, 0.6), 10, 0.3)
 	if camera != null:
-		camera.shake(2.4, 20)
+		camera.shake(1.5, 18)
 	return e
 
 

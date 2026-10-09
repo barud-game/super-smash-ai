@@ -17,6 +17,7 @@ func setup(pos_px: Vector2, p_strength: float, p_color: Color, angle_deg: float)
 
 
 func _draw() -> void:
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE * VfxConst.SHIELD_SCALE)
 	var t: float = progress()
 	var r: float = lerpf(22.0, 60.0, strength) * (0.5 + 0.6 * ease_out(t))
 	var hex := PackedVector2Array()

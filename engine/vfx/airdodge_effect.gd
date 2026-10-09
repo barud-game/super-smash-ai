@@ -19,6 +19,7 @@ func setup(pos_px: Vector2, angle_deg: float, p_color: Color) -> void:
 
 
 func _draw() -> void:
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE * VfxConst.AIRDODGE_SCALE)
 	var t: float = progress()
 	var fade: float = 1.0 - t
 	draw_ring(Vector2.ZERO, 18.0 + 46.0 * ease_out(t), 5.0 * fade + 1.0, with_alpha(color.lightened(0.5), fade))

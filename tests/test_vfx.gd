@@ -9,6 +9,7 @@ var _total: int = 0
 func _initialize() -> void:
 	_test_spawn_and_cleanup()
 	_test_ko()
+	_test_scale()
 	_test_shake()
 	_test_determinism()
 	_test_flash()
@@ -185,4 +186,24 @@ func _test_flash() -> void:
 	check("flash dooft uit", l.current_flash_alpha() < a0)
 	_run_frames(l, 40)
 	check("flash weg na duur", l.current_flash_alpha() == 0.0)
+	l.queue_free()
+
+
+## Melee-verhoudingen: sparks zo groot als een hitbox, ver onder de hoogte van een character (15 units = 105 px).
+func _test_scale() -> void:
+	var l: VfxLayer = _layer()
+	var body_px: float = 15.0 * Units.UNIT_TO_PX
+	var weak: HitEffect = l.spawn_hit(Vector2.ZERO, 0.05)
+	var strong: HitEffect = l.spawn_hit(Vector2.ZERO, 1.0)
+	var kill: HitEffect = l.spawn_hit(Vector2.ZERO, 1.0, 0, 0.0, true)
+	var wr: float = weak.radius * weak.vis
+	var sr: float = strong.radius * strong.vis
+	var kr: float = kill.radius * kill.vis
+	check("zwakke spark kleiner dan een kwart character", wr * 2.0 < body_px * 0.5)
+	check("sterke spark hooguit ~bovenlichaam", sr * 2.0 <= body_px * 0.85 and sr > wr * 1.8)
+	check("kill-spark groter dan sterke, nog binnen 1.3x character", kr > sr and kr * 2.0 < body_px * 1.3)
+	var small_hb: HitEffect = l.spawn_hit(Vector2.ZERO, 0.5, 0, 0.0, false, 2.0)
+	var big_hb: HitEffect = l.spawn_hit(Vector2.ZERO, 0.5, 0, 0.0, false, 5.0)
+	check("hitbox-straal bepaalt sparkgrootte", big_hb.vis > small_hb.vis)
+	check("KO-radiusgrens", VfxConst.KO_MAX_RADIUS_PX <= 500.0)
 	l.queue_free()

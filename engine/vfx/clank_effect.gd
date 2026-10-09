@@ -10,6 +10,7 @@ func setup(pos_px: Vector2) -> void:
 
 
 func _draw() -> void:
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE * VfxConst.CLANK_SCALE)
 	var t: float = progress()
 	var grow: float = ease_out3(minf(t * 2.5, 1.0))
 	var fade: float = 1.0 - t * t
