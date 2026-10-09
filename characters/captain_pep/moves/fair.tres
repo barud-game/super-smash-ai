@@ -1,0 +1,44 @@
+[gd_resource type="Resource" script_class="MoveData" format=3]
+
+[ext_resource type="Script" path="res://engine/combat/move_data.gd" id="1_md"]
+[ext_resource type="Script" path="res://engine/combat/hitbox_data.gd" id="2_hb"]
+
+[sub_resource type="Resource" id="hb_sweet"]
+script = ExtResource("2_hb")
+id = 0
+group = 0
+start_frame = 6
+end_frame = 6
+offset = Vector2(10.7, 4.2)
+radius = 2.0
+damage = 14.0
+angle = 361.0
+base_kb = 35.0
+kb_growth = 130.0
+element = 2
+
+[sub_resource type="Resource" id="hb_sour"]
+script = ExtResource("2_hb")
+id = 1
+group = 0
+start_frame = 7
+end_frame = 9
+offset = Vector2(10.7, 4.2)
+radius = 2.5
+damage = 10.0
+angle = 361.0
+base_kb = 25.0
+kb_growth = 130.0
+element = 2
+
+[resource]
+script = ExtResource("1_md")
+move_name = "fair"
+total_frames = 42
+aerial = true
+grounded = false
+landing_lag = 24
+lcancel_lag = 12
+autocancel_before = 6
+autocancel_after = 21
+hitboxes = Array[ExtResource("2_hb")]([SubResource("hb_sweet"), SubResource("hb_sour")])
