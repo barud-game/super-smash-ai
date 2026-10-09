@@ -45,7 +45,10 @@ func _initialize() -> void:
 	_test_stale_stick()
 	_test_intangibility()
 	_test_regrab_and_cooldown()
-	_test_steal()
+	_test_occupied()
+	_test_sizes()
+	_test_wavedash_to_ledge()
+	_test_grab_from_tumble()
 	_test_teeter()
 	_test_ko_signals()
 	_test_auto_respawn()
@@ -83,11 +86,14 @@ func new_stage() -> SandboxStage:
 	return stage
 
 
-func make(at: Vector2, dir: int, id: String = "allrounder", st: Object = null) -> Fighter:
+func make(at: Vector2, dir: int, id: String = "allrounder", st: Object = null, vh: float = 0.0) -> Fighter:
 	var f := Fighter.new()
 	f.use_visual = false
 	f.auto_register = false
 	f.stats = Archetypes.load_stats(id)
+	if vh > 0.0:
+		f.stats = f.stats.duplicate()
+		f.stats.visual_height = vh
 	f.stage = st if st != null else stage
 	f.input = InputHistory.new()
 	f.tap_jump_override = 1
@@ -120,8 +126,8 @@ func until_state(f: Fighter, id: String, limit: int = 300, sx: int = 0, sy: int 
 
 
 ## Rechter ledge (side +1): fighter komt van buiten vallen en kijkt naar de stage (facing −1).
-func fall_to_right_ledge(id: String = "allrounder") -> Fighter:
-	return make(Vector2(LEDGE_X + 6.0, 8.0), -1, id)
+func fall_to_right_ledge(id: String = "allrounder", vh: float = 0.0) -> Fighter:
+	return make(Vector2(LEDGE_X + 6.0, 8.0), -1, id, null, vh)
 
 
 func fall_to_left_ledge(id: String = "allrounder") -> Fighter:
@@ -247,6 +253,8 @@ func _test_max_hang() -> void:
 	new_stage()
 	var f := hang(fall_to_right_ledge())
 	check("hang bereikt CliffWait", f.state_name() == "CliffWait")
+	f.free()
+	new_stage()
 	var f2 := fall_to_right_ledge()
 	until_state(f2, "CliffCatch", 100)
 	var ticks: int = 0
@@ -255,7 +263,6 @@ func _test_max_hang() -> void:
 		ticks += 1
 	check("max hang low = 660 frames na de grab", absi(ticks - 660) <= 2, "ticks %d" % ticks)
 	check("na auto-loslaten: sprongen terug en lock", f2.air_jumps_used == 0 and f2.ledge_cooldown_frames > 0 and f2.ledge_key == "")
-	f.free()
 	f2.free()
 	new_stage()
 	var h := fall_to_right_ledge()
@@ -292,9 +299,9 @@ func _test_getups() -> void:
 	var r: Dictionary = _getup_run(0, -80, 0)
 	var f: Fighter = r["f"]
 	check("getup: stick naar de stage -> CliffClimb", r["first"] == "CliffClimb", r["first"])
-	check("getup: duur = 33 frames", r["frames"] == 33, "frames %d" % r["frames"])
+	check("getup: duur = 34 frames", r["frames"] == 34, "frames %d" % r["frames"])
 	check("getup: eindigt op de grond in Wait", f.state_name() == "Wait" and f.grounded, f.state_name())
-	check("getup: x = ledge − 12, y = 0", near(f.pos.x, LEDGE_X - 12.0) and near(f.pos.y, 0.0), "pos %s" % f.pos)
+	check("getup: x = ledge − 0.8·15, y = 0", near(f.pos.x, LEDGE_X - 12.0) and near(f.pos.y, 0.0), "pos %s" % f.pos)
 	check("getup: ledge vrij", f.ledge_key == "" and stage.get_meta("ledge_occupants").is_empty())
 	f.free()
 	# Stick omhoog (zonder tap jump) = ook getup.
@@ -309,8 +316,8 @@ func _test_getups() -> void:
 	r = _getup_run(SHIELD, 0, 0)
 	f = r["f"]
 	check("roll: shield -> CliffEscape", r["first"] == "CliffEscape", r["first"])
-	check("roll: duur = 36 frames", r["frames"] == 36, "frames %d" % r["frames"])
-	check("roll: verder de stage op (x = ledge − 28)", f.state_name() == "Wait" and f.grounded and near(f.pos.x, LEDGE_X - 28.0), "pos %s" % f.pos)
+	check("roll: duur = 50 frames", r["frames"] == 50, "frames %d" % r["frames"])
+	check("roll: verder de stage op (x = ledge − 1.9·15)", f.state_name() == "Wait" and f.grounded and near(f.pos.x, LEDGE_X - 28.5), "pos %s" % f.pos)
 	f.free()
 	# Ledge attack: A (hook, geen hitbox).
 	r = _getup_run(ATTACK, 0, 0)
@@ -357,14 +364,14 @@ func _test_high_percent() -> void:
 	while f.state_name() == "CliffClimb" and n < 200:
 		step(f)
 		n += 1
-	check("getup ≥ 100%%: langzamer (43 frames)", n == 43, "frames %d" % n)
+	check("getup ≥ 100%%: langzamer (60 frames)", n == 60, "frames %d" % n)
 	f.free()
 	new_stage()
 	var g := hang(fall_to_right_ledge())
 	idle(g, 40)
 	step(g, -80, 0)
 	var short_win: int = 0
-	for i in 30:
+	for i in 70:
 		if g.state_name() == "CliffClimb" and g.is_intangible():
 			short_win += 1
 		step(g)
@@ -373,11 +380,11 @@ func _test_high_percent() -> void:
 	idle(h, 40)
 	step(h, -80, 0)
 	var short_win_h: int = 0
-	for i in 30:
+	for i in 70:
 		if h.state_name() == "CliffClimb" and h.is_intangible():
 			short_win_h += 1
 		step(h)
-	check("getup ≥ 100%%: kortere intangibility (23 -> 13)", short_win == 23 and short_win_h == 13, "%d vs %d" % [short_win, short_win_h])
+	check("getup intangibility: < 100%% tot f31, ≥ 100%% tot f56", short_win == 31 and short_win_h == 56, "%d vs %d" % [short_win, short_win_h])
 	g.free()
 	h.free()
 
@@ -453,11 +460,11 @@ func _test_intangibility() -> void:
 	idle(h, 40)
 	step(h, -80, 0)
 	var counts: Array = []
-	for i in 30:
+	for i in 40:
 		counts.append(h.is_intangible())
 		step(h)
 	var on: int = counts.count(true)
-	check("getup: intangible op frames 1..23", on == 23 and counts[0] and counts[22] and not counts[23], "aan: %d" % on)
+	check("getup: intangible op frames 1..31", on == 31 and counts[0] and counts[30] and not counts[31], "aan: %d" % on)
 	h.free()
 
 
@@ -467,14 +474,15 @@ func _test_regrab_and_cooldown() -> void:
 	var f := hang(fall_to_right_ledge())
 	idle(f, 40)
 	check("ledge-timer is op", f.intangible_frames == 0)
-	check("eerste grab gebruikt de intangibility", not f.ledge_intang_ready)
 	step(f, 80, 0)
 	var cd: int = f.ledge_cooldown_frames
+	check("loslaten: lock = ledge_cooldown (30)", cd == f.stats.ledge_cooldown, "cd %d" % cd)
 	# Lock: elk frame terug in de grab-box zetten; pas na de lock mag hij weer grabben.
 	var frames_blocked: int = 0
 	var regrabbed: bool = false
+	var box_y: float = -0.5 * f.stats.visual_height
 	for i in 80:
-		f.pos = Vector2(LEDGE_X + 6.0, -8.0)
+		f.pos = Vector2(LEDGE_X + 3.0, box_y)
 		f.vel = Vector2(0.0, -0.3)
 		if f.state_name() != "Fall":
 			f.change_state("Fall")
@@ -485,56 +493,211 @@ func _test_regrab_and_cooldown() -> void:
 			break
 		frames_blocked += 1
 	check("lock na loslaten: ±30 frames geen grab", regrabbed and absi(frames_blocked - cd) <= 2, "geblokkeerd %d, cd %d" % [frames_blocked, cd])
-	check("regrab zonder landen = geen intangibility", f.intangible_frames == 0 and not f.is_intangible(), "frames %d" % f.intangible_frames)
-	# Landen herstelt: getup (eindigt op de stage) -> volgende grab weer 37 frames.
+	# Melee: elke catch geeft intangible = max(huidig, 7 + 30), ook zonder landen (ledgestall mogelijk).
+	check("regrab zonder landen geeft weer 37 intangible frames", f.intangible_frames == 37 and f.is_intangible(), "frames %d" % f.intangible_frames)
+	# Max-regel: een groter restant blijft staan.
+	idle(f, 40)
+	step(f, 80, 0)
+	idle(f, 31)
+	f.intangible_frames = 90
+	f.pos = Vector2(LEDGE_X + 3.0, box_y)
+	f.vel = Vector2(0.0, -0.3)
+	step(f)
+	check("max-regel: groter restant (bv. respawn-invincibility) blijft", f.state_name() == "CliffCatch" and f.intangible_frames > 37, "%s %d" % [f.state_name(), f.intangible_frames])
+	# Na een getup ook de lock (Melee: getup-eind).
+	until_state(f, "CliffWait", 20)
 	idle(f, 40)
 	step(f, -80, 0)
-	until_state(f, "Wait", 100)
-	check("landen op de stage herstelt de ledge-intangibility", f.ledge_intang_ready)
-	f.pos = Vector2(LEDGE_X + 6.0, 8.0)
-	f.facing = -1
-	f.leave_ground(Vector2.ZERO)
-	f.change_state("Fall")
-	until_state(f, "CliffCatch", 100)
-	check("na landen weer ledge-intangibility", f.intangible_frames == 37, "frames %d" % f.intangible_frames)
-	# Geraakt worden (hook) herstelt ook.
-	idle(f, 5)
-	check("na grab niet klaar", not f.ledge_intang_ready)
-	f.on_hit_reset_ledge()
-	check("on_hit_reset_ledge herstelt", f.ledge_intang_ready)
+	check("getup start: ledge-lock gezet", f.state_name() == "CliffClimb" and f.ledge_cooldown_frames > 0, f.state_name())
 	f.free()
 
 
-func _test_steal() -> void:
-	print("== ledge-steal ==")
+func _test_occupied() -> void:
+	print("== bezette ledge (geen ledge-steal in Melee) ==")
+	for vh: float in [8.0, 15.0, 30.0]:
+		new_stage()
+		var a := hang(fall_to_right_ledge("allrounder", vh))
+		idle(a, 10)
+		var b := fall_to_right_ledge("lightweight", vh)
+		b.player = 1
+		var grabbed: bool = false
+		for i in 120:
+			step(b)
+			step(a)
+			grabbed = grabbed or b.state_name() == "CliffCatch"
+		check("vh %d: tweede speler kan de bezette ledge niet grabben" % vh, not grabbed and b.ledge_key == "", b.state_name())
+		check("vh %d: eerste hanger blijft hangen" % vh, a.state_name() == "CliffWait" and a.ledge_key != "", a.state_name())
+		check("vh %d: register wijst naar de hanger" % vh, stage.get_meta("ledge_occupants").values() == [a])
+		a.free()
+		b.free()
+	# Vrijgekomen ledge: wel grabben.
 	new_stage()
-	var a := hang(fall_to_right_ledge())
-	idle(a, 10)
-	var stolen_by: Array = []
-	a.ledge_stolen.connect(func(by: Fighter) -> void: stolen_by.append(by))
-	var b := fall_to_right_ledge("lightweight")
-	b.player = 1
-	until_state(b, "CliffCatch", 100)
-	check("tweede speler grabt de bezette ledge", b.state_name() == "CliffCatch" and b.ledge_key != "")
-	step(a)
-	check("eerste hanger valt: Fall, geen ledge, sprongen terug", a.state_name() == "Fall" and a.ledge_key == "" and a.air_jumps_used == 0, a.state_name())
-	check("ledge_stolen-signaal met de nieuwe hanger", stolen_by.size() == 1 and stolen_by[0] == b)
-	check("slachtoffer krijgt lock en herstelde regrab-intangibility", a.ledge_cooldown_frames >= 50 and a.ledge_intang_ready)
-	check("register wijst naar de nieuwe hanger", stage.get_meta("ledge_occupants").values() == [b])
-	# De nieuwe hanger is niet per ongeluk ook losgelaten.
-	idle(b, 20)
-	check("nieuwe hanger blijft hangen", b.state_name() == "CliffWait")
-	# Vrijgekomen ledge: grab zonder steal.
-	step(b, 80, 0)
+	var p := hang(fall_to_right_ledge())
+	idle(p, 5)
+	step(p, 80, 0)
 	var c := fall_to_right_ledge()
 	c.player = 2
-	var events: Array = []
-	b.ledge_stolen.connect(func(by: Fighter) -> void: events.append(by))
 	until_state(c, "CliffCatch", 100)
-	check("vrije ledge: gewoon grabben, geen steal-event", c.state_name() == "CliffCatch" and events.is_empty())
-	a.free()
-	b.free()
+	check("vrije ledge (na loslaten): gewoon grabben", c.state_name() == "CliffCatch")
+	p.free()
 	c.free()
+
+
+## Midden van beide handpalmen (units) van een echte CharacterVisual (Bone2D's) op de plek van de fighter.
+func _visual_palm(f: Fighter) -> Vector2:
+	var cv := CharacterVisual.new()
+	cv.character_id = "_dummy"
+	root.add_child(cv)
+	if cv.bones.is_empty():
+		cv.reload()
+	cv.play("cliff_wait", true)
+	cv.clear_blend()
+	cv.tick(0, 1.0)
+	var sc: float = f.stats.visual_height * Units.UNIT_TO_PX / Rig.STAND_HEIGHT_PX
+	cv.scale = Vector2.ONE * sc
+	cv.facing = f.facing
+	cv.position = Units.to_px(f.pos)
+	var pr: Vector2 = cv.bones["hand_r"].global_transform * LedgeGrip.PALM_PX
+	var pl: Vector2 = cv.bones["hand_l"].global_transform * LedgeGrip.PALM_PX
+	cv.free()
+	return Units.from_px((pr + pl) * 0.5)
+
+
+func _test_sizes() -> void:
+	print("== ledge bij elke lengte (visual_height 8 / 15 / 30) ==")
+	var corner := Vector2(LEDGE_X, 0.0)
+	for id: String in ["allrounder", "heavyweight", "lightweight"]:
+		for vh: float in [8.0, 15.0, 30.0]:
+			var tag: String = "%s vh %d" % [id, vh]
+			new_stage()
+			var f := fall_to_right_ledge(id, vh)
+			var n: int = until_state(f, "CliffCatch", 150)
+			check("%s: grab vanuit vallen" % tag, n > 0, f.state_name())
+			var g: Vector2 = f.ledge_grip()
+			var grip: Vector2 = f.pos + Vector2(f.facing * g.x, g.y)
+			check("%s: greeppunt (rig) = ledge-hoek" % tag, grip.distance_to(corner) < 0.001, "%s" % grip)
+			var palm: Vector2 = _visual_palm(f)
+			var k: float = vh / Rig.STAND_HEIGHT_PX
+			var want: Vector2 = corner - Vector2(f.facing * LedgeGrip.GRIP_INSET.x, -LedgeGrip.GRIP_INSET.y) * k
+			check("%s: handpalmen van de getekende visual liggen op de hoek (≤ 0.5 u)" % tag, palm.distance_to(want) < 0.5,
+				"palm %s want %s" % [palm, want])
+			check("%s: palm op de bovenkant, net binnen de rand" % tag,
+				palm.x <= LEDGE_X + 0.01 and palm.y >= -0.01 and palm.distance_to(corner) < 0.06 * vh, "palm %s" % palm)
+			check("%s: hang-positie schaalt (voeten ~vh onder de ledge, vlak buiten de rand)" % tag,
+				f.pos.y < -0.8 * vh and f.pos.y > -1.1 * vh and f.pos.x > LEDGE_X and f.pos.x - LEDGE_X < 0.25 * vh, "pos %s" % f.pos)
+			until_state(f, "CliffWait", 20)
+			idle(f, 40)
+			step(f, -80, 0)
+			until_state(f, "Wait", 120)
+			check("%s: getup eindigt 0.8·vh de stage op" % tag, f.grounded and near(f.pos.x, LEDGE_X - 0.8 * vh, 0.01) and near(f.pos.y, 0.0),
+				"pos %s %s" % [f.pos, f.state_name()])
+			f.free()
+			new_stage()
+			var r := hang(fall_to_right_ledge(id, vh))
+			idle(r, 40)
+			step(r, 0, 0, SHIELD)
+			until_state(r, "Wait", 150)
+			check("%s: roll eindigt 1.9·vh de stage op" % tag, r.grounded and near(r.pos.x, LEDGE_X - 1.9 * vh, 0.01), "pos %s" % r.pos)
+			r.free()
+			# Grab-box schaalt: net binnen / net buiten de voorkant.
+			for inside: bool in [true, false]:
+				new_stage()
+				var b := make(Vector2(LEDGE_X + 50.0, 40.0), -1, id, null, vh)
+				var dx: float = b.stats.ledge_grab_front() * (0.95 if inside else 1.05)
+				b.pos = Vector2(LEDGE_X + dx, -0.4 * vh)
+				b.vel = Vector2(0.0, -0.1)
+				step(b)
+				check("%s: %s de grab-box (front %.1f u)" % [tag, "net binnen" if inside else "net buiten", b.stats.ledge_grab_front()],
+					(b.state_name() == "CliffCatch") == inside, b.state_name())
+				b.free()
+			# Te ver onder de ledge = geen grab; net binnen y_max wel.
+			for inside_y: bool in [true, false]:
+				new_stage()
+				var c := make(Vector2(LEDGE_X + 50.0, 40.0), -1, id, null, vh)
+				var ymax: float = c.stats.ledge_grab_y_max()
+				c.pos = Vector2(LEDGE_X + 2.0, -ymax * (0.95 if inside_y else 1.05))
+				c.vel = Vector2(0.0, -0.1)
+				step(c)
+				check("%s: ledge %s y_max boven de voeten" % [tag, "net binnen" if inside_y else "net buiten"],
+					(c.state_name() == "CliffCatch") == inside_y, c.state_name())
+				c.free()
+
+
+## Wavedash achteruit naar de ledge (kijkt naar de stage): glijdt eraf -> Fall -> CliffCatch binnen enkele frames.
+func _test_wavedash_to_ledge() -> void:
+	print("== wavedash achteruit naar de ledge ==")
+	for id: String in ["allrounder", "fast_faller", "heavyweight", "floaty", "lightweight"]:
+		for vh: float in [8.0, 15.0, 30.0]:
+			var tag: String = "%s vh %d" % [id, vh]
+			new_stage()
+			var f := make(Vector2(LEDGE_X - 4.0, 0.0), -1, id, null, vh)
+			idle(f, 2)
+			step(f, 0, 0, JUMP)
+			var dodged: bool = false
+			var fall_tick: int = -1
+			var catch_tick: int = -1
+			var seen_lfs: bool = false
+			for i in 120:
+				if not dodged and f.state_name() == "Jump":
+					step(f, 56, -56, SHIELD)   # air dodge schuin omlaag, weg van de stage (achteruit)
+					dodged = true
+				else:
+					step(f)
+				seen_lfs = seen_lfs or f.state_name() == "LandingFallSpecial"
+				if fall_tick < 0 and f.state_name() == "Fall":
+					fall_tick = i
+				if f.state_name() == "CliffCatch":
+					catch_tick = i
+					break
+			check("%s: wavedash (LandingFallSpecial) glijdt over de rand" % tag, seen_lfs and fall_tick >= 0, "lfs %s fall %d" % [seen_lfs, fall_tick])
+			check("%s: grabt de ledge ≤ 4 frames na het eraf glijden, facing naar de stage" % tag,
+				catch_tick >= 0 and catch_tick - fall_tick <= 4 and f.facing == -1 and f.ledge_side == 1,
+				"fall %d catch %d facing %d" % [fall_tick, catch_tick, f.facing])
+			f.free()
+	# RunBrake (skid) glijdt over de rand (alleen langzaam lopen / stilstaan stopt).
+	new_stage()
+	var s := make(Vector2(LEDGE_X - 2.0, 0.0), 1)
+	s.change_state("RunBrake")
+	s.gr_vel = 1.5
+	var fell: bool = false
+	for i in 10:
+		step(s)
+		fell = fell or not s.grounded
+	check("RunBrake met snelheid glijdt over de rand", fell, s.state_name())
+	s.free()
+	# Rennen naar de rand: valt eraf.
+	new_stage()
+	var r := make(Vector2(LEDGE_X - 2.0, 0.0), 1)
+	r.change_state("Run")
+	r.gr_vel = 1.5
+	fell = false
+	for i in 10:
+		step(r, 80, 0)
+		fell = fell or not r.grounded
+	check("Run glijdt over de rand", fell, r.state_name())
+	r.free()
+
+
+## Tumble (DamageFall) mag grabben; DamageFly (hitstun) niet.
+func _test_grab_from_tumble() -> void:
+	print("== grab vanuit tumble ==")
+	new_stage()
+	var f := fall_to_right_ledge()
+	f.change_state("DamageFall")
+	until_state(f, "CliffCatch", 100)
+	check("grab vanuit DamageFall (tumble)", f.state_name() == "CliffCatch")
+	f.free()
+	new_stage()
+	var g := fall_to_right_ledge()
+	var kb := KnockbackResult.new()
+	kb.hitstun = 30
+	g.change_state("DamageFly", {"kb": kb})
+	var ever: bool = false
+	for i in 25:
+		step(g)
+		ever = ever or g.state_name() == "CliffCatch"
+	check("geen grab in DamageFly (hitstun)", not ever and g.state_name() == "DamageFly", g.state_name())
+	g.free()
 
 
 func _test_teeter() -> void:

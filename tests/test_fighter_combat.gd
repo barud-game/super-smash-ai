@@ -710,19 +710,17 @@ func _test_one_hit_per_instance() -> void:
 	idle([a, b], 10)
 	check("intangible doelwit: geen hit", near(b.percent, 0.0))
 	free_all([a, b])
-	# Ledge-reset bij een hit.
+	# Een hit zet de ledge-lock (Melee: één ledge_cooldown = 30, ook na geraakt worden).
 	var fs4: Array = _setup_hit(move("jab", 30, 2, 4, Vector2(8, 8), 5, 2))
-	fs4[1].ledge_intang_ready = false
 	free_all(fs4)
 	new_stage()
 	var c: Fighter = make(Vector2(0, 0), 1, "allrounder", 0)
 	var d: Fighter = make(Vector2(10, 0), -1, "allrounder", 1)
 	c.moves["jab"] = move("jab", 30, 2, 4, Vector2(8, 8), 5, 2)
 	settle([c, d])
-	d.ledge_intang_ready = false
 	tick([c, d], [fr(0, 0, A)])
 	idle([c, d], 5)
-	check("hit herstelt ledge-intangibility (on_hit_reset_ledge)", d.ledge_intang_ready)
+	check("hit zet de ledge-lock (ledge_cooldown 30)", d.ledge_cooldown_frames > 0 and d.ledge_cooldown_frames <= d.stats.ledge_cooldown, "cd %d" % d.ledge_cooldown_frames)
 	free_all([c, d])
 
 

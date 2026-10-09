@@ -20,8 +20,6 @@ signal state_changed(old_state: String, new_state: String)
 ## Uitgezonden op het frame dat de fighter de blast zone verlaat. side ∈ &"left", &"right", &"top", &"bottom".
 signal blast_ko(fighter: Fighter, side: StringName)
 signal percent_changed(new_percent: float)
-## Een andere fighter heeft de ledge van deze fighter overgenomen (ledge-steal); `by` is de nieuwe hanger.
-signal ledge_stolen(by: Fighter)
 signal ledge_grabbed(side: int)
 
 const EPS: float = 0.0001
@@ -73,9 +71,6 @@ var ledge_side: int = 1
 var ledge_hang_frames: int = 0
 ## Frames dat een nieuwe ledge grab nog geblokkeerd is.
 var ledge_cooldown_frames: int = 0
-## true = de volgende grab geeft ledge-intangibility. Wordt false bij een grab en weer true bij landen of
-## geraakt/eraf getrokken worden (Melee: geen regrab-invincibility zonder landen).
-var ledge_intang_ready: bool = true
 
 # --- Physics-toestand (Melee-units, y omhoog) ---
 ## Positie = onderpunt van de ECB (voeten).
@@ -168,6 +163,8 @@ func setup() -> void:
 		visual = CharacterVisual.new()
 		visual.character_id = character_id
 		visual.player_index = player
+		# Herladen poses (hot reload) -> greeppunt aan de ledge opnieuw uit het rig berekenen.
+		visual.reloaded.connect(func() -> void: LedgeGrip.clear_cache(character_id))
 		add_child(visual)
 	if use_visual and _debug_node == null:
 		# Debug-tekenlaag (F2) boven de visual.
@@ -298,7 +295,6 @@ func spawn(at: Vector2, dir: int = 1) -> void:
 	reset_combat()
 	intangible_frames = 0
 	ledge_cooldown_frames = 0
-	ledge_intang_ready = true
 	var seg: int = _segment_at(at, 0.01)
 	if seg >= 0:
 		_set_grounded(seg, at.x)
@@ -334,7 +330,6 @@ func respawn_at(p: Vector2, invincible_frames: int) -> void:
 	ignore_platform = -1
 	reset_combat()
 	ledge_cooldown_frames = 0
-	ledge_intang_ready = true
 	if absf(p.x) > 1.0:
 		facing = -1 if p.x > 0.0 else 1
 	reset_fast_fall_buffer()
@@ -537,9 +532,19 @@ func ledge_high() -> bool:
 	return percent >= ledge_high_percent
 
 
-## Hang-positie (voeten) bij de ledge `lpos` aan zijde `side`.
+## Ledge-hoek t.o.v. de voeten tijdens het hangen, in units: x = vooruit (richting de stage), y = omhoog.
+## Uit het rig berekend (LedgeGrip: handpalmen in de cliff_wait-pose) en geschaald met visual_height,
+## zodat de handen bij elke lengte en bouw precies op de hoek liggen.
+func ledge_grip() -> Vector2:
+	var g: Vector2 = LedgeGrip.grip_px(character_id)
+	var k: float = stats.visual_height / Rig.STAND_HEIGHT_PX
+	return Vector2(g.x * k, -g.y * k)
+
+
+## Hang-positie (voeten) bij de ledge `lpos` aan zijde `side` (kijkrichting = -side, naar de stage).
 func ledge_hang_pos(lpos: Vector2, side: int) -> Vector2:
-	return Vector2(lpos.x + side * stats.ledge_snap_x, lpos.y - stats.ledge_hang_depth())
+	var g: Vector2 = ledge_grip()
+	return Vector2(lpos.x + side * g.x, lpos.y - g.y)
 
 
 func _ledge_registry() -> Dictionary:
@@ -554,13 +559,25 @@ static func _ledge_key(lpos: Vector2, side: int) -> String:
 	return "%d:%d:%d" % [roundi(lpos.x * 100.0), roundi(lpos.y * 100.0), side]
 
 
-## Ledge grab (Melee: ftCliffCommon_CheckGrab, ⚠️ box-afmetingen). Voorwaarden: luchtstate die grabben toestaat,
-## vy < 0, geen lock, stick niet omlaag, kijkrichting naar de stage, ledge in de grab-box. Geeft true bij een grab.
+## Bezet een andere (actieve, nog hangende) fighter deze ledge?
+func ledge_occupied_by_other(lpos: Vector2, side: int) -> bool:
+	var key: String = _ledge_key(lpos, side)
+	var occ: Variant = _ledge_registry().get(key)
+	return occ is Fighter and is_instance_valid(occ) and occ != self and occ.ledge_key == key
+
+
+## Ledge grab (Melee: ftCliffCommon_80081298). Voorwaarden: luchtstate die grabben toestaat, dalend, geen lock,
+## stick niet omlaag, kijkrichting naar de stage, ledge in de grab-box (× visual_height) en niet bezet
+## (geen ledge-steal in Melee). Geeft true bij een grab.
 func check_ledge_grab() -> bool:
-	if ledge_cooldown_frames > 0 or ledge_key != "" or vel.y >= 0.0:
+	if ledge_cooldown_frames > 0 or ledge_key != "" or vel.y + kb_vel.y >= 0.0:
 		return false
 	if stick_y() <= -FighterConst.LEDGE_GRAB_DOWN_BLOCK + FighterConst.EPS:
 		return false
+	var front: float = stats.ledge_grab_front()
+	var back: float = stats.ledge_grab_back()
+	var y_min: float = stats.ledge_grab_y_min()
+	var y_max: float = stats.ledge_grab_y_max()
 	for l: Dictionary in _ledges:
 		var side: int = l["side"]
 		if facing != -side:
@@ -568,29 +585,28 @@ func check_ledge_grab() -> bool:
 		var lp: Vector2 = l["pos"]
 		var outward: float = (pos.x - lp.x) * side   # >= 0: fighter staat buiten de rand
 		var above: float = lp.y - pos.y               # hoogte van de ledge boven de voeten
-		if outward < -stats.ledge_grab_back or outward > stats.ledge_grab_front:
+		if outward < -back or outward > front:
 			continue
-		if above < stats.ledge_grab_y_min or above > stats.ledge_grab_y_max:
+		if above < y_min or above > y_max:
+			continue
+		if ledge_occupied_by_other(lp, side):
 			continue
 		grab_ledge(lp, side)
 		return true
 	return false
 
 
-## Hang aan de ledge: snap, jumps terug, intangibility (alleen de eerste grab na landen/geraakt) en ledge-steal.
+## Hang aan de ledge: snap (handen op de hoek), jumps terug, knockback weg, intangibility (elke catch, max-regel).
 func grab_ledge(lp: Vector2, side: int) -> void:
 	var key: String = _ledge_key(lp, side)
-	var reg: Dictionary = _ledge_registry()
-	var occ: Variant = reg.get(key)
-	if occ is Fighter and is_instance_valid(occ) and occ != self and occ.ledge_key == key:
-		occ._lose_ledge_to(self)
 	ledge_key = key
 	ledge_pos = lp
 	ledge_side = side
 	ledge_hang_frames = 0
-	reg[key] = self
+	_ledge_registry()[key] = self
 	pos = ledge_hang_pos(lp, side)
 	vel = Vector2.ZERO
+	kb_vel = Vector2.ZERO
 	gr_vel = 0.0
 	grounded = false
 	ground_seg = -1
@@ -598,23 +614,10 @@ func grab_ledge(lp: Vector2, side: int) -> void:
 	air_jumps_used = 0
 	reset_fast_fall_buffer()
 	facing = -side
-	if ledge_intang_ready:
-		intangible_frames = maxi(intangible_frames, stats.ledge_catch_frames + stats.ledge_grab_intangible)
-		ledge_intang_ready = false
+	intangible_frames = maxi(intangible_frames, stats.ledge_catch_frames + stats.ledge_grab_intangible)
 	change_state("CliffCatch")
 	ledge_grabbed.emit(side)
 	_sfx("ledge_grab")
-
-
-## Ledge-steal: een ander grijpt "mijn" ledge. Ik val (Fall, jumps terug), krijg een lock en mijn
-## regrab-intangibility wordt hersteld (als "geraakt"). ⚠️ Melee-details onbekend; TODO M3: damage/knockback-hook.
-func _lose_ledge_to(by: Fighter) -> void:
-	release_ledge(stats.ledge_hit_cooldown)
-	ledge_intang_ready = true
-	vel = Vector2.ZERO
-	air_jumps_used = 0
-	change_state("Fall")
-	ledge_stolen.emit(by)
 
 
 ## Laat de ledge los: slot vrij + lock. De aanroeper wisselt zelf van state.
@@ -639,11 +642,6 @@ func ledge_drop() -> void:
 	fastfalling = false
 	air_jumps_used = 0
 	change_state("Fall")
-
-
-## Hook voor combat (M3): geraakt worden herstelt de regrab-intangibility.
-func on_hit_reset_ledge() -> void:
-	ledge_intang_ready = true
 
 
 ## Einde van een getup/roll/attack: zet de fighter op de stage-grond op `at` en ga naar Wait.
@@ -875,6 +873,7 @@ func combat_target() -> CombatTarget:
 	t.grounded = grounded
 	t.crouching = grounded and state != null and state.is_crouching()
 	t.intangible = is_intangible() or not active
+	t.charging = state != null and state.id() == "Attack" and (state as StateAttack).charging
 	return t
 
 
@@ -910,9 +909,8 @@ func receive_hit(ev: HitEvent) -> bool:
 	last_hit_by = ev.attacker
 	_victim_tick = tick_count
 	set_percent(minf(percent + ev.damage, MAX_PERCENT))
-	if ledge_key != "":
-		release_ledge(stats.ledge_hit_cooldown)
-	on_hit_reset_ledge()
+	# Melee (ftCo_Damage): geraakt worden laat de ledge los en zet dezelfde ledge-lock (30) als loslaten.
+	release_ledge(stats.ledge_cooldown)
 	fastfalling = false
 	reset_fast_fall_buffer()
 	hitfall_allowed = false
@@ -1058,7 +1056,8 @@ func get_vfx() -> Node:
 func _hit_fx(ev: HitEvent, kb: KnockbackResult, kill: bool) -> void:
 	var v: Node = get_vfx()
 	if v != null and v.has_method("spawn_hit"):
-		v.spawn_hit(ev.hitbox.pos, clampf(kb.kb / 160.0, 0.05, 1.0), int(ev.hitbox.data.element), kb.angle, kill)
+		v.spawn_hit(ev.hitbox.pos, clampf(kb.kb / 160.0, 0.05, 1.0), int(ev.hitbox.data.element), kb.angle, kill,
+			ev.hitbox.data.radius)
 	var s: String = "hit_weak"
 	if kill:
 		s = "hit_kill"
@@ -1203,7 +1202,6 @@ func ground_jump(short_hop: bool) -> void:
 
 
 func _set_grounded(seg: int, x: float) -> void:
-	ledge_intang_ready = true   # landen herstelt de ledge-intangibility
 	grounded = true
 	ground_seg = seg
 	pos = Vector2(x, _seg_y(_segments[seg], x))

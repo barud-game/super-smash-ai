@@ -193,7 +193,7 @@ Platform drop gebruikt Fall (geen aparte Pass-state); van de rand af gaat ook na
 
 ### ECB en grond (keuze)
 - **ECB = diamant** met het onderpunt op `pos` (voeten), bovenpunt op `ecb_height`, zijpunten op `ecb_mid_y` ± `ecb_half_width` (per preset ⚠️; zichtbaar met F2). Voor M1 doet alleen het **onderpunt** mee: landen = het onderpunt kruist een segment van boven naar beneden met vy ≤ 0 (lijnstuk van vorige naar nieuwe positie, hoogste segment wint). Geen muren/plafonds nog. Melee verschuift de ECB-onderkant in de lucht per animatie omhoog; dat doen we (nog) niet ⚠️ — gevolg: landen gebeurt exact op voethoogte.
-- Op de grond: `x += gr_vel` langs het segment (y = segmenthoogte; schuine segmenten via interpolatie, aansluitende segmenten worden gevolgd). Aan de rand: `stops_at_edge()` per state. Stoppen: Wait, Walk met |x| < 0.75 (teeter-walk ✅), Turn, Squat*, KneeBend, RunBrake ⚠️, RunTurn ⚠️. Eraf: Dash, Run, Walk ≥ 0.75, Landing, LandingFallSpecial (wavedash van de rand af). Teeter-state sinds M2.
+- Op de grond: `x += gr_vel` langs het segment (y = segmenthoogte; schuine segmenten via interpolatie, aansluitende segmenten worden gevolgd). Aan de rand: `stops_at_edge()` per state. Stoppen: Wait, Walk met |x| < 0.75 (teeter-walk ✅), Turn, Squat*, KneeBend. Eraf: Dash, Run, RunBrake, RunTurn, Walk ≥ 0.75, Landing, LandingFallSpecial (wavedash van de rand af); zie "Grondstates aan de rand". Teeter-state sinds M2.
 - Pass-through platforms: landen alleen van boven en met vy ≤ 0; in FallSpecial niet als stick-y ≤ −0.6875. Platform drop zet `ignore_platform` tot je 0.5 unit onder het platform bent.
 - Stage-interface: `get_ledges()` (optioneel, M2), `get_ground_segments()` (objecten of dictionaries met `a`, `b`, `type`: `StageSegment.Type` 0/1 of `"solid"`/`"platform"`), `get_blast_zone()` (Rect2, position = links/onder), optioneel `get_respawn(i)`. Sandbox-stub: `scenes/sandbox_stage.gd`.
 - Blast zone: buiten de Rect2 → `blast_ko`-signaal en respawn-platform (zie M2-implementatie).
@@ -230,23 +230,23 @@ Reproductie in `tests/test_movement.gd` (sectie "Xbox-stickprofielen": flicks va
 | `allrounder` | Marth | gemiddeld in alles, lange wavedash | alleen de algemene ⚠️-velden |
 | `fast_faller` | Fox | zware gravity, hoge fast fall, 3f jumpsquat | alleen de algemene ⚠️-velden |
 | `heavyweight` | Ganondorf | gewicht 109, trage grond, 6f jumpsquat (Bowser 8f zou te traag voelen) | air friction 0.02 (alleen karakterpagina) |
-| `floaty` | Peach (zonder float) | lage gravity/terminal, 1 luchtsprong (de 5 sprongen van Jigglypuff worden wel ondersteund via `air_jump_forces`) | initial dash/run 1.3 (bronnen 1.2/1.3), dash accel 0.02/0.06, air jump mult 0.7, intangible 4–19 ✅ |
+| `floaty` | Peach (zonder float) | lage gravity/terminal, 1 luchtsprong (de 5 sprongen van Jigglypuff worden wel ondersteund via `air_jump_forces`) | dash initial 1.2 en accel 0.02/0.1 ✅ [P], air jump mult 0.7 ⚠️, intangible 4–19 ✅ |
 | `lightweight` | Pikachu | lichtst van de complete referenties (80), snel, 3f jumpsquat | alleen de algemene ⚠️-velden |
 
-Algemene ⚠️-velden (geen bron, zelfde redenering voor elke preset):
+Algemene velden (volgorde Marth / Fox / Ganon / Peach / Pikachu; ✅ [P] = uit de verificatie, rest ⚠️ geschat):
 
 | Veld | Gekozen | Redenering |
 |---|---|---|
-| `ground_to_air_jump_momentum_multiplier` | 0.75 (Fox, Pikachu) / 0.7 (rest) | forum noemt 0.6–0.75 [S17] |
-| `jump_h_initial_velocity` | 0.72–0.9 | stick-bijdrage bij afzet |
-| `jump_h_max_velocity` | 1.1–1.7 | grens op run-jump-momentum; snelle characters hoger |
-| `air_jump_h_multiplier` | 0.85–1.0 | ≈ 1.1 × max air speed |
-| `walk_initial_velocity` / `walk_acceleration` | 0.1–0.2 / 0.05–0.1 | snelle characters sneller op gang |
+| `ground_to_air_jump_momentum_multiplier` | Marth 0.8, Fox 0.83, Ganon 0.75, Peach 0.7, Pikachu 0.8 | ✅ [P] (docs/verificatie.md sectie 5) |
+| `jump_h_initial_velocity` | 1.0 / 0.72 / 0.9 / 0.7 / 0.8 | ✅ [P] |
+| `jump_h_max_velocity` | 1.2 / 1.7 / 1.8 / 1.1 / 1.8 | ✅ [P] |
+| `air_jump_h_multiplier` | 1.0 / 0.9 / 1.0 / 0.9 / 0.8 | ✅ [P] |
+| `walk_initial_velocity` / `walk_acceleration` | 0.08–0.2 / 0.05–0.1 | initial ✅ [P] (Ganon 0.08, Peach 0.2/0.1); ⚠️ Marth/Ganon walk-accel is in Melee 0, maar onze walk-formule wijkt af (accel 0 = nooit lopen), dus geschat gelaten |
 | `turn_frames` | 11 | typische Turn-animatielengte |
-| `run_brake_frames` | 18–24 | snelle characters korter |
-| `run_turn_frames` | 20–30 | Melee: tot 51 frames bij Marth (incl. remmen); hier een minimum, remmen komt erbij |
+| `run_brake_frames` | 26 / 18 / 28 / 23 / 20 | ✅ [P] RunBrake-animatie |
+| `run_turn_frames` | 30 / 20 / 22 / 22 / 20 | ✅ [P] TurnRun-animatie; hier een minimum, remmen komt erbij |
 | `squat_frames` / `squat_rv_frames` | 7 / 10 | typische animatielengtes |
-| `normal_landing_lag` | 4 | gangbaar, niet geverifieerd |
+| `normal_landing_lag` | 4 (Ganondorf 5) | ✅ [P] |
 | ECB (`ecb_height`, `ecb_mid_y`, `ecb_half_width`) | 10–18 / 5–9 / 3.5–5 | geschat naar postuur; nog alleen visueel (F2) |
 
 Gemeten wavedash-afstand (test-stick 75/−27, frame-perfect): Marth 47.5, Fox 34.9, Ganondorf 33.5, Pikachu 28.6, Peach 24.0 units — de volgorde (Marth lang, Peach kort) klopt met Melee.
@@ -262,39 +262,43 @@ Gemeten wavedash-afstand (test-stick 75/−27, frame-perfect): Marth 47.5, Fox 3
 - De losse variant (`true`) blijft beschikbaar als schakelaar en wordt nog getest.
 
 ## M2-implementatie: ledge, teeter, respawn-platform, KO-API (`engine/fighter/`)
-Status: gebouwd en headless getest (`tests/test_ledge.gd`, 117 checks; `test_movement.gd` blijft 623/623). Alle getallen hieronder zijn ⚠️ (geschat) tenzij ✅ vermeld; ze staan in `FighterStats` (groep "Ledge", per character overschrijfbaar) of `FighterConst`.
+Status: gebouwd, na speeltest herzien ("ledge-fix", zie onder) en headless getest (`tests/test_ledge.gd`, 251 checks). Getallen staan in `FighterStats` (groep "Ledge", per character overschrijfbaar) of `FighterConst`; ✅ = Melee-bron (docs/verificatie.md sectie 3), ⚠️ = geschat.
+
+### Character-lengte: `visual_height` 8–30 units
+Toegestaan bereik `FighterStats.VISUAL_HEIGHT_MIN..MAX` = **8–30 units** (Melee-characters ~11–20; spelers mogen kleiner/groter). Alles aan de ledge schaalt mee: grab-box, hang-positie (uit het rig), getup-afstanden. Hurtboxes en ingebouwde ledge-/getup-attack-hitboxes schalen al met `visual_height`. Tests draaien op 8 / 15 / 30.
 
 ### Ledge grab (`Fighter.check_ledge_grab`, aangeroepen na `coll()` in luchtstates met `can_grab_ledge()`)
-- Toegestane states: Fall, FallSpecial, Jump, JumpAerial (EscapeAir niet; na de animatie is het FallSpecial). Altijd: `vel.y < 0` (✅ alleen vallen), geen ledge-lock, niet al aan een ledge.
-- Stick omlaag (≤ −0.6875, `LEDGE_GRAB_DOWN_BLOCK`) voorkomt de grab. ✅ regel [S15, S12], ⚠️ drempel.
-- Kijkrichting: de fighter moet naar de stage kijken (`facing == −side`); met je rug naar de ledge geen grab. ⚠️ Melee-details (bv. omgekeerd grabben) niet geverifieerd. Gevolg: van de rand af rennen/vallen (kijkt van de stage af) grabt nooit.
-- Grab-box (units, ⚠️): ledge ligt 0..`ledge_grab_front` (14) vóór de fighter (buiten de rand), de fighter mag tot `ledge_grab_back` (4) onder de stage zitten (nog geen muur-collision), en de ledge ligt `ledge_grab_y_min..max` (4..24) boven de voeten.
-- Snap: voeten staan op `ledge + (side·ledge_snap_x (6), −visual_height·ledge_snap_y_ratio (0.85))`; elke frame vastgezet. Facing = naar de stage. Alle sprongen terug.
-- Stage-data: `get_ledges()` (`StageLedge.position/side`, ook Dictionaries); geen extra API nodig. Platforms hebben geen ledges.
+- Toegestane states: Fall, FallSpecial, Jump, JumpAerial, **DamageFall (tumble)** ✅ [N][W]. Niet: aerials, EscapeAir (na de animatie wel, dan FallSpecial), DamageFly (hitstun). Altijd: dalend (`vel.y + kb_vel.y < 0`) ✅, geen ledge-lock, niet al aan een ledge.
+- Stick omlaag (≤ −0.6875, `LEDGE_GRAB_DOWN_BLOCK`) voorkomt de grab. ✅ regel, ⚠️ drempel (Melee ~0.66, ❓).
+- Kijkrichting: naar de stage (`facing == −side`) ✅. Van de rand af rennen (rug naar de ledge) grabt nooit.
+- **Bezette ledge: grab mislukt** (✅ `ftCliffCommon_80081298` → `ft_80082E3C`; geen ledge-steal/trump in Melee). Register: meta `ledge_occupants` op het stage-object, `Fighter.ledge_occupied_by_other()`.
+- **Grab-box × `visual_height`** (Melee: per-character cliff-box `ledge_snap_x/y/height` × modelschaal ✅ structuur): ledge ligt tot `ledge_grab_front_ratio·h` (0.917; Fox 11 bij h = 12 [N]) vóór het midden, het midden mag `ledge_grab_back_ratio·h` (0.27 ⚠️) al onder de stage zitten (geen muur-collision), en de ledge ligt `ledge_grab_y_min_ratio..max_ratio · h` (**0.0**..1.458) boven de voeten. Bovengrens = Fox 17.5 bij h = 12 [N]. ⚠️ Ondergrens 0 i.p.v. Fox 8.5/12: Melee tilt de lucht-ECB-onderkant boven de voeten, waardoor je na van de rand glijden (wavedash/run achteruit) vrijwel meteen grabt; wij meten vanaf de voeten. Gevolg: wavedash achteruit van de rand → Fall → CliffCatch op het 2e luchtframe (getest voor alle presets × h 8/15/30).
+- **Snap = handen op de hoek, uit het rig** (`LedgeGrip`, `engine/fighter/ledge_grip.gd`): forward kinematics over `Rig.BONES` met pose `cliff_wait` frame 0 (gedeelde poses + eigen poses van het character); greeppunt = midden van beide handpalmen (`PALM_PX` = pols + 6 px) + `GRIP_INSET` (−4, +6) rig-px (palm net binnen de rand, óp de bovenkant). Gecachet per `character_id` (gewist bij `CharacterVisual.reloaded`), geschaald met `visual_height / Rig.STAND_HEIGHT_PX`. `Fighter.ledge_grip()` = hoek t.o.v. de voeten (units), `ledge_hang_pos()` = voeten. Geen visuele offset meer: de visual-root = `pos`. Puur rekenwerk op pose-data, dus deterministisch en headless.
+- Hang-pose (`cliff_wait`, ook begin van catch/getup/roll/attack/jump): armen schuin vooruit omhoog (upper_arm −146/−148, forearm −7/−6), zodat de handen vóór de borst liggen: handen op de hoek én borst/hoofd tegen de wand.
+- Bij de catch: vel, kb_vel en gr_vel 0, alle sprongen terug, facing naar de stage.
 
 ### States
 | State | Duur | Kern |
 |---|---|---|
 | CliffCatch | 7 frames ✅ (`ledge_catch_frames`, Link 3) | geen input, snap |
-| CliffWait | max 660 frames < 100%, 480 vanaf 100% ✅ (11 s / 8 s) → automatisch loslaten | opties, zie onder |
-| CliffClimb (getup) | 33 (Slow ≥100%: 43) | omhoog langs de muur (`rise` 15 / 20 frames), dan 12 units de stage op; intangible 1–23 (Slow 1–13) |
-| CliffEscape (roll) | 36 (46) | rise 10, dan 28 units de stage op; intangible 1–26 (1–16) |
-| CliffAttack | 55 (70) | beweegt als getup; **hitbox-hook** `StateCliffAttack._on_frame()` op `opt["hit"]` (25 / 35) = TODO M3; intangible 1–20 (1–10) |
-| CliffJump | startup 5 (9), dan Jump | vy = `jump_v_initial_velocity × ledge_jump_vy_mult`, vx = `ledge_jump_vx` (1.1) naar de stage; double jump blijft; intangible 1–10 (1–8) |
+| CliffWait | max 660 frames < 100% (❓ wiki 11 s, NOTES 640), 480 vanaf 100% ✅ → automatisch loslaten | opties, zie onder |
+| CliffClimb (getup) | 34 (Slow ≥ 100%: 60) ✅ [P] | `rise` 16 / 30 frames omhoog én naar de hoek (voeten op de rand), dan `0.8·h` de stage op ⚠️; intangible 1–31 (Slow 1–56) ✅ |
+| CliffEscape (roll) | 50 (80) ✅ | rise 14 / 24, dan `1.9·h` ⚠️; intangible 1–35 (1–60) ✅ |
+| CliffAttack | 55 (70) ✅ | beweegt als getup; hitbox op `hit` 24 / 40 ✅ (ingebouwd `MoveSet.builtin`); intangible 1–21 (1–45) ✅ |
+| CliffJump | wacht 15 (21) ✅ aan de muur, dan Jump | intangible de hele wacht ✅; vy = `jump_v_initial_velocity × ledge_jump_vy_mult`, vx = `ledge_jump_vx` (1.1) naar de stage ⚠️ (Melee per character); double jump blijft |
 | Loslaten | direct | Fall, vel 0, alle sprongen terug (`Fighter.ledge_drop()`) |
 
-Getup-tabel: `FighterStats.LEDGE_OPTION_DEFAULTS`/`ledge_options` (frames, rise, dx, i0..i1, hit), per variant `low` (< 100%) en `high`. De variant volgt `Fighter.percent >= Fighter.ledge_high_percent` (100). Positie tijdens een getup is een functie van het state-frame; het einde zet de fighter op de grond in Wait (`finish_ledge_move`).
+Getup-tabel: `FighterStats.LEDGE_OPTION_DEFAULTS`/`ledge_options` (frames, rise, dx × h, i0..i1, hit), per variant `low` (< 100%) en `high`; bron [P] gemiddeld Marth/Fox/Peach/Pikachu (Ganondorf wijkt af: climb-intangible tot f23, roll f25 — per character via `ledge_options`). De variant volgt `Fighter.percent >= Fighter.ledge_high_percent` (100 ✅). Positie tijdens een getup is een functie van het state-frame; het einde zet de fighter op de grond in Wait (`finish_ledge_move`).
 
-Inputs in CliffWait (prioriteit): jump (knop of omhoog-flick/tap jump) → CliffJump; A → CliffAttack; shield (nieuw ingedrukt) → CliffEscape; stick naar de stage (≥ 0.5) of omhoog (≥ 0.6875, alleen zonder tap jump, anders is omhoog een jump) → CliffClimb; stick omlaag of van de stage af (≥ 0.6875) → loslaten. Stick-richtingen tellen alleen als ze ná de grab zijn ingeduwd (`stick_timer ≤ ledge_hang_frames`); anders zou een vastgehouden stick tijdens de val meteen een getup/drop geven. ⚠️ Volgorde en drempels zijn gekozen, niet uit Melee.
+Inputs in CliffWait (prioriteit): jump (knop of omhoog-flick/tap jump) → CliffJump; A → CliffAttack; shield (nieuw ingedrukt) → CliffEscape; stick naar de stage (≥ 0.5) of omhoog (≥ 0.6875, alleen zonder tap jump) → CliffClimb; stick omlaag of van de stage af (≥ 0.6875) → loslaten. Stick-richtingen tellen alleen als ze ná de grab zijn ingeduwd (`stick_timer ≤ ledge_hang_frames`). ⚠️ Volgorde en drempels gekozen.
 
-### Intangibility en regrab
-- Generiek: `Fighter.intangible_frames` (resterend, gelezen na een tick; telt per tick af, loopt door na state-wissels) en `Fighter.is_intangible()` = teller > 0 **of** `state.intangible()` (air dodge, getups, CliffJump). Combat (M3) gebruikt alleen `is_intangible()`.
-- Eerste grab: `ledge_catch_frames + ledge_grab_intangible` = 7 + 30 = 37 frames ✅ [S15]. Loslaten behoudt het restant (ledgestall ✅).
-- Regrab-regel: `ledge_intang_ready` wordt false bij een grab en weer true bij **landen** (`_set_grounded`, dus ook na een getup) of **geraakt worden** (`Fighter.on_hit_reset_ledge()`, hook voor M3; ook bij ledge-steal). Een regrab zonder dat geeft geen nieuwe intangible frames (het restant van de vorige loopt gewoon door). Geen afnemende invincibility (Melee ✅).
-- Lock na loslaten (`ledge_cooldown` 30 ⚠️) en na eraf getrokken worden (`ledge_hit_cooldown` 54 ⚠️ [S16]). Na een getup geen lock nodig (je staat op de stage).
+### Intangibility en ledge-lock
+- Generiek: `Fighter.intangible_frames` (telt per tick af, loopt door na state-wissels) en `Fighter.is_intangible()` = teller > 0 **of** `state.intangible()`.
+- **Elke catch**: `intangible_frames = max(intangible_frames, 7 + 30)` ✅ (`ftColl_8007B760` bij CliffWait-start; geen "alleen na landen"-regel). Regrab/ledgestall dus mogelijk zoals Melee; een groter restant (respawn) blijft.
+- **Eén `ledge_cooldown` = 30** ✅ na loslaten, na getup/roll/attack/ledge jump én na geraakt worden (ook als je niet aan de ledge hing; telt niet af tijdens hitlag).
 
-### Ledge-steal
-Het ledge-register hangt als meta (`ledge_occupants`) aan het stage-object (sleutel = positie+zijde). Grabt een ander een bezette ledge, dan grabt hij hem gewoon en de vorige hanger krijgt `_lose_ledge_to()`: Fall, alle sprongen terug, lock 54, regrab-intangibility hersteld, signaal `ledge_stolen(by)`. TODO M3: damage/knockback-hook voor het slachtoffer; ⚠️ Melee-afhandeling (`ft_80082E3C`) niet geverifieerd — ook of het slachtoffer intangible frames houdt (hier: restant blijft).
+### Grondstates aan de rand (wavedash naar de ledge)
+`FighterState.stops_at_edge()`: alleen stilstaan en langzaam lopen stoppen aan de rand (Wait, Teeter, Walk < 0.75, Turn, Squat*, KneeBend ⚠️, grondaanvallen behalve dash attack ⚠️). Over de rand glijden: Dash, Run, **RunBrake**, **RunTurn** (⚠️ nieuw, Melee-gedrag volgens speeltest), Walk ≥ 0.75, Landing, LandingFallSpecial (wavedash/waveland), dash attack, Damage.
 
 ### Teeter
 `StateTeeter`: Wait (en Walk dat aan de rand stopt, `FighterState.on_edge_stop`) → Teeter als de fighter precies aan een losse segmentrand staat én naar de afgrond kijkt (`Fighter.edge_side()`). Actionable zoals Wait (jump, dash — valt eraf —, squat, omdraaien); naar de rand duwen blijft Teeter; rug naar de afgrond = Wait. Pose: `teeter` als de rig die heeft, anders de walk-pose op frame 0 (`FighterState.pick_pose`). ⚠️ Melee-teeter (ECB-gebaseerd, ook bij andere facing) vereenvoudigd.

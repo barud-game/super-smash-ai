@@ -90,8 +90,12 @@ extends Resource
 
 @export_group("Uiterlijk")
 ## ⚠️ Getekende lengte (vloer -> kruin) in Melee-units. Melee-characters zijn grofweg 11–20 units;
-## het rig is 22 units, dus de visual wordt hierop geschaald.
+## het rig is 22 units, dus de visual wordt hierop geschaald. Toegestaan: VISUAL_HEIGHT_MIN..MAX (8-30); hurtboxes,
+## ledge-grab-box, hang-positie en getup-afstanden schalen mee.
 @export var visual_height: float = 15.0
+
+const VISUAL_HEIGHT_MIN: float = 8.0
+const VISUAL_HEIGHT_MAX: float = 30.0
 
 @export_group("ECB / hurtbox")
 ## ⚠️ ECB-diamant: onderpunt = voeten (positie), bovenpunt op ecb_height, zijpunten op ecb_mid_y.
@@ -126,54 +130,56 @@ func air_jump_velocity(index: int) -> float:
 	return jump_v_initial_velocity * air_jump_v_multiplier
 
 
+
 # =============================================================================================
-# Ledge (M2). Alle waarden ⚠️ tenzij anders vermeld; zie docs/movement.md, sectie "M2-implementatie".
+# Ledge. Zie docs/movement.md, "Ledge (M2 + ledge-fix)". Alle afmetingen schalen met visual_height (8-30 units):
+# Melee: per-character cliff-box (ftData+0x44 ledge_snap_x/y/height) × modelschaal.
 # =============================================================================================
 @export_group("Ledge")
-## Grab-box: de ledge moet binnen deze afstand vóór de fighter liggen (units, in kijkrichting). ⚠️
-@export var ledge_grab_front: float = 14.0
-## Zoveel units mag het midden van de fighter al voorbij (onder de stage) de rand zijn (nog geen muur-collision). ⚠️
-@export var ledge_grab_back: float = 4.0
-## Hoogte van de ledge boven de voeten (min..max) waarbinnen grabben kan. ⚠️
-@export var ledge_grab_y_min: float = 4.0
-@export var ledge_grab_y_max: float = 24.0
-## Hang-offset: voeten-midden staat `ledge_snap_x` buiten de rand en `visual_height * ledge_snap_y_ratio` eronder. ⚠️
-@export var ledge_snap_x: float = 6.0
-@export var ledge_snap_y_ratio: float = 0.85
+## Grab-box als factor op visual_height. Melee Fox (fast_faller, 12 units): ledge tot 11 vóór het midden,
+## hoogte 8.5..17.5 boven de voeten (midden 13, hoogte 9) [N]. ⚠️ omrekening naar onze lengtes.
+@export var ledge_grab_front_ratio: float = 0.917
+## Zoveel × visual_height mag het midden van de fighter al voorbij (onder de stage) de rand zijn (geen muur-collision). ⚠️
+@export var ledge_grab_back_ratio: float = 0.27
+## y_min = 0 (⚠️ afwijking van de Melee-box 0.708): in Melee ligt de lucht-ECB-onderkant hoger dan de voeten, zodat
+## je na van de rand glijden (wavedash/run achteruit) vrijwel meteen grabt. Wij meten vanaf de voeten, dus 0.
+@export var ledge_grab_y_min_ratio: float = 0.0
+@export var ledge_grab_y_max_ratio: float = 1.458
 ## CliffCatch-animatie in frames. ✅ 7 (Link 3)
 @export var ledge_catch_frames: int = 7
-## Extra intangible frames bovenop de catch-animatie (alleen bij de eerste grab na landen/geraakt). ✅ 30
+## Intangible frames bij elke catch: intangible = max(intangible, catch + dit) (Melee: 30 bij CliffWait-start,
+## `ftColl_8007B760` = max-regel, dus ook bij een regrab; ledgestall mogelijk). ✅ 30
 @export var ledge_grab_intangible: int = 30
-## Max hangtijd in frames: < 100% / ≥ 100%. ✅ 11 s / 8 s
+## Max hangtijd in frames: < 100% / ≥ 100%. 660 ❓ (wiki 11 s; NOTES 640) / 480 ✅
 @export var ledge_max_hang_low: int = 660
 @export var ledge_max_hang_high: int = 480
-## Regrab-lock na zelf loslaten / na eraf getrokken worden (frames). ⚠️ 30 / 54 [S16]
+## Regrab-lock na loslaten, na een getup/ledge jump én na geraakt worden: één constante (Melee `ledge_cooldown`). ✅ 30
 @export var ledge_cooldown: int = 30
-@export var ledge_hit_cooldown: int = 54
 ## Ledge jump: horizontale snelheid richting de stage en verticale snelheid als factor op jump_v_initial_velocity. ⚠️
 @export var ledge_jump_vx: float = 1.1
 @export var ledge_jump_vy_mult: float = 1.0
-## Per getup-optie en per variant (low = < 100%, high = ≥ 100%): frames (totale duur; bij "jump" = startup),
-## rise (frames omhoog langs de muur), dx (units de stage op), i0..i1 (intangible, 1 = eerste frame),
-## hit (frame van de hitbox; alleen "attack"). Leeg = LEDGE_OPTION_DEFAULTS. ⚠️ allemaal geschat.
+## Per getup-optie en per variant (low = < 100%, high = ≥ 100%): frames (totale duur; bij "jump" = wachttijd aan de
+## muur), rise (frames omhoog langs de muur), dx (afstand de stage op, × visual_height), i0..i1 (intangible,
+## 1 = eerste frame), hit (frame van de hitbox; alleen "attack"). Leeg = LEDGE_OPTION_DEFAULTS.
 @export var ledge_options: Dictionary = {}
 
+## Bron: [P] frame-data (gemiddeld Marth/Fox/Peach/Pikachu), zie docs/verificatie.md sectie 3. rise/dx ⚠️.
 const LEDGE_OPTION_DEFAULTS: Dictionary = {
 	"getup": {
-		"low": {"frames": 33, "rise": 15, "dx": 12.0, "i0": 1, "i1": 23},
-		"high": {"frames": 43, "rise": 20, "dx": 12.0, "i0": 1, "i1": 13},
+		"low": {"frames": 34, "rise": 16, "dx": 0.8, "i0": 1, "i1": 31},
+		"high": {"frames": 60, "rise": 30, "dx": 0.8, "i0": 1, "i1": 56},
 	},
 	"roll": {
-		"low": {"frames": 36, "rise": 10, "dx": 28.0, "i0": 1, "i1": 26},
-		"high": {"frames": 46, "rise": 14, "dx": 28.0, "i0": 1, "i1": 16},
+		"low": {"frames": 50, "rise": 14, "dx": 1.9, "i0": 1, "i1": 35},
+		"high": {"frames": 80, "rise": 24, "dx": 1.9, "i0": 1, "i1": 60},
 	},
 	"attack": {
-		"low": {"frames": 55, "rise": 15, "dx": 12.0, "i0": 1, "i1": 20, "hit": 25},
-		"high": {"frames": 70, "rise": 20, "dx": 12.0, "i0": 1, "i1": 10, "hit": 35},
+		"low": {"frames": 55, "rise": 16, "dx": 0.8, "i0": 1, "i1": 21, "hit": 24},
+		"high": {"frames": 70, "rise": 26, "dx": 0.8, "i0": 1, "i1": 45, "hit": 40},
 	},
 	"jump": {
-		"low": {"frames": 5, "rise": 0, "dx": 0.0, "i0": 1, "i1": 10},
-		"high": {"frames": 9, "rise": 0, "dx": 0.0, "i0": 1, "i1": 8},
+		"low": {"frames": 15, "rise": 0, "dx": 0.0, "i0": 1, "i1": 15},
+		"high": {"frames": 21, "rise": 0, "dx": 0.0, "i0": 1, "i1": 21},
 	},
 }
 
@@ -188,6 +194,18 @@ func ledge_max_hang(high: bool) -> int:
 	return ledge_max_hang_high if high else ledge_max_hang_low
 
 
-## Hang-offset t.o.v. de ledge: (x buiten de rand, y eronder, beide positief).
-func ledge_hang_depth() -> float:
-	return visual_height * ledge_snap_y_ratio
+## Grab-box in units (geschaald met visual_height).
+func ledge_grab_front() -> float:
+	return ledge_grab_front_ratio * visual_height
+
+
+func ledge_grab_back() -> float:
+	return ledge_grab_back_ratio * visual_height
+
+
+func ledge_grab_y_min() -> float:
+	return ledge_grab_y_min_ratio * visual_height
+
+
+func ledge_grab_y_max() -> float:
+	return ledge_grab_y_max_ratio * visual_height

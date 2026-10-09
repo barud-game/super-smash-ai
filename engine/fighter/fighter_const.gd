@@ -50,15 +50,15 @@ const TECH_ROLL_FRAMES: int = 40
 const TECH_ROLL_INTANGIBLE_END: int = 20
 const TECH_ROLL_DISTANCE: float = 28.0
 const TECH_ROLL_MOVE_FRAMES: int = 30
-## Missed tech: stuiteren (DownBound), liggen (DownWait, max), dan getups.
+## Missed tech: stuiteren (DownBound), liggen (DownWait, max 220 = x424 [N]), dan getups (roll 36, attack 50 [P]).
 const DOWN_BOUND_FRAMES: int = 26
-const DOWN_WAIT_MAX: int = 180
+const DOWN_WAIT_MAX: int = 220
 const GETUP_STAND_FRAMES: int = 30
 const GETUP_STAND_INTANGIBLE_END: int = 22
-const GETUP_ROLL_FRAMES: int = 35
+const GETUP_ROLL_FRAMES: int = 36
 const GETUP_ROLL_INTANGIBLE_END: int = 25
 const GETUP_ROLL_DISTANCE: float = 26.0
-const GETUP_ATTACK_FRAMES: int = 49
+const GETUP_ATTACK_FRAMES: int = 50
 const GETUP_ATTACK_INTANGIBLE_END: int = 26
 ## Rebound na een clank op de grond. ⚠️
 const REBOUND_FRAMES: int = 20
@@ -69,6 +69,3 @@ const DAMAGE_POSE_HIGH_KB: float = 55.0
 const ASDI_DOWN_THRESHOLD: float = 0.7
 ## Grond-bounce: tumble-launch de grond in vanaf de grond -> vy wordt gespiegeld × dit. ⚠️
 const GROUND_BOUNCE_FACTOR: float = 0.8
-## Cliff-poses: de handen zitten ~165 rig-px boven de voeten (docs/rig.md 6c). De visual zakt zo ver dat de
-## handen op de ledge vallen (hang-positie = ledge − visual_height · ledge_snap_y_ratio).
-const CLIFF_HAND_PX: float = 165.0

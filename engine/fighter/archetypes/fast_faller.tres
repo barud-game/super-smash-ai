@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1")
 display_name = "Fast-faller"
-reference = "Fox (NTSC). ⚠️ = geschat: g2a/jump_h/air_jump_h, walk-accel, turn/brake/runturn/squat-frames, ground/air max, landing lag, ECB"
+reference = "Fox (NTSC). g2a/jump_h/air_jump_h/RunBrake/TurnRun uit [P] (docs/verificatie.md sectie 5). ⚠️ = geschat: walk-accel, turn/squat-frames, ground/air max, landing lag, ECB"
 weight = 75.0
 gravity = 0.23
 terminal_velocity = 2.8
@@ -16,7 +16,7 @@ jump_v_initial_velocity = 3.68
 hop_v_initial_velocity = 2.1
 air_jump_v_multiplier = 1.2
 air_jumps = 1
-ground_to_air_jump_momentum_multiplier = 0.75
+ground_to_air_jump_momentum_multiplier = 0.83
 jump_h_initial_velocity = 0.72
 jump_h_max_velocity = 1.7
 air_jump_h_multiplier = 0.9

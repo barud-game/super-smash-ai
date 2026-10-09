@@ -65,6 +65,11 @@ func phys() -> void:
 		f.apply_ground_friction(false)
 
 
+## Glijdt over de rand en valt eraf (Melee: alleen langzaam lopen/stilstaan stopt aan de rand). ⚠️
+func stops_at_edge() -> bool:
+	return false
+
+
 func pose() -> String:
 	return "turn" if flipped else "skid"
 

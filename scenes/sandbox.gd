@@ -5,11 +5,15 @@ extends Node2D
 ## (F2 = hitboxes, hurtboxes en ECB). F8 = dummy-modus voor P2 (staat stil), F9 / F10 = % van P2 −/+ 10.
 ##
 ## Screenshot-modus (windowed, voor review):
-##   Godot_console.exe --path . res://scenes/sandbox.tscn -- --screenshot C:/pad/shot.png [--frames 90] [--demo]
+##   Godot_console.exe --path . --position -20000,-20000 res://scenes/sandbox.tscn -- --screenshot C:/pad/shot.png [--frames 90 of 20,50,87] [--demo]
 ## --demo speelt een vaste inputreeks af (P1 dash + jump, P2 wavedash) i.p.v. controller-input.
 ## --stage eindpunt start direct op de echte stage.
 ## --demo-fight speelt een gevecht af (P1 short hop, fast fall + fair (C-stick) op P2; P2 staat stil), --hitboxes zet F2 aan,
 ## --p2-percent N zet het percentage van P2.
+## --ledge-demo ID: P1 (archetype ID) valt naar de rechter ledge en hangt; P2 staat stil. De camera zoomt in op P1.
+##   --ledge-option getup|roll|attack|jump|drop + --ledge-at N: die optie op frame N (standaard getup op 70).
+##   --vh N: andere visual_height (8-30) voor die fighter.
+##   Voorbeeld: ... -- --stage eindpunt --ledge-demo heavyweight --frames 40 --screenshot C:/tmp/hang.png
 
 const EINDPUNT_SCENE: String = "res://stages/eindpunt/eindpunt.tscn"
 
@@ -23,11 +27,18 @@ var hud: Label
 
 var _shot_path: String = ""
 var _shot_frames: int = 90
+## --frames 20,50,87: meerdere screenshots in één run (pad krijgt _f<frame>); leeg = alleen _shot_frames.
+var _shot_list: Array[int] = []
 var _demo: bool = false
 var _demo_inputs: Array[InputHistory] = []
 var _frames_seen: int = 0
 var _demo_fight: bool = false
 var _p2_percent: float = 0.0
+var _ledge_demo: String = ""
+var _ledge_option: String = "getup"
+var _ledge_at: int = 70
+## --vh N: visual_height van de ledge-demo-fighter (0 = preset).
+var _ledge_vh: float = 0.0
 ## F8: P2 krijgt een lege inputbron (staat stil).
 var dummy_p2: bool = false
 var vfx: VfxLayer
@@ -47,6 +58,13 @@ func _ready() -> void:
 		if _demo_fight:
 			f.pos = Vector2(-14.0 if p == 0 else 2.0, 0.0)
 		f.facing = 1 if p == 0 else -1
+		if _ledge_demo != "" and p == 0:
+			f.stats = Archetypes.load_stats(_ledge_demo)
+			if _ledge_vh > 0.0:
+				f.stats = f.stats.duplicate()
+				f.stats.visual_height = _ledge_vh
+			f.pos = _right_ledge() + Vector2(6.0, 10.0)
+			f.facing = -1
 		if _demo:
 			var h := InputHistory.new()
 			_demo_inputs.append(h)
@@ -95,7 +113,11 @@ func _parse_args() -> void:
 					_shot_path = a[i + 1]
 			"--frames":
 				if i + 1 < a.size():
-					_shot_frames = int(a[i + 1])
+					for part: String in a[i + 1].split(",", false):
+						_shot_list.append(int(part))
+					_shot_frames = _shot_list.max()
+					if _shot_list.size() == 1:
+						_shot_list.clear()
 			"--demo":
 				_demo = true
 			"--demo-fight":
@@ -111,12 +133,29 @@ func _parse_args() -> void:
 			"--stage":
 				if i + 1 < a.size():
 					use_eindpunt = a[i + 1] == "eindpunt"
+			"--ledge-demo":
+				_demo = true
+				if i + 1 < a.size():
+					_ledge_demo = a[i + 1]
+			"--ledge-option":
+				if i + 1 < a.size():
+					_ledge_option = a[i + 1]
+			"--ledge-at":
+				if i + 1 < a.size():
+					_ledge_at = int(a[i + 1])
+			"--vh":
+				if i + 1 < a.size():
+					_ledge_vh = float(a[i + 1])
 
 
 func _on_frame(frame: int) -> void:
 	_frames_seen += 1
-	if _shot_path != "" and _frames_seen == _shot_frames:
-		_save_shot()
+	if _shot_path == "":
+		return
+	if _shot_list.has(_frames_seen):
+		_save_shot(_shot_path.get_basename() + "_f%d.png" % _frames_seen, _frames_seen == _shot_frames)
+	elif _shot_list.is_empty() and _frames_seen == _shot_frames:
+		_save_shot(_shot_path, true)
 
 
 ## Demo-input: wordt vóór de sim-tick gepusht (Sim sampled eerst InputManager, dan de entities;
@@ -128,6 +167,9 @@ func _physics_process(_delta: float) -> void:
 	var t: int = _frames_seen
 	if _demo_fight:
 		_demo_fight_inputs(t)
+		return
+	if _ledge_demo != "":
+		_ledge_demo_inputs(t)
 		return
 	for p in 2:
 		var fr := InputFrame.new()
@@ -217,22 +259,31 @@ func _setup_camera() -> void:
 	var targets: Array[Node2D] = []
 	for f in fighters:
 		targets.append(f)
+	if _ledge_demo != "":
+		# Close-up van de hangende fighter (stage-rand in beeld).
+		var mark := Node2D.new()
+		mark.position = Units.to_px(_right_ledge() + Vector2(0.0, 6.0))
+		add_child(mark)
+		targets = [fighters[0], mark]
+		camera.margin_units = 14.0
+		camera.max_zoom = 3.0
 	camera.set_targets(targets)
 	camera.set_bounds_units(stage.get_camera_bounds())
 	camera.snap_next()
 
 
-func _save_shot() -> void:
+func _save_shot(path: String, quit_after: bool) -> void:
 	await RenderingServer.frame_post_draw
 	var img: Image = get_viewport().get_texture().get_image()
-	var err: Error = img.save_png(_shot_path)
+	var err: Error = img.save_png(path)
 	if err != OK:
 		printerr("sandbox: screenshot opslaan mislukt: ", error_string(err))
 	else:
-		print("sandbox: screenshot -> ", _shot_path)
+		print("sandbox: screenshot -> ", path)
 	for f in fighters:
 		print("  ", f, ": ", f.get_debug_state_name())
-	get_tree().quit(0 if err == OK else 1)
+	if quit_after or err != OK:
+		get_tree().quit(0 if err == OK else 1)
 
 
 ## --demo-fight: P1 short hop + fair op P2 (P2 staat stil, eventueel op --p2-percent). Daarna niets.
@@ -244,5 +295,33 @@ func _demo_fight_inputs(t: int) -> void:
 		p1.cstick = Vector2i(80, 0)
 	if t >= 27 and t < 30:
 		p1.stick = Vector2i(0, -80)
+	_demo_inputs[0].push(p1)
+	_demo_inputs[1].push(InputFrame.new())
+
+
+## Rechter ledge van de huidige stage (units).
+func _right_ledge() -> Vector2:
+	var best := Vector2(-INF, 0.0)
+	for l: StageLedge in stage.get_ledges():
+		if l.side > 0 and l.position.x > best.x:
+			best = l.position
+	return best if best.x > -INF else Vector2.ZERO
+
+
+## --ledge-demo: P1 laat zich naar de ledge vallen; op frame _ledge_at de gekozen optie. P2 doet niets.
+func _ledge_demo_inputs(t: int) -> void:
+	var p1 := InputFrame.new()
+	if t == _ledge_at:
+		match _ledge_option:
+			"getup":
+				p1.stick = Vector2i(-80, 0)
+			"roll":
+				p1.buttons |= InputFrame.BTN_SHIELD
+			"attack":
+				p1.buttons |= InputFrame.BTN_ATTACK
+			"jump":
+				p1.buttons |= InputFrame.BTN_JUMP
+			"drop":
+				p1.stick = Vector2i(0, -80)
 	_demo_inputs[0].push(p1)
 	_demo_inputs[1].push(InputFrame.new())

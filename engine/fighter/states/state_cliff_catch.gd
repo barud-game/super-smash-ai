@@ -32,7 +32,3 @@ func holds_ledge() -> bool:
 
 func pose() -> String:
 	return pick_pose("cliff_catch", "fall")
-
-
-func visual_offset_px() -> Vector2:
-	return StateCliffWait.hang_offset(f)

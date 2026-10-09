@@ -27,3 +27,7 @@ Gevecht in de fighter (M3; aanvallen, hitlag, knockback, DI, tech, L-cancel, hit
 Match-flow (M6; stocks, timer, tiebreak, sudden death, pauze, training):
 
     <godot_console> --headless --path . --script res://tests/test_match.gd
+
+Aerial-bereik (afspraak 8, SH-aerials tegen staande hurtboxes; geometrisch, `-- --table` toont de invoer-vensters):
+
+    <godot_console> --headless --path . --script res://tests/test_aerial_reach.gd
