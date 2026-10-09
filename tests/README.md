@@ -19,3 +19,7 @@ Movement (M1, vergelijking met Melee-waarden per archetype; gescripte input, gee
 Ledge, teeter, KO-API en respawn (M2):
 
     <godot_console> --headless --path . --script res://tests/test_ledge.gd
+
+Match-flow (M6; stocks, timer, tiebreak, sudden death, pauze, training):
+
+    <godot_console> --headless --path . --script res://tests/test_match.gd

@@ -7,7 +7,7 @@ extends MenuScreen
 ## "/" of Ctrl+F = zoeken. Muis: klik = kiezen, wiel = pagina.
 
 const SCENE_MAIN: String = "res://ui/main_menu/main_menu.tscn"
-const SCENE_MATCH: String = "res://ui/match_stub.tscn"
+const SCENE_MATCH: String = "res://ui/match/match.tscn"
 
 const COLS: int = 7
 const ROWS: int = 3

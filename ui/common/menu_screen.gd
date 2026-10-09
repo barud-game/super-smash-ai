@@ -11,6 +11,11 @@ var active_players: Array[int] = [0, 1]
 
 
 func _ready() -> void:
+	# Menu's hebben geen debug-toetsen en draaien nooit gepauzeerd (bv. na een match-quit).
+	var sim: Node = MenuNav._autoload("Sim")
+	if sim != null:
+		sim.set_paused(false)
+		sim.debug_context = false
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var bg := CosmicBackground.new()
 	add_child(bg)
@@ -37,7 +42,6 @@ func _on_act(_player: int, _act: int) -> void:
 
 
 func _physics_process(_delta: float) -> void:
-	MenuNav.keep_sim_running()
 	for p in active_players:
 		for a in nav.poll(p):
 			_on_act(p, a)

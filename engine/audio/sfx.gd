@@ -23,14 +23,26 @@ func _ready() -> void:
 func play(sfx_name: String, pitch_variance: float = 0.0, volume_db: float = 0.0, character_id: String = "") -> void:
 	if not enabled:
 		return
+	var vol_lin: float = _settings_volume()
+	if vol_lin <= 0.0:
+		return
 	var stream: AudioStreamWAV = SfxBank.get_stream(sfx_name, character_id)
 	if stream == null:
 		return
 	var p: AudioStreamPlayer = _free_player()
 	p.stream = stream
-	p.volume_db = volume_db + SfxBank.get_volume_db(sfx_name, character_id)
+	p.volume_db = volume_db + linear_to_db(vol_lin) + SfxBank.get_volume_db(sfx_name, character_id)
 	p.pitch_scale = 1.0 + (_rng.randf_range(-pitch_variance, pitch_variance) if pitch_variance > 0.0 else 0.0)
 	p.play()
+
+
+## SFX-volume uit de instellingen (0..1, autoload `Settings`); 1.0 als die ontbreekt.
+func _settings_volume() -> float:
+	var s: Node = get_node_or_null("/root/Settings")
+	if s == null:
+		return 1.0
+	var v: Variant = s.get("sfx_volume")
+	return clampf(float(v), 0.0, 1.0) if v != null else 1.0
 
 
 ## Genereert alle geluiden vooraf (bv. tijdens een laadscherm) zodat de eerste hit niet hapert.

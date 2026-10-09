@@ -129,7 +129,7 @@ func _run() -> void:
 	# --- schermen instantiëren
 	setup.reset()
 	for path in ["res://ui/main_menu/main_menu.tscn", "res://ui/settings/settings_menu.tscn",
-			"res://ui/match_stub.tscn", "res://ui/character_select/character_select.tscn"]:
+			"res://ui/match/match.tscn", "res://ui/character_select/character_select.tscn"]:
 		var packed: PackedScene = load(path)
 		check("laadt " + path, packed != null)
 		var inst: Node = packed.instantiate()

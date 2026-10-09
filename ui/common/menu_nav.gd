@@ -99,13 +99,6 @@ func _add_keys(d: Dictionary) -> void:
 		d[Act.PAGE_NEXT] = true
 
 
-## Houdt de Sim draaiend: de P-toets pauzeert hem (ook tijdens typen), en dan stopt de input-sampling.
-static func keep_sim_running() -> void:
-	var sim: Node = _autoload("Sim")
-	if sim != null and sim.paused:
-		sim.set_paused(false)
-
-
 ## Autoload via de boom (zodat dit script ook compileert in `--script`-tests, waar globals nog ontbreken).
 static func _autoload(autoload_name: String) -> Node:
 	var tree := Engine.get_main_loop() as SceneTree

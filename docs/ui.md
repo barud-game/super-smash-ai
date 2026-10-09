@@ -1,6 +1,6 @@
 # UI: menu's, roster en instellingen
 
-Alles in `ui/`, plus `engine/roster/` (CharacterRegistry) en `engine/match/match_rules.gd`.
+Alles in `ui/` (menu's, `ui/match/`, `ui/hud/`, `ui/results/`), plus `engine/roster/` (CharacterRegistry) en `engine/match/` (match-logica).
 Stijl: donker kosmisch (`ui/common/ui_style.gd` heeft kleuren en tekenhulpjes), schermen zijn 1280x720 en
 worden in het midden van het venster gezet (`MenuScreen.stage`).
 
@@ -8,8 +8,9 @@ worden in het midden van het venster gezet (`MenuScreen.stage`).
 
 ```
 Main menu ──Fight────────┐
-          ──Training─────┴─> Character select ──(beide klaar: A/Start)──> ui/match_stub.tscn (later: echte match)
-          ──Instellingen──> Settings            (B = terug naar vorig scherm; stub: B -> character select)
+          ──Training─────┴─> Character select ──(beide klaar: A/Start)──> ui/match/match.tscn ──(einde)──> ui/results/results.tscn
+          ──Instellingen──> Settings            (B = terug naar vorig scherm)                  A = rematch, B = select
+                                                  match: L+R+A+Start (in de pauze) -> character select
           ──Sandbox (alleen debug-builds)──> scenes/sandbox.tscn
           ──Afsluiten
 ```
@@ -18,7 +19,7 @@ Main menu ──Fight────────┐
 - **Fight**: P1 en P2 kiezen elk. **Training**: alleen P1 kiest; de dummy wordt bij het starten een willekeurig
   *ander* character (is er maar één, dan hetzelfde).
 - De keuzes staan in autoload `MatchSetup` (`mode`, `picks[0..1]` = character-id's, `was_random[]`, `rules`).
-  De match-scène leest daar. `rules` is een `MatchRules` (4 stocks, 8 min, items uit, sudden death aan; alleen data).
+  `MatchController` leest daar. `rules` is een `MatchRules` (4 stocks, 8 min, items uit, sudden death aan; alleen data).
 
 ## Bediening
 
@@ -36,7 +37,7 @@ Alle schermen lezen `InputManager.history(p)` via `MenuNav` (`ui/common/menu_nav
 Wat bij het openen van een scherm al ingedrukt is (de A waarmee je binnenkwam) telt niet als nieuwe druk.
 Muis: hoveren selecteert, klikken activeert; op de character select kiest klikken voor speler 1, het wiel bladert.
 Het zoekveld: `/` of Ctrl+F; Esc/Enter verlaat het. Terwijl je typt is speler 1 gedempt.
-`MenuNav.keep_sim_running()` zet `Sim` weer aan als de P-toets hem pauzeerde (anders stopt de input-sampling).
+`Sim`-debugtoetsen (P, `.`, Back, RB) werken alleen met `Sim.debug_context` (sandbox en training); menu's zetten dat uit en draaien nooit gepauzeerd.
 Beperking: toetsenbord werkt alleen voor speler 1; speler 2 heeft een controller nodig.
 
 Geluiden: `UiStyle.sfx("menu_move" | "menu_confirm" | "menu_back" | "menu_start")` roept `Sfx.play(naam)` aan
@@ -89,7 +90,7 @@ Het `/nieuw-character`-proces moet dus `character.json` aanmaken.
 
 `tap_jump[p]` (standaard aan, per speler), `rumble`, `master_volume`, `sfx_volume` (0..1), `fullscreen`.
 Setters slaan direct op, passen master-volume en fullscreen toe en sturen `changed`.
-Gameplay leest `Settings.tap_jump_enabled(player)` en `Settings.rumble`; `Sfx` mag `Settings.sfx_volume` gebruiken.
+Gameplay leest `Settings.tap_jump_enabled(player)` en `Settings.rumble`; `Sfx.play` past `Settings.sfx_volume` toe (0 = stil).
 
 ## Nieuw scherm maken
 
@@ -112,3 +113,51 @@ Voorbeelden staan in `ui/screenshots/`.
 Test: `Godot_console.exe --headless --path . --script res://tests/test_ui.gd` (registry, manifest, settings,
 MatchRules, MenuNav, schermen). Let op: in `--script`-modus bestaan autoload-namen niet als globals bij het compileren;
 vandaar dat `MenuNav` zijn autoloads via de scene tree opzoekt.
+
+## Match (M6)
+
+Scène `ui/match/match.tscn` (root = `MatchController`, `engine/match/match_controller.gd`). Leest `MatchSetup` (mode, picks,
+rules). Opbouw: stage Eindpunt, 2 `Fighter`s op `stage.get_spawn(i)` (`auto_respawn = false`), `MatchCamera` op de levende
+fighters, `MatchHud`. Movement-stats via het `archetype` uit `character.json` -> `Archetypes.load_stats` (onbekend = Allrounder).
+Pure logica zit in `MatchState` (stocks, KO/fall/SD-tellers, timer, einde, tiebreak) en is los testbaar; `MatchResult.last`
+houdt de uitslag voor het results-scherm.
+
+**Tikken**: de controller is een Sim-entity (`sim_tick`, registreert zich ná de fighters) en loopt dus op sim-frames.
+Constanten (frames): countdown 3-2-1 = 3x60 (`countdown_tick` per cijfer, `go` bij start), "GO!" 45 frames zichtbaar,
+`RESPAWN_DELAY` 120 ⚠️, `RESPAWN_INVINCIBLE` 120 ⚠️, `TRAINING_RESPAWN_DELAY` 45, `END_DELAY` 150 (GAME!/TIME! -> results).
+Tijdens countdown en einde staat de input van de fighters op een blanco `InputHistory` (en die van de training-dummy altijd).
+
+**Flow**: `blast_ko(fighter, side)` -> (in de eigen sim_tick afgehandeld) stock eraf, fighter uit de Sim en onzichtbaar,
+camera volgt alleen de levenden, na `RESPAWN_DELAY` `respawn_at(stage.get_respawn(i), RESPAWN_INVINCIBLE)` en % = 0.
+Einde (`MatchState.evaluate`): één speler over wint; beide op 0 of tijd op en alles gelijk -> **sudden death** (beide 1 stock op 300%,
+nieuwe countdown, geen timer; blijft herhalen bij gelijktijdige val). Tijd op: meeste stocks, dan laagste %. Zet je
+`rules.sudden_death` uit, dan is het een gelijkspel (winnaar -1).
+KO/SD-telling: een val telt als KO voor de tegenstander als het % van het slachtoffer ≤ `HIT_MEMORY` (300 frames) geleden
+steeg (via `percent_changed`), anders als SD (zelfvernietiging). Heeft de fighter geen `percent_changed`, dan is elke val een KO.
+
+**Pauze (Melee)**: Start (controller) of Enter/Esc (toetsenbord, P1) pauzeert zodra de match loopt (niet in de countdown) via
+`Sim.set_paused(true)` + overlay; alleen de speler die pauzeerde kan hervatten (Start) of stoppen (**L+R+A+Start**, triggers >= 0,7;
+toetsenbord: Q) -> `MatchResult.last = null`, terug naar de character select. Tijdens de pauze sampelt de controller zelf de input
+(de Sim doet dat dan niet). `process_pause_input(p, frame)` is de testbare kern.
+
+**HUD** (`ui/hud/match_hud.gd`, CanvasLayer 20): per speler onderaan een schuine plaat met mini-portret (`PortraitCache`, idle in
+spelerskleur), naam, **damage %** (kleur wit -> geel -> oranje -> rood -> donkerrood op 0/40/90/140/220%, schudt 14 frames bij
+toename; geteld in sim-frames, dus bevroren in de pauze) en stock-iconen eronder; timer bovenaan (laatste 10 s rood);
+banners (3-2-1, GO!, GAME!/TIME!, SUDDEN DEATH) en de pauze-overlay.
+
+**Training** (`mode == training`): dummy = de gekozen andere character, krijgt nooit input; oneindige stocks (val kost niets,
+respawn na 45 frames), geen timer, einde nooit. Besturing speler 1: D-pad omhoog/omlaag = dummy-% +-10, links = reset posities,
+rechts = dummy-% 0 (toetsenbord F7/F6, F8, F9); hint-balk bovenin. `Sim.debug_context` staat aan (P/`.`/Back werken).
+
+**Results** (`ui/results/results.tscn`): winnaar groot in spelerskleur (gelijkspel: beide), per speler KO's / Falls / SD's,
+stocks en %. A/Start = rematch (zelfde `MatchSetup`), B = character select.
+
+## Screenshots van de match
+
+```
+Godot_console.exe --path . res://tools/match_shot/match_shot.tscn -- --out C:/pad/x.png [--frames 260] [--mode training]
+    [--pct1 37 --pct2 128] [--stocks1 n --stocks2 n] [--pause] | [--results --winner 0|1|-1]
+```
+Voorbeelden: `ui/screenshots/match_hud.png`, `match_countdown.png`, `match_pause.png`, `match_training.png`, `results.png`, `results_draw.png`.
+Test: `Godot_console.exe --headless --path . --script res://tests/test_match.gd` (MatchState, controller met fake fighters,
+pauze-regels, training, `Sim`-debugtoetsen, Sfx-volume, plus één integratie met echte Fighters).
