@@ -24,8 +24,8 @@ maar geen kopie van een bestaand personage (eigen naam, uiterlijk en move-namen)
 ## Specials
 | Special | Naam | Wat het doet | Sjabloon | S/K/B/V/U | Pts |
 |---|---|---|---|---|---|
-| Neutral-B | **Last Shot** | Trage, enorme stoot; kan zich tijdens de startup omdraaien. Killt heel vroeg; na afloop staat hij even te hijgen (extra endlag). | `dash_strike` (afstand 0) | 0/5/2/0/2 | 9 |
-| Side-B | **Panic Rush** | Wilde sprint naar voren met één harde klap. In de lucht een licht stijgende ramaanval, daarna helpless. | `dash_strike` | 2/3/3/1/4 | 13 |
+| Neutral-B | **Last Shot** | Geen klassieke windup: hij pakt een hamburger uit zijn zak, strooit er "zout" op, schrokt hem naar binnen en geeft dan één enorme klap. Zelfde timing als een trage, zware stoot (lange startup, killt heel vroeg, kan zich tijdens de startup omdraaien); na afloop staat hij even te hijgen (extra endlag). | `dash_strike` (afstand 0) | 0/5/2/0/2 | 9 |
+| Side-B | **Panic Rush** | Hij springt op een **gare, rammelende racefiets** en scheurt naar voren; één harde klap bij contact. In de lucht een licht stijgende ramaanval, daarna helpless. Fiets verschijnt alleen tijdens de move. | `dash_strike` | 2/3/3/1/4 | 13 |
 | Up-B | **Grabby Hands** | Schiet omhoog en grijpt wie hij raakt; die ontploft in een paarse vonkenwolk. Recovery. Mist hij, dan helpless. | `rising_multi` + `command_grab` | 2/2/2/1/6 (+2 combi) | 15 |
 | Down-B | **Stumble Kick** | Grond: glijdende trap. Lucht: schuine duiktrap omlaag (stall-then-fall), helpt ook terug naar de ledge. | `stall_fall` | 3/3/2/1/3 | 12 |
 
@@ -44,5 +44,6 @@ Standaard fast-faller-moveset, met één signature move:
 | **Totaal** | **194 / 200** |
 
 ## Wijzigingslog
+- 2026-10-09: side-B op een gare racefiets; neutral-B wordt hamburger + "zout" eten en dan de klap (mechanics gelijk).
 - 2026-10-09: eerste voorstel ("Kade Torque").
 - 2026-10-09: speler koos thema en naam **Captain Pep** (Engels) (verslaafde chaos-racer); uiterlijk en move-namen origineel gemaakt.
