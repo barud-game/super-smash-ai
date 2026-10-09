@@ -10,7 +10,10 @@
      (afspraak 8 in `docs/standaard-movesets.md` aanpassen naar ~35% van `visual_height`, onderste box lager),
      validator + 5 movesets bijwerken, test toevoegen "SH-fair raakt staande fighter".
   2. **Fix VFX-grootte:** hit-spark is ~2× character-hoogte; schalen naar het Melee-formaat (zie screenshot-review).
-  3. **`docs/verificatie.md`** (onderzoeksagent, mogelijk onaf door het limiet): afwijkingen ❌ laten doorvoeren.
+  3. **`docs/verificatie.md` doorvoeren** (✅ 32 · ❌ 24 · ❓ 14). Top-afwijkingen: geen ledge-steal (bezette ledge =
+     grab faalt), regrab geeft elke keer 30 intangible frames (ledgestall), DI kwadratisch (`c*|c|`), hitlag
+     `int(int(d/3+3)*mul)` + electric alleen slachtoffer + crouch ×2/3 + cap 20, preset-waarden (sectie 5),
+     ledge-getup-frames (sectie 3), ledge-cooldown 30, missed-tech lig 220, SDI ×6 / ASDI ×3, ledge-grab vanuit tumble.
   4. **M4 verdediging:** shield + lightshield + shield-HP/break, shieldstun voor de verdediger, OoS-opties,
      rolls, spotdodge, grab/dash grab/pummel/throws (hook `check_grab()`), grab-release.
   5. **Special-sjablonen/toolkit** (`docs/special-sjablonen.md`, bouwstenen-lijst).
