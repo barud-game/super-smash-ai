@@ -1,0 +1,38 @@
+[gd_resource type="Resource" script_class="MoveData" format=3]
+
+[ext_resource type="Script" path="res://engine/combat/move_data.gd" id="1_md"]
+[ext_resource type="Script" path="res://engine/combat/hitbox_data.gd" id="2_hb"]
+
+[sub_resource type="Resource" id="hb_tip"]
+script = ExtResource("2_hb")
+id = 0
+group = 0
+start_frame = 9
+end_frame = 14
+offset = Vector2(8.4, 7.7)
+radius = 3.0
+damage = 6.0
+angle = 361.0
+base_kb = 15.0
+kb_growth = 110.0
+element = 4
+
+[sub_resource type="Resource" id="hb_gevest"]
+script = ExtResource("2_hb")
+id = 1
+group = 0
+start_frame = 9
+end_frame = 14
+offset = Vector2(5.5, 7.7)
+radius = 3.0
+damage = 4.0
+angle = 361.0
+base_kb = 5.0
+kb_growth = 110.0
+element = 4
+
+[resource]
+script = ExtResource("1_md")
+move_name = "dash_attack"
+total_frames = 36
+hitboxes = Array[ExtResource("2_hb")]([SubResource("hb_tip"), SubResource("hb_gevest")])

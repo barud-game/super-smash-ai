@@ -1,0 +1,44 @@
+[gd_resource type="Resource" script_class="MoveData" format=3]
+
+[ext_resource type="Script" path="res://engine/combat/move_data.gd" id="1_md"]
+[ext_resource type="Script" path="res://engine/combat/hitbox_data.gd" id="2_hb"]
+
+[sub_resource type="Resource" id="hb_punt"]
+script = ExtResource("2_hb")
+id = 0
+group = 0
+start_frame = 7
+end_frame = 10
+offset = Vector2(3.0, 15.5)
+radius = 3.0
+damage = 10.0
+angle = 90.0
+base_kb = 25.0
+kb_growth = 120.0
+element = 4
+
+[sub_resource type="Resource" id="hb_gevest"]
+script = ExtResource("2_hb")
+id = 1
+group = 0
+start_frame = 7
+end_frame = 10
+offset = Vector2(3.0, 11.0)
+radius = 3.0
+damage = 7.0
+angle = 90.0
+base_kb = 15.0
+kb_growth = 120.0
+element = 4
+
+[resource]
+script = ExtResource("1_md")
+move_name = "uair"
+total_frames = 43
+aerial = true
+grounded = false
+landing_lag = 24
+lcancel_lag = 12
+autocancel_before = 5
+autocancel_after = 20
+hitboxes = Array[ExtResource("2_hb")]([SubResource("hb_punt"), SubResource("hb_gevest")])

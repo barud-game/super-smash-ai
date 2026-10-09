@@ -17,6 +17,9 @@
   screenshots (na waarschuwing), commit, M7 ✅.
 - **Andere chat** bouwt tegelijk **Sonny Daylight** (`characters/sonny_daylight/`). Commit elkaars bestanden niet.
 - **Kleine bug:** sandbox-label toont het archetype van P2 verkeerd bij `--p1 <id>` (dummy staat als Fast-faller).
+- **Sonny Daylight (2026-10-10):** tweede character (sabel-vampierjager, fast-faller + wall jump, 197/200) gebouwd:
+  art, 13 sabel-normals, 4 specials, KO-effect. Open: screenshots-controle, validator-schatting `dash_strike`/`multi_jump`
+  (2 FAIL), wall-jump-state in de engine, prop-events, pose `atk_special_slash`. Zie "Bouwstatus" in `characters/sonny_daylight/ontwerp.md`.
 - **Volgende:**
   1. **M7 Captain Pep afmaken** (specials, zie hierboven).
   2. **Special-VFX:** `VfxLayer.spawn_special_fx(...)` bestaat nog niet (events staan nu alleen in `SpecialKit.fx_log`).

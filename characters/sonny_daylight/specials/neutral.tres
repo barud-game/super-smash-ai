@@ -1,0 +1,62 @@
+[gd_resource type="Resource" script_class="SpecialDef" format=3]
+
+[ext_resource type="Script" path="res://engine/combat/hitbox_data.gd" id="1_ll5ew"]
+[ext_resource type="Script" path="res://engine/specials/special_def.gd" id="2_v1bf0"]
+
+[sub_resource type="Resource" id="Resource_7nw62"]
+script = ExtResource("1_ll5ew")
+group = 1
+end_frame = -1
+offset = Vector2(8, 8)
+radius = 6.0
+damage = 9.0
+angle = 45.0
+base_kb = 40.0
+kb_growth = 80.0
+disjoint = true
+
+[sub_resource type="Resource" id="Resource_x2k71"]
+script = ExtResource("1_ll5ew")
+id = 1
+group = 1
+end_frame = -1
+offset = Vector2(15, 9)
+radius = 5.5
+damage = 10.0
+angle = 45.0
+base_kb = 45.0
+kb_growth = 85.0
+disjoint = true
+
+[resource]
+script = ExtResource("2_v1bf0")
+display_name = "Punchline"
+templates = Array[String](["dash_strike"])
+params = {
+"cliff_stop": true,
+"dash_frames": 6,
+"dash_gravity": 0.0,
+"dash_speed": 2.0,
+"endlag": 22,
+"ends_with": "stop",
+"gravity_scale": 0.6,
+"hitbox_mode": "during",
+"momentum_air": "scale",
+"momentum_scale": 0.6,
+"passes_through": true,
+"startup": 11
+}
+hitboxes = {
+"dash": Array[ExtResource("1_ll5ew")]([SubResource("Resource_7nw62"), SubResource("Resource_x2k71")])
+}
+sfx = {
+"dash": "sword_swing"
+}
+landing_lag = 12
+scores = {
+"B": 4.0,
+"K": 3.0,
+"S": 3.0,
+"U": 2.0,
+"V": 2.0
+}

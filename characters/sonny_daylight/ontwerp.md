@@ -58,6 +58,19 @@ Grab en throws blijven standaard (met de vrije hand).
 | Movement-aanvulling (wall jump) | 5 |
 | **Totaal** | **197 / 200** |
 
+## Bouwstatus (2026-10-10)
+- ✅ Art (rig-onderdelen, `weapon.svg` zilveren sabel, props microfoon/kruisboog/pijl_touw) — **nog niet visueel gecontroleerd** (preview-commando's: zie hieronder).
+- ✅ 13 sabel-normals in `moves/` (validator PASS; geen disjoint, want Bereik ≤ 3 volgens move-conversie.md; element SLASH).
+- ✅ Specials in `specials/` (`side.gd` = eigen runner op `TplMultiJump` met vaste schuine richting + haal-hitbox; generator `gen_specials.gd`).
+- ✅ KO-effect `ko_effect/ko_effect.gd` (headless 14/14).
+- ⚠️ Validator 2 FAIL (`special_def/neutral` B=4, `special_def/side` S=2/K=2): schattingsregels in `tools/validator/special_validator.gd`
+  kennen geen hitbox-bereik bij `dash_strike` afstand 0 en geen hitbox bij `multi_jump`. Validator aanpassen, niet de scores.
+- ⬜ Wall jump: `stats.wall_jump` wordt gezet maar de engine heeft nog geen wall-jump-state.
+- ⬜ Prop-events (kruisboog/pijl bij up-B, microfoon bij taunt) koppelen zodra `prop_event.gd` gecommit is.
+- ⬜ Eigen pose `atk_special_slash` voor Double Take (nu `atk_special_spin`).
+- ⬜ Screenshots (director, na waarschuwing): `tools/preview/preview.tscn -- --character sonny_daylight [--poses atk_jab1,atk_fair,atk_fsmash,atk_usmash --maxf 5] --out tools/preview/out/sonny_daylight[_atk].png`
+  en `tools/vfx_preview/vfx_preview.tscn -- --effect ko --character sonny_daylight --side left --out <png>` (altijd `--position -20000,-20000`).
+
 ## Wijzigingslog
 - 2026-10-10: side-B krijgt een sabelhaal tijdens elke sprong (13 → 15 pt). Sabel blijft zilver.
 - 2026-10-10: alle normals worden sabelaanvallen (meer bereik, iets trager; netto 0 punten).

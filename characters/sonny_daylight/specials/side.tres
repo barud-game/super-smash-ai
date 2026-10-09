@@ -1,0 +1,43 @@
+[gd_resource type="Resource" script_class="SpecialDef" format=3]
+
+[ext_resource type="Script" path="res://engine/combat/hitbox_data.gd" id="1_v1uih"]
+[ext_resource type="Script" path="res://engine/specials/special_def.gd" id="2_tff0s"]
+
+[sub_resource type="Resource" id="Resource_cxqvl"]
+script = ExtResource("1_v1uih")
+start_frame = 5
+end_frame = 10
+offset = Vector2(10, 8)
+radius = 6.5
+angle = 65.0
+base_kb = 30.0
+kb_growth = 35.0
+disjoint = true
+
+[resource]
+script = ExtResource("2_tff0s")
+slot = "side"
+display_name = "Double Take"
+templates = Array[String](["multi_jump"])
+params = {
+"flap_frames": 16,
+"flap_power": 2.3,
+"kind": "flap",
+"momentum_air": "scale",
+"momentum_scale": 0.3,
+"power_decay": 0.1,
+"side_speed": 1.7,
+"startup": 4
+}
+hitboxes = {
+"slash": Array[ExtResource("1_v1uih")]([SubResource("Resource_cxqvl")])
+}
+ledge_snap = "during"
+air_use_limit = 2
+scores = {
+"B": 3.0,
+"K": 2.0,
+"S": 2.0,
+"U": 6.0,
+"V": 2.0
+}

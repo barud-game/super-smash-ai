@@ -1,0 +1,38 @@
+[gd_resource type="Resource" script_class="MoveData" format=3]
+
+[ext_resource type="Script" path="res://engine/combat/move_data.gd" id="1_md"]
+[ext_resource type="Script" path="res://engine/combat/hitbox_data.gd" id="2_hb"]
+
+[sub_resource type="Resource" id="hb_punt"]
+script = ExtResource("2_hb")
+id = 0
+group = 0
+start_frame = 11
+end_frame = 16
+offset = Vector2(0.0, 20.8)
+radius = 3.5
+damage = 17.0
+angle = 90.0
+base_kb = 35.0
+kb_growth = 115.0
+element = 4
+
+[sub_resource type="Resource" id="hb_gevest"]
+script = ExtResource("2_hb")
+id = 1
+group = 0
+start_frame = 11
+end_frame = 16
+offset = Vector2(0.0, 12.0)
+radius = 3.5
+damage = 12.0
+angle = 90.0
+base_kb = 25.0
+kb_growth = 115.0
+element = 4
+
+[resource]
+script = ExtResource("1_md")
+move_name = "usmash"
+total_frames = 60
+hitboxes = Array[ExtResource("2_hb")]([SubResource("hb_punt"), SubResource("hb_gevest")])
