@@ -1,7 +1,7 @@
 extends Node
 ## Screenshot van een lopende match (HUD) of het results-scherm. Windowed (headless rendert niet).
 ##   Godot_console.exe --path . res://tools/match_shot/match_shot.tscn -- --out C:/pad/x.png [opties]
-## Opties: --frames <n> Sim-frame om op te wachten (standaard 230, countdown is 180), --mode training|fight,
+## Opties: --ko <n> (speler 1 vliegt de blast zone uit, shot n sim-frames later), --frames <n> Sim-frame om op te wachten (standaard 230, countdown is 180), --mode training|fight,
 ##   --pct1 <x> --pct2 <x> (damage-% vlak vóór de shot), --stocks1 <n> --stocks2 <n>, --pause (pauzeer als speler 1),
 ##   --results (toon results-scherm met nep-uitslag; --winner 0|1|-1), --size 1280x720 (venstergrootte)
 
@@ -63,6 +63,15 @@ func _ready() -> void:
 		m.set_percent(0, float(a["pct1"]))
 	if a.has("pct2"):
 		m.set_percent(1, float(a["pct2"]))
+	if a.has("ko"):
+		var f0: Fighter = m.fighters[0] as Fighter
+		f0.grounded = false
+		f0.ground_seg = -1
+		f0.change_state("Fall")
+		f0.pos = Vector2(-300, 40)   # links van de blast zone
+		var ko_start: int = sim.frame
+		while sim.frame < ko_start + int(a["ko"]):
+			await get_tree().physics_frame
 	if a.has("pause"):
 		var f := InputFrame.new()
 		f.buttons = InputFrame.BTN_START

@@ -4,6 +4,7 @@ extends SceneTree
 ## Gebruikt fake fighters (signalen + respawn_at) zodat dit onafhankelijk van de fighter-states is; één integratietest
 ## met echte Fighters staat onderaan. Exit code 0 = alles geslaagd.
 
+var freeze_vfx: bool = false
 var _fails: int = 0
 var _total: int = 0
 
@@ -90,6 +91,8 @@ func _make(mode: String, rules: MatchRules = null) -> MatchController:
 func _ticks(c: MatchController, n: int) -> void:
 	for i in n:
 		c.sim_tick(i)
+		if c.vfx != null and not freeze_vfx:
+			c.vfx.vfx_tick(i)   # de controller staat niet in de Sim; tik de layer zelf
 
 
 func _to_playing(c: MatchController) -> void:
@@ -116,6 +119,7 @@ func _run() -> void:
 	_test_elimination_end()
 	_test_time_and_tiebreak()
 	_test_sudden_death()
+	_test_vfx()
 	_test_pause()
 	_test_training()
 	_test_sim_debug_keys()
@@ -308,6 +312,48 @@ func _test_sudden_death() -> void:
 	_ticks(c, 1)
 	check("SD: eerste val beslist", c.phase == MatchController.Phase.ENDING and c.result.winner == 0 and c.result.sudden_death)
 	c.queue_free()
+
+
+func _test_vfx() -> void:
+	var c := _make("fight")
+	check("vfx: layer bestaat, in groep vfx_layer, met camera en clamp-rect",
+		c.vfx != null and c.vfx.is_in_group("vfx_layer") and c.vfx.camera == c.camera
+		and c.vfx.ko_clamp_rect_units == c.stage.get_camera_bounds() and c.vfx.position == Vector2.ZERO)
+	check("vfx: groep vindt dezelfde layer", root.get_tree().get_nodes_in_group("vfx_layer").has(c.vfx))
+	_to_playing(c)
+	check("vfx: geen effecten vóór een KO", c.vfx.active_count() == 0)
+	_fake(c, 0).ko()
+	_ticks(c, 1)
+	check("vfx: KO spawnt een effect", c.vfx.active_count() >= 1)
+	_ticks(c, MatchController.RESPAWN_DELAY - 1)   # KO-effect (max 150 f) kan nog lopen; tel alleen het respawn-effect erbij
+	var before: int = c.vfx.active_count()
+	_ticks(c, 1)
+	check("vfx: respawn spawnt een effect", not c.is_dead(0) and c.vfx.active_count() == before + 1)
+	c.queue_free()
+	# einde door KO wacht op het KO-effect (hier bevroren: wacht het maximum af)
+	freeze_vfx = true
+	var c2 := _make("fight")
+	_to_playing(c2)
+	var got: Array = []
+	c2.finished.connect(func(r: MatchResult) -> void: got.append(r))
+	for i in 4:
+		_fake(c2, 0).percent = 20.0
+		_fake(c2, 0).ko()
+		_ticks(c2, 1)
+		if i < 3:
+			_ticks(c2, MatchController.RESPAWN_DELAY)
+	check("vfx einde: ENDING met KO-effect actief", c2.phase == MatchController.Phase.ENDING and c2.vfx.active_count() >= 1)
+	_ticks(c2, MatchController.END_DELAY)
+	check("vfx einde: wacht op onafgemaakt KO-effect na END_DELAY", got.is_empty())
+	_ticks(c2, MatchController.END_KO_WAIT_MAX - 1)
+	check("vfx einde: nog steeds wachten net voor het maximum", got.is_empty())
+	_ticks(c2, 1)
+	check("vfx einde: na het maximum toch door", got.size() == 1)
+	c2.queue_free()
+	freeze_vfx = false
+	# de kant van de blast zone bepaalt de KO-kant
+	check("vfx: zijde-mapping", MatchController.side_from_name(&"top") == VfxConst.SIDE_TOP
+		and MatchController.side_from_name(&"right") == VfxConst.SIDE_RIGHT and MatchController.side_from_name(&"bottom") == VfxConst.SIDE_BOTTOM)
 
 
 func _test_pause() -> void:

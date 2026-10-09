@@ -161,3 +161,17 @@ Godot_console.exe --path . res://tools/match_shot/match_shot.tscn -- --out C:/pa
 Voorbeelden: `ui/screenshots/match_hud.png`, `match_countdown.png`, `match_pause.png`, `match_training.png`, `results.png`, `results_draw.png`.
 Test: `Godot_console.exe --headless --path . --script res://tests/test_match.gd` (MatchState, controller met fake fighters,
 pauze-regels, training, `Sim`-debugtoetsen, Sfx-volume, plus één integratie met echte Fighters).
+
+## VFX in de wedstrijd
+
+De `MatchController` bouwt een `VfxLayer` (kind van de controller, geen transform = oorsprong, effecten rekenen in wereld-px).
+- `layer.camera` = de `MatchCamera` (shake bij KO/sterke hits); `layer.ko_clamp_rect_units` start als de camera bounds van de stage.
+- **Vinden voor gameplay-code** (fighters, een toekomstig `CombatSystem`): groep `"vfx_layer"`, dus
+  `get_tree().get_first_node_in_group(MatchController.VFX_GROUP)`. Fighters met een `vfx`-eigenschap krijgen de layer direct toegewezen
+  (`"vfx" in fighter`). `controller.vfx` is dezelfde layer.
+- **KO** (`blast_ko`): `spawn_ko(character_id, pos, side, spelerskleur)` op het punt waar de fighter de blast zone verliet (pos en zijde worden bij het
+  signaal vastgelegd), naast SFX `ko_blast`; de layer schudt de camera zelf. Vlak voor het spawnen wordt `ko_clamp_rect_units` gezet op het
+  *zichtbare* camerabeeld (ingekrompen, binnen de bounds): de camera zit dicht op de fighters, dus klemmen op de bounds zou het effect buiten beeld zetten.
+- **Respawn**: `spawn_respawn(respawn-punt, spelerskleur)`. Let op: spawnt de fighter zelf ook een respawn-effect, dan komt het dubbel.
+- **Einde door KO**: `ENDING` duurt minstens `END_DELAY` frames en wacht daarna tot het laatste KO-effect klaar is (max `END_KO_WAIT_MAX` = 90 extra frames).
+- **GAME!/TIME!-banner**: HUD toont hem tijdens `ENDING`; bij het einde klinkt SFX `go` (⚠️ placeholder voor een eigen stem).

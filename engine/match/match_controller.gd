@@ -30,6 +30,11 @@ const RESPAWN_INVINCIBLE: int = 120
 const TRAINING_RESPAWN_DELAY: int = 45
 ## Frames tussen "GAME!"/"TIME!" en het results-scherm.
 const END_DELAY: int = 150
+## Extra wachttijd (max) na END_DELAY zodat een lopend KO-effect kan uitspelen.
+const END_KO_WAIT_MAX: int = 90
+## Groep waarin de VfxLayer zit; gameplay-code (fighters, CombatSystem) vindt hem via
+## `get_tree().get_first_node_in_group(MatchController.VFX_GROUP)`.
+const VFX_GROUP: StringName = &"vfx_layer"
 ## Een klap telt als KO-bron als hij hooguit zo lang geleden viel (5 s); anders is de val een zelfvernietiging.
 const HIT_MEMORY: int = 300
 const SUDDEN_DEATH_PERCENT: float = 300.0
@@ -49,6 +54,7 @@ var phase: Phase = Phase.COUNTDOWN
 var fighters: Array[Node2D] = []
 var stage: Node2D
 var camera: MatchCamera
+var vfx: VfxLayer
 var hud: Node
 ## Speler die de pauze startte (-1 = niet gepauzeerd). Alleen die speler kan hervatten of stoppen.
 var paused_by: int = -1
@@ -72,6 +78,8 @@ var _last_pct: Array[float] = [0.0, 0.0]
 var _hit_tracking: bool = false
 var _pending_ko: Array = []
 var _end_info: Dictionary = {}
+var _ko_info: Dictionary = {}          # Node2D -> {pos, side} op het moment van de blast_ko
+var _end_ko_effect: KoEffect = null
 var _blank := InputHistory.new()
 var _prev_start: Array[bool] = [false, false]
 var _prev_combo: Array[bool] = [false, false]
@@ -90,6 +98,7 @@ func _ready() -> void:
 	_build_stage()
 	_build_fighters()
 	_build_camera()
+	_build_vfx()
 	if build_hud:
 		_build_hud()
 	var sim: Node = _sim()
@@ -189,6 +198,21 @@ func _build_camera() -> void:
 	camera.snap_next()
 
 
+## VfxLayer op de oorsprong (zonder transform: effecten rekenen in wereld-px). Vindbaar via groep `vfx_layer`;
+## fighters met een `vfx`-eigenschap krijgen hem direct.
+func _build_vfx() -> void:
+	vfx = VfxLayer.new()
+	vfx.auto_register = auto_register
+	vfx.camera = camera
+	if stage != null and stage.has_method("get_camera_bounds"):
+		vfx.ko_clamp_rect_units = stage.get_camera_bounds()
+	vfx.add_to_group(VFX_GROUP)
+	add_child(vfx)
+	for f in fighters:
+		if "vfx" in f:
+			f.set("vfx", vfx)
+
+
 func _build_hud() -> void:
 	var script: GDScript = load("res://ui/hud/match_hud.gd")
 	hud = script.new()
@@ -222,7 +246,7 @@ func sim_tick(_frame: int = 0) -> void:
 			_tick_playing()
 		Phase.ENDING:
 			_pending_ko.clear()
-			if _phase_frame >= END_DELAY:
+			if _phase_frame >= END_DELAY and (_ko_effect_done() or _phase_frame >= END_DELAY + END_KO_WAIT_MAX):
 				_finish()
 
 
@@ -305,9 +329,11 @@ func is_dead(p: int) -> bool:
 
 # --- KO's en respawns ---
 
-func _on_blast_ko(f: Node2D, _side: StringName = &"") -> void:
+func _on_blast_ko(f: Node2D, side: StringName = &"") -> void:
 	if phase == Phase.PLAYING:
 		_pending_ko.append(f)
+		var at: Variant = f.get("pos")   # plek waar de blast zone werd verlaten
+		_ko_info[f] = {"pos": at if at is Vector2 else Units.from_px(f.position), "side": side}
 
 
 func _on_percent_changed(new_percent: float, p: int) -> void:
@@ -337,12 +363,46 @@ func _kill(p: int) -> void:
 	f.visible = false
 	_unregister(f)
 	_sfx("ko_blast")
+	_spawn_ko_effect(p, f, eliminated)
 	if not eliminated:
 		_respawn_frame[p] = _mf + (TRAINING_RESPAWN_DELAY if is_training() else RESPAWN_DELAY)
 	else:
 		_respawn_frame[p] = -1
 	_update_camera_targets()
 	ko_happened.emit(p)
+
+
+func _spawn_ko_effect(p: int, f: Node2D, eliminated: bool) -> void:
+	var info: Dictionary = _ko_info.get(f, {})
+	_ko_info.erase(f)
+	if vfx == null:
+		return
+	var at: Vector2 = info.get("pos", stage.get_respawn(p))
+	var side: int = side_from_name(info.get("side", &"left"))
+	# De blast zone ligt buiten beeld én de camera zit dicht op de fighters: klem op het zichtbare beeld
+	# (binnen de camera bounds), zodat het effect echt te zien is.
+	var view: Rect2 = visible_rect_units()
+	if view.size != Vector2.ZERO:
+		var bounds: Rect2 = stage.get_camera_bounds() if stage.has_method("get_camera_bounds") else Rect2()
+		vfx.ko_clamp_rect_units = view.intersection(bounds) if bounds.size != Vector2.ZERO and view.intersects(bounds) else view
+	var e: KoEffect = vfx.spawn_ko(picks[p], at, side, UiStyle.player_color(p))
+	if eliminated:
+		_end_ko_effect = e   # de wedstrijd kan hierdoor eindigen: results wacht op dit effect
+
+
+static func side_from_name(side: StringName) -> int:
+	match side:
+		&"right":
+			return VfxConst.SIDE_RIGHT
+		&"top":
+			return VfxConst.SIDE_TOP
+		&"bottom":
+			return VfxConst.SIDE_BOTTOM
+	return VfxConst.SIDE_LEFT
+
+
+func _ko_effect_done() -> bool:
+	return _end_ko_effect == null or not is_instance_valid(_end_ko_effect) or _end_ko_effect.finished
 
 
 func _process_respawns() -> void:
@@ -366,6 +426,8 @@ func _respawn(p: int) -> void:
 	else:
 		f.call("spawn", at, 1 if p == 0 else -1)
 		_sfx("respawn")
+	if vfx != null:
+		vfx.spawn_respawn(at, UiStyle.player_color(p))
 	_update_camera_targets()
 
 
@@ -389,6 +451,7 @@ func _end_match(ev: Dictionary) -> void:
 	_phase_frame = 0
 	_set_blank_inputs(false)
 	result = _make_result(ev)
+	_sfx("go")   # ⚠️ placeholder voor een eigen "GAME!"-stem: hergebruikt de GO-sfx
 
 
 func _make_result(ev: Dictionary) -> MatchResult:
@@ -591,3 +654,16 @@ func display_name(p: int) -> String:
 		if info != null:
 			return info.display_name
 	return picks[p]
+
+
+## Zichtbaar camerabeeld in Melee-units, ingekrompen met `inset_units` (zodat een KO-effect niet op de rand valt).
+func visible_rect_units(inset_units: float = 15.0) -> Rect2:
+	if camera == null or not camera.is_inside_tree():
+		return Rect2()
+	var half: Vector2 = get_viewport_rect().size / camera.zoom.maxf(0.01) * 0.5
+	var c: Vector2 = camera.get_screen_center_position()
+	var tl: Vector2 = Units.from_px(c - half)
+	var br: Vector2 = Units.from_px(c + half)
+	var full := Rect2(Vector2(minf(tl.x, br.x), minf(tl.y, br.y)), (br - tl).abs())
+	var r: Rect2 = full.grow(-minf(inset_units, minf(full.size.x, full.size.y) * 0.2))
+	return r if r.size.x > 0.0 and r.size.y > 0.0 else Rect2()
