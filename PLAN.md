@@ -3,11 +3,18 @@
 ## Huidige status
 > Bijwerken aan het eind van elke sessie.
 
-- **Fase (2026-10-09):** M0 ✅, M1 ✅, M2 ledges gebouwd (117 tests), M6 wedstrijd gebouwd (89 tests).
-  Bezig: M3-integratie in de fighter (aanvallen, hitstun, tumble, tech, L-cancel, hitfall, VFX/SFX-hooks),
-  movesets gelijktrekken tot de validator slaagt, VFX aansluiten op de wedstrijd.
-- **Volgende:** M4 verdediging (shield, rolls, spotdodge, grabs/pummel/throws), special-sjablonen/toolkit,
-  dan M7: eerste character **Kade Torque** (voorstel in `characters/_concepten/kade/ontwerp.md`, wacht op akkoord gebruiker).
+- **Fase (2026-10-09, gestopt op 5-uurslimiet):** M0 ✅, M1 ✅, M2 ledges gebouwd, M3 gevecht in de fighter gebouwd
+  (137 tests), M6 wedstrijd + HUD + VFX gebouwd. Standaard-movesets 90/90 PASS in de validator. Wacht op speeltest.
+- **Volgende (in deze volgorde):**
+  1. **Fix aerial-hoogtes:** short-hop-fair raakt geen staande tegenstander → aerial-hitboxes lager
+     (afspraak 8 in `docs/standaard-movesets.md` aanpassen naar ~35% van `visual_height`, onderste box lager),
+     validator + 5 movesets bijwerken, test toevoegen "SH-fair raakt staande fighter".
+  2. **Fix VFX-grootte:** hit-spark is ~2× character-hoogte; schalen naar het Melee-formaat (zie screenshot-review).
+  3. **`docs/verificatie.md`** (onderzoeksagent, mogelijk onaf door het limiet): afwijkingen ❌ laten doorvoeren.
+  4. **M4 verdediging:** shield + lightshield + shield-HP/break, shieldstun voor de verdediger, OoS-opties,
+     rolls, spotdodge, grab/dash grab/pummel/throws (hook `check_grab()`), grab-release.
+  5. **Special-sjablonen/toolkit** (`docs/special-sjablonen.md`, bouwstenen-lijst).
+  6. **M7:** eerste character **Kade Torque** (voorstel in `characters/_concepten/kade/ontwerp.md`, wacht op akkoord gebruiker).
 - **Gebouwd (overzicht):** sim + input (`engine/sim.gd`, `engine/input/`), fighter + states (`engine/fighter/`),
   combat-modules (`engine/combat/`, `docs/combat.md`), rig + poses (`engine/visual/`, `docs/rig.md`),
   stage Eindpunt + camera, SFX, VFX (`docs/vfx.md`), menu's + character select, wedstrijd/HUD/results/training
