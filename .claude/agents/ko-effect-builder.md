@@ -20,3 +20,6 @@ Je maakt het KO-effect van één character in Super Smash AI (Godot 4.6, GDScrip
 
 ## Rapporteer terug
 Bestanden, korte beschrijving van het effect, pad naar de preview.
+
+## Screenshots
+Maak zelf GEEN windowed/screenshot-runs (de gebruiker werkt op deze pc). Alleen `--headless`. Zet de screenshot-/preview-commando's en PNG-paden die gecontroleerd moeten worden in je rapport; de director waarschuwt de gebruiker en draait ze.

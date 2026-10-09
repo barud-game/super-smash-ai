@@ -20,3 +20,6 @@ Je zet moves van één character om naar `MoveData`-resources (`.tres`) voor Sup
 
 ## Rapporteer terug
 Per move één regel: naam, startup/active/endlag, damage, en of de validator slaagt.
+
+## Screenshots
+Maak zelf GEEN windowed/screenshot-runs (de gebruiker werkt op deze pc). Alleen `--headless`. Zet de screenshot-/preview-commando's en PNG-paden die gecontroleerd moeten worden in je rapport; de director waarschuwt de gebruiker en draait ze.

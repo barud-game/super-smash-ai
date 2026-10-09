@@ -26,3 +26,6 @@ De director (hoofdchat) geeft je één afgebakende opdracht. Doe precies die opd
 - Welke bestanden je aanmaakte/wijzigde (kort, per bestand één regel)
 - Hoe je het verifieerde en het resultaat (letterlijke errors als iets faalt)
 - Wat je bewust niet deed of waar je twijfelt
+
+## Screenshots
+Maak zelf GEEN windowed/screenshot-runs (de gebruiker werkt op deze pc). Alleen `--headless`. Zet de screenshot-/preview-commando's en PNG-paden die gecontroleerd moeten worden in je rapport; de director waarschuwt de gebruiker en draait ze.

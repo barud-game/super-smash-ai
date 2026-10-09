@@ -64,9 +64,10 @@ Het lokale Godot-pad staat in `CLAUDE.local.md` (niet in git).
 
 ## Screenshots en zichtbare vensters
 De gebruiker werkt vaak op dezelfde pc. Gebruik voor logica/tests altijd `--headless`.
-Alleen screenshot-/preview-runs mogen een venster openen (headless rendert niet), en dan **buiten beeld en klein**:
-voeg altijd `--position -20000,-20000 --resolution 1280x720` toe (of de resolutie die de tool nodig heeft).
-Zo min mogelijk screenshot-runs; bundel waar kan (contactsheets).
+- **Agents maken GEEN screenshot-/windowed runs.** Ze leveren in hun rapport de exacte commando's + PNG-paden aan.
+- **Alleen de director** draait screenshot-runs, en **waarschuwt de gebruiker eerst in de chat** ("ik ga nu
+  screenshots maken"). Bundel zoveel mogelijk in één ronde.
+- Windowed runs altijd **buiten beeld**: `--position -20000,-20000` (plus de benodigde `--resolution`).
 
 ## Werkafspraken
 - Na elke sessie: **status in `PLAN.md` bijwerken** en committen, zodat de volgende chat weet waar we zijn.
