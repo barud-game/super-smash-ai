@@ -1,4 +1,4 @@
-# Kapitein Pep — ontwerp
+# Captain Pep — ontwerp
 
 **Status:** VOORSTEL — wacht op akkoord van de speler. Nog niet bouwen.
 
@@ -7,7 +7,7 @@ Een uitgerangeerde straatracer die nooit meer van de pep af is gekomen. Hyperact
 maar als hij raakt, raakt hij keihard. Een eigen, origineel character: speelstijl van een snelle, zware racer-brawler,
 maar geen kopie van een bestaand personage (eigen naam, uiterlijk en move-namen).
 
-- **Naam:** Kapitein Pep
+- **Naam:** Captain Pep
 - **Uiterlijk (origineel):** mager en pezig, te grote **paars-gifgroene trainingsjas** over een vlekkerig racepakje,
   een **gebarsten motorhelm die scheef op zijn achterhoofd hangt**, verwilderd stekelhaar eronder, wallen onder
   wijd opengesperde ogen, zonnebril met één glas, en een **pleister op zijn neus**. Bovenarmen met afgebladderde
@@ -24,16 +24,16 @@ maar geen kopie van een bestaand personage (eigen naam, uiterlijk en move-namen)
 ## Specials
 | Special | Naam | Wat het doet | Sjabloon | S/K/B/V/U | Pts |
 |---|---|---|---|---|---|
-| Neutral-B | **Laatste Shot** | Trage, enorme stoot; kan zich tijdens de startup omdraaien. Killt heel vroeg; na afloop staat hij even te hijgen (extra endlag). | `dash_strike` (afstand 0) | 0/5/2/0/2 | 9 |
-| Side-B | **Paniekrace** | Wilde sprint naar voren met één harde klap. In de lucht een licht stijgende ramaanval, daarna helpless. | `dash_strike` | 2/3/3/1/4 | 13 |
-| Up-B | **Grijpgraag** | Schiet omhoog en grijpt wie hij raakt; die ontploft in een paarse vonkenwolk. Recovery. Mist hij, dan helpless. | `rising_multi` + `command_grab` | 2/2/2/1/6 (+2 combi) | 15 |
-| Down-B | **Struikelschop** | Grond: glijdende trap. Lucht: schuine duiktrap omlaag (stall-then-fall), helpt ook terug naar de ledge. | `stall_fall` | 3/3/2/1/3 | 12 |
+| Neutral-B | **Last Shot** | Trage, enorme stoot; kan zich tijdens de startup omdraaien. Killt heel vroeg; na afloop staat hij even te hijgen (extra endlag). | `dash_strike` (afstand 0) | 0/5/2/0/2 | 9 |
+| Side-B | **Panic Rush** | Wilde sprint naar voren met één harde klap. In de lucht een licht stijgende ramaanval, daarna helpless. | `dash_strike` | 2/3/3/1/4 | 13 |
+| Up-B | **Grabby Hands** | Schiet omhoog en grijpt wie hij raakt; die ontploft in een paarse vonkenwolk. Recovery. Mist hij, dan helpless. | `rising_multi` + `command_grab` | 2/2/2/1/6 (+2 combi) | 15 |
+| Down-B | **Stumble Kick** | Grond: glijdende trap. Lucht: schuine duiktrap omlaag (stall-then-fall), helpt ook terug naar de ledge. | `stall_fall` | 3/3/2/1/3 | 12 |
 
 ## Normals
 Standaard fast-faller-moveset, met één signature move:
 | Move | Wijziging | S/K/B/V | Pts (standaard → nieuw) |
 |---|---|---|---|
-| fair | **Zenuwknie**: piepkleine sweetspot op het eerste actieve frame met enorme kracht (electric-element), de rest is een zwakke sourspot | 3/5/1/2 | 8 → 11 |
+| fair | **Jitter Knee**: piepkleine sweetspot op het eerste actieve frame met enorme kracht (electric-element), de rest is een zwakke sourspot | 3/5/1/2 | 8 → 11 |
 
 ## Puntentabel
 | Onderdeel | Punten |
@@ -45,4 +45,4 @@ Standaard fast-faller-moveset, met één signature move:
 
 ## Wijzigingslog
 - 2026-10-09: eerste voorstel ("Kade Torque").
-- 2026-10-09: speler koos thema en naam **Kapitein Pep** (verslaafde chaos-racer); uiterlijk en move-namen origineel gemaakt.
+- 2026-10-09: speler koos thema en naam **Captain Pep** (Engels) (verslaafde chaos-racer); uiterlijk en move-namen origineel gemaakt.

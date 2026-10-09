@@ -17,7 +17,7 @@
   4. **M4 verdediging:** shield + lightshield + shield-HP/break, shieldstun voor de verdediger, OoS-opties,
      rolls, spotdodge, grab/dash grab/pummel/throws (hook `check_grab()`), grab-release.
   5. **Special-sjablonen/toolkit** (`docs/special-sjablonen.md`, bouwstenen-lijst).
-  6. **M7:** eerste character **Kapitein Pep** (voorstel in `characters/_concepten/kapitein_pep/ontwerp.md`, wacht op akkoord gebruiker).
+  6. **M7:** eerste character **Captain Pep** (voorstel in `characters/_concepten/captain_pep/ontwerp.md`, wacht op akkoord gebruiker).
 - **Gebouwd (overzicht):** sim + input (`engine/sim.gd`, `engine/input/`), fighter + states (`engine/fighter/`),
   combat-modules (`engine/combat/`, `docs/combat.md`), rig + poses (`engine/visual/`, `docs/rig.md`),
   stage Eindpunt + camera, SFX, VFX (`docs/vfx.md`), menu's + character select, wedstrijd/HUD/results/training
