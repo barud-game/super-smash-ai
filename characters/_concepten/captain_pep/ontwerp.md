@@ -13,7 +13,7 @@ maar geen kopie van een bestaand personage (eigen naam, uiterlijk en move-namen)
   wijd opengesperde ogen, zonnebril met één glas, en een **pleister op zijn neus**. Bovenarmen met afgebladderde
   racestickers. Geen cape, geen embleem.
 - **Persoonlijkheid / animatiestijl:** idle-pose trilt en wipt, hij kijkt schichtig om zich heen; zijn taunt is
-  zenuwachtig zijn neus afvegen en "IK BEN ER KLAAR VOOR" roepen. Na zijn grote stoot moet hij even bijkomen.
+  zenuwachtig zijn neus afvegen en "DA'S PAS SPUL!" roepen. Na zijn grote stoot moet hij even bijkomen.
 - **KO-effect:** een explosie van glitterpoeder en rondtollende pilletjes-confetti met een "pling".
 
 ## Movement
