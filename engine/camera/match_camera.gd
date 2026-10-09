@@ -17,6 +17,70 @@ var bounds_units: Rect2 = Rect2()
 var _has_bounds: bool = false
 var _snap: bool = true
 
+# --- screenshake (puur visueel, via Camera2D.offset; deterministisch, los van gameplay) ---
+const SHAKE_SEED: int = 0xCA3E
+var _shake_rng := RandomNumberGenerator.new()
+var _shake_amp_units: float = 0.0
+var _shake_total: int = 0
+var _shake_left: int = 0
+var _shake_connected: bool = false
+
+
+func _ready() -> void:
+	_shake_rng.seed = SHAKE_SEED
+	# Shake tikt op sim-frames (pauze/frame advance bevriezen hem). Zonder Sim (tests) tikt de aanroeper.
+	var sim: Node = get_node_or_null("/root/Sim")
+	if sim != null and not _shake_connected:
+		sim.frame_advanced.connect(_on_sim_frame)
+		_shake_connected = true
+
+
+func _on_sim_frame(_frame: int) -> void:
+	shake_tick()
+
+
+## Schud het beeld: `intensity_units` = startamplitude in Melee-units (0.5 klein, 2 hard, 4 KO),
+## lineair uitdovend over `frames` sim-frames. Een nieuwe shake vervangt de lopende als hij sterker is.
+func shake(intensity_units: float, frames: int) -> void:
+	if frames <= 0 or intensity_units <= 0.0:
+		return
+	if intensity_units < shake_amplitude_units():
+		return
+	_shake_amp_units = intensity_units
+	_shake_total = frames
+	_shake_left = frames
+
+
+## Hitlag-shake: schaalt met de hitlag-duur (frames) en een 0..1 sterkte; roept `shake` aan.
+func hitlag_shake(hitlag_frames: int, strength: float = 0.5) -> void:
+	shake(0.2 + clampf(strength, 0.0, 1.0) * 1.0, hitlag_frames)
+
+
+## Huidige amplitude in units (0 als er niet geschud wordt).
+func shake_amplitude_units() -> float:
+	if _shake_left <= 0:
+		return 0.0
+	return _shake_amp_units * float(_shake_left) / float(_shake_total)
+
+
+## Eén sim-frame shake vooruit; zet `offset`. Eigen seeded RNG, dus herhaalbaar.
+func shake_tick() -> void:
+	if _shake_left <= 0:
+		offset = Vector2.ZERO
+		return
+	var amp_px: float = shake_amplitude_units() * Units.UNIT_TO_PX / maxf(zoom.x, 0.01)
+	offset = Vector2(_shake_rng.randf_range(-1.0, 1.0), _shake_rng.randf_range(-1.0, 1.0)) * amp_px
+	_shake_left -= 1
+
+
+## Zet de shake en zijn RNG terug (nieuwe match / determinisme-test).
+func reset_shake() -> void:
+	_shake_rng.seed = SHAKE_SEED
+	_shake_left = 0
+	_shake_total = 0
+	_shake_amp_units = 0.0
+	offset = Vector2.ZERO
+
 
 func set_bounds_units(r: Rect2) -> void:
 	bounds_units = r
