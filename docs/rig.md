@@ -142,11 +142,72 @@ JSON in `engine/visual/poses/*.json` (gedeeld, voor iedereen). Een character mag
 `land` · `landfall` (landing-fall/helpless land) · `wavedash` (slide). De fighter kiest de pose-naam uit zijn state;
 `CharacterVisual.play()` valt bij een onbekende naam terug op `idle` (met één waarschuwing).
 
-### Naamgeving aanvallen (M3, nog niet gebouwd)
-`atk_<move>` in `engine/visual/poses/attacks.json`, bv. `atk_jab1`, `atk_ftilt`, `atk_utilt`, `atk_dtilt`, `atk_fsmash`,
-`atk_usmash`, `atk_dsmash`, `atk_nair`, `atk_fair`, `atk_bair`, `atk_uair`, `atk_dair`, `atk_grab`, `atk_throw_f`,
-`atk_special_n`, `atk_special_s`, `atk_special_u`, `atk_special_d`. Hitstun/defensie: `hit`, `shield`, `roll`, `spotdodge`,
-`ledge_hang`, `ledge_getup`, `dead`.
+### 6b. Aanvalsposes (`poses/attacks.json`) en de tijd-schaal-API
+
+Namen `atk_<move>`. Elke aanvalspose is ontworpen in **fases** op een *nominale* tijdlijn (`length`) met twee
+fasegrenzen in het JSON-veld `"marks": {"active": A, "end": E}`:
+
+```
+nominaal:  0 ........ A ........ E ........ length
+fase:      startup    active     endlag
+```
+
+- `marks.active` = eerste actieve frame, `marks.end` = eerste endlag-frame (nominaal). Het eerste key (t=0) is de
+  neutrale/uitgangshouding (guard), de key op `A` is de **uitgestrekte** impact-pose, de key(s) tussen `A` en `E` houden
+  of vervolgen de impact (zweep/uitstrekking), de laatste key keert terug naar guard. Anticipatie (terugtrekken) zit
+  tussen t=0 en A.
+- **API:** `CharacterVisual.play_timed(pose, startup, active, total)`, daarna elke sim-frame `tick(frames_sinds_start)`.
+  - `startup` = frames vóór het eerste actieve frame (bij 1-based move-data: `eerste_actieve_frame - 1`),
+    `active` = aantal actieve frames, `total` = totale duur van de move (`last_active + endlag`).
+  - De pose-tijd wordt stuksgewijs lineair omgerekend: `[0,startup)->[0,A)`, `[startup,startup+active)->[A,E)`,
+    `[startup+active,total]->[E,length]`. Zo valt de impact-pose precies op de actieve frames, ongeacht de snelheid van de move.
+  - Pose zonder `marks` -> uniforme schaal `length/total`. Een gewone `play()` zet de schaling weer uit.
+  - Onder de motorkap: `Pose.remap(real_t, startup, active, total)` (deterministisch, geen state).
+```gdscript
+cv.play_timed("atk_fair", move.startup, move.active_frames, move.total_frames)   # bij begin van de move
+cv.tick(state_frame)                                                              # elke sim-frame
+```
+- **Smashes:** `atk_<x>smash_charge` is een loop (opgewonden houding, lichte trilling): speel die met `play()` zolang
+  de speler oplaadt. Bij loslaten `play_timed("atk_<x>smash", startup_na_loslaten, active, total)`; de pose begint al in
+  de opgewonden houding, dus er is geen sprong.
+- **Loops:** `atk_jab_rapid` (rapid jab), `atk_grab_hold` (vasthouden), `atk_special_charge`, `atk_special_counter`
+  (houding), `atk_special_spin` (hip draait 360 per 12f), `atk_special_stall` (zweven) — met `play()`/`tick(frame)`.
+- **Opvolgers:** `atk_special_release` (na `atk_special_charge`), `atk_special_counter_strike` (tegenaanval, na trigger),
+  `atk_special_stall_fall` (de val-strike na de stall).
+- Alle poses zijn links-rechts-neutraal ontworpen voor een character dat **naar rechts** kijkt; `facing` spiegelt.
+- **Wapen** (`weapon_r`): het wapen steekt standaard in de verlenging van de onderarm. Poses zijn zo gekozen dat dat
+  overal goed leest (zwaaibogen bij fair/utilt/fsmash, steek bij jab/ftilt). Bij hangen/klimmen is `weapon_r` geroteerd.
+
+| Groep | Poses |
+|---|---|
+| Grond | `atk_jab1` `atk_jab2` `atk_jab3` (trap) `atk_jab_rapid` (loop) `atk_ftilt` `atk_utilt` `atk_dtilt` `atk_dash_attack` `atk_fsmash` `atk_usmash` `atk_dsmash` (+ `_charge`-loops) |
+| Lucht | `atk_nair` `atk_fair` `atk_bair` `atk_uair` `atk_dair` |
+| Grab | `atk_grab` `atk_grab_dash` `atk_grab_hold` (loop) `atk_pummel` `atk_fthrow` `atk_bthrow` `atk_uthrow` `atk_dthrow` (marks.active = loslaat-frame) |
+| Specials | `atk_special_projectile` `atk_special_charge` (loop) `atk_special_release` `atk_special_rise` `atk_special_dash` `atk_special_counter` (loop) `atk_special_counter_strike` `atk_special_spin` (loop) `atk_special_stall` (loop) `atk_special_stall_fall` |
+
+Nominale lengtes/marks (frames) zijn typische Melee-waarden (zie `docs/move-conversie.md`); gebruik `play_timed` om ze op
+de echte move-data te schalen. Aerials en specials die geen sjabloon-pose hebben vallen terug op de dichtstbijzijnde
+(bv. een tweede aerial-variant: zelfde pose, andere timing).
+
+### 6c. Verdediging/gevecht (`poses/combat.json`)
+
+Gewone `play()`/`tick(frame)` (geen marks): `shield` (loop, hold) · `shield_stun` (loop, schudden) · `roll_forward` /
+`roll_back` (28f, de hip draait 360°; de fighter verplaatst de root) · `spotdodge` (26f, intangible-fase 4–18) ·
+**ledge:** `cliff_catch` · `cliff_wait` (loop) · `cliff_getup` · `cliff_roll` · `cliff_attack` · `cliff_jump` ·
+`teeter` (loop) · `respawn_platform` (loop) · **hitstun:** `damage_low`/`damage_mid`/`damage_high` (houden de laatste
+key vast) · `damage_fly` (8f) -> `tumble` (loop, hip draait -360°/24f) · `tech` (in place) · `tech_roll` ·
+`missed_tech_lie` (op de rug, loop) · `missed_tech_lie_down` (op de buik, loop) · `getup_from_lie` · `shield_break_dizzy` (loop) ·
+`grabbed` (loop, wordt vastgehouden) · `thrown`.
+
+- **Cliff-poses**: de hang-houding (`cliff_wait`) heeft de handen ~165 px **boven de oorsprong** (voeten-midden). Plaats
+  de root dus ~165 px onder het ledge-greeppunt. De poses veranderen alleen de vorm; de beweging van de root
+  (omhoog klimmen, rollen) doet de fighter. `cliff_getup/attack/jump` starten in de hang-houding.
+- **Liggen**: `missed_tech_lie*` laten de hip 52 px zakken en draaien het lichaam ±90°; de root blijft op de grond.
+  `missed_tech_lie` = gezicht omhoog (hoofd naar achteren), `_down` = gezicht omlaag (hoofd naar voren).
+- **Hitstun-keuze**: `damage_low` < ~10 knockback, `mid` ~10–40, `high` > ~40; `damage_fly` zodra de tumble/launch begint.
+- Poses voor `roll_*`, `tumble`, `spin` draaien via `hip`-rotatie; de hip-offset houdt het lichaam van de grond.
+
+Overige hitstun/defensie-namen uit M2 (`hit`, `dead`...) bestaan niet; gebruik de namen hierboven.
 
 ## 7. Gebruik in code
 
@@ -189,6 +250,12 @@ Eén pose groot bekijken:
 ```
 ... preview.tscn -- --character _dummy --pose walk --frames 0,9,18,27 --zoom 1.6 --player 2 --out <pad>.png
 ```
+
+Meerdere (aanvals)poses tegelijk, frames automatisch uit de keytijden (nominale pose-tijd, dus zonder `play_timed`):
+```
+... preview.tscn -- --character _dummy --poses atk_jab1,atk_fair,shield --maxf 5 --out <pad>.png
+```
+`--art <map>` overschrijft de art-map (bv. een kopie van de dummy met een `weapon.svg` om poses met wapen te controleren).
 
 **Pose-viewer** in de editor: open `tools/preview/pose_viewer.tscn` en druk op F6. Pijltjes links/rechts = pose,
 omhoog/omlaag = tempo, spatie = pauze, `,` `.` = frame, F = spiegelen, P = spelerskleur, C = ander character, R = herladen.

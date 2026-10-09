@@ -16,6 +16,10 @@ var times: PackedFloat32Array = PackedFloat32Array()
 var rot: Array = []               ## per key: Dictionary bone -> graden
 var off: Array = []               ## per key: Dictionary bone -> Vector2
 var bones: Array = []             ## alle bot-namen die deze pose aanstuurt
+## Fasegrenzen voor aanvalsposes (in de nominale tijd van de pose): mark_active = eerste actieve frame,
+## mark_end = eerste endlag-frame. -1 = niet gezet (play_timed schaalt dan uniform).
+var mark_active: float = -1.0
+var mark_end: float = -1.0
 
 
 static func from_dict(pose_name: String, d: Dictionary) -> Pose:
@@ -24,6 +28,9 @@ static func from_dict(pose_name: String, d: Dictionary) -> Pose:
 	p.loop = bool(d.get("loop", false))
 	p.blend = float(d.get("blend", 4))
 	p.spline = String(d.get("interp", "spline" if p.loop else "linear")) == "spline"
+	var marks: Dictionary = d.get("marks", {})
+	p.mark_active = float(marks.get("active", -1))
+	p.mark_end = float(marks.get("end", -1))
 	var keys: Array = d.get("keys", [])
 	var seen: Dictionary = {}
 	for k: Dictionary in keys:
@@ -81,6 +88,24 @@ static func _apply_drop(drop: float, r: Dictionary, o: Dictionary) -> void:
 		o["hip"] = Vector2(0, drop)
 	else:
 		o["hip"] = Vector2(o["hip"].x, o["hip"].y + drop)
+
+
+## Zet echte move-tijd (frames sinds start van de move) om naar nominale pose-tijd, zodat de fases van de pose
+## (startup / active / endlag) precies op de fases van de move vallen. Stuksgewijs lineair:
+##   [0, startup) -> [0, mark_active)   [startup, startup+active) -> [mark_active, mark_end)   [startup+active, total] -> [mark_end, length]
+## startup = aantal frames vóór het eerste actieve frame; active = aantal actieve frames; total = totale duur.
+## Zonder marks: uniforme schaal length/total.
+func remap(real_t: float, startup: float, active: float, total: float) -> float:
+	total = maxf(1.0, total)
+	if mark_active < 0.0 or mark_end < 0.0 or startup < 0.0 or active <= 0.0:
+		return real_t * length / total
+	var a_end: float = minf(startup + active, total)
+	if real_t < startup:
+		return mark_active * real_t / maxf(startup, 0.001)
+	if real_t < a_end:
+		return mark_active + (mark_end - mark_active) * (real_t - startup) / maxf(a_end - startup, 0.001)
+	var tail: float = maxf(total - a_end, 0.001)
+	return mark_end + (length - mark_end) * minf(1.0, (real_t - a_end) / tail)
 
 
 ## Waarden op tijd t (frames). Geeft {"r": {bone: graden}, "o": {bone: Vector2}} voor alle bones van de pose.

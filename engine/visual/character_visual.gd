@@ -44,6 +44,10 @@ var _pose: Pose
 var _blend_from: Dictionary = {}   # snapshot {"r":..., "o":...} van de vorige pose
 var _since_play: float = 0.0
 var _warned_missing: Dictionary = {}
+var _timed: bool = false           # play_timed actief: tick(frame) schaalt de pose naar de move-fases
+var _t_startup: float = 0.0
+var _t_active: float = 0.0
+var _t_total: float = 1.0
 
 
 func _ready() -> void:
@@ -217,9 +221,23 @@ func play(pose_name: String, restart: bool = true) -> void:
 	if _pose != null:
 		_blend_from = _snapshot()
 	_pose = library.poses[pose_name]
+	_timed = false
 	current_pose = pose_name
 	pose_frame = 0.0
 	_since_play = 0.0
+	_apply(_sample_current())
+
+
+## Start een aanvalspose geschaald naar de frame-data van een move (zie docs/rig.md sectie 6b).
+##   startup: frames vóór het eerste actieve frame (= eerste actieve frame - 1 bij 1-based move-data)
+##   active : aantal actieve frames;  total: totale duur van de move in frames
+## Daarna tick(frame) elke sim-frame met de frames sinds het begin van de move (0-based).
+func play_timed(pose_name: String, startup: int, active: int, total: int, restart: bool = true) -> void:
+	play(pose_name, restart)
+	_timed = true
+	_t_startup = float(startup)
+	_t_active = float(active)
+	_t_total = float(maxi(total, 1))
 	_apply(_sample_current())
 
 
@@ -232,6 +250,8 @@ func tick(frame: int = -1, speed: float = 1.0) -> void:
 		return
 	if frame >= 0:
 		pose_frame = float(frame) * speed
+		if _timed:
+			pose_frame = _pose.remap(float(frame), _t_startup, _t_active, _t_total)
 		_since_play = float(frame)
 	else:
 		pose_frame += speed

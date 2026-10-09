@@ -9,6 +9,9 @@ extends Node
 ##   --pose <naam>       alleen deze pose, groot (met --frames 0,5,10 en --zoom 2)
 ##   --frames a,b,c      frames voor --pose (standaard 0,1,2,3)
 ##   --zoom <f>          schaal voor --pose (standaard 1.6)
+##   --poses a,b,c       meerdere poses; frames automatisch uit de keytijden (max 7 per pose), cellen zonder labels-ruis
+##   --frames per pose kan ook: --maxf <n> om het aantal te beperken
+##   --art <map>         art-map overschrijven (bv. een character met weapon.svg)
 ##   --player <1..4>     teamkleur voor het sheet (standaard 1; de kopregel toont altijd 1 en 2)
 ## Sluit zichzelf af. Exit code 1 bij fouten in het character.
 
@@ -24,6 +27,7 @@ const SAMPLES: Array = [
 
 var _char_id: String = ""
 var _out: String = ""
+var _art: String = ""
 var _exit_code: int = 0
 
 
@@ -36,11 +40,31 @@ func _ready() -> void:
 		return
 	_out = args.get("out", "user://preview_%s.png" % _char_id)
 	var player: int = int(args.get("player", "1")) - 1
+	_art = args.get("art", "")
 
 	var cells: Array = []
 	var cols: int = 7
 	var zoom: float = 1.0
-	if args.has("pose"):
+	if args.has("poses"):
+		zoom = float(args.get("zoom", "1.0"))
+		var lib := PoseLibrary.load_for(_char_id)
+		var maxf: int = int(args.get("maxf", "7"))
+		for pn: String in String(args["poses"]).split(","):
+			if not lib.poses.has(pn):
+				printerr("preview: pose bestaat niet: ", pn)
+				continue
+			var pz: Pose = lib.poses[pn]
+			var fr: Array = []
+			for t in pz.times:
+				var fi: int = int(round(t))
+				if not fr.has(fi):
+					fr.append(fi)
+			while fr.size() > maxf:
+				fr.remove_at(1 + (fr.size() - 2) / 2)
+			for f in fr:
+				cells.append({"pose": pn, "frame": f, "player": player, "facing": 1, "label": "%s f%d" % [pn, f]})
+		cols = maxi(1, mini(cells.size(), 7))
+	elif args.has("pose"):
 		zoom = float(args.get("zoom", "1.6"))
 		var pn: String = args["pose"]
 		var frames: Array = []
@@ -114,6 +138,8 @@ func _build_sheet(cells: Array, cols: int, zoom: float) -> void:
 		cv.character_id = _char_id
 		cv.player_index = c["player"]
 		cv.facing = c["facing"]
+		if _art != "":
+			cv.art_dir_override = _art
 		vp.add_child(cv)
 		if not cv.is_valid:
 			any_invalid = true
