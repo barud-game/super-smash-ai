@@ -934,6 +934,8 @@ func _test_special_hook() -> void:
 	print("== special-hook")
 	new_stage()
 	var f: Fighter = make(Vector2(0, 0), 1)
+	# Fighter.setup() koppelt de special-toolkit (Specials.attach); deze test meet de kale hook.
+	f.special_hook = Callable()
 	idle([f], 3)
 	var got: Array = []
 	tick([f], [fr(0, 0, B)])

@@ -206,6 +206,8 @@ func setup() -> void:
 		add_child(_shield_node)
 	if moves.is_empty():
 		reload_moves()
+	# B-moves: koppelt special_hook + states; de SpecialWorld ontstaat zodra er een stage is (idempotent).
+	Specials.attach(self)
 	if auto_register and is_inside_tree():
 		var sim: Node = get_node_or_null("/root/Sim")
 		if sim != null:

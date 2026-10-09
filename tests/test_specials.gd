@@ -90,6 +90,7 @@ func make(at: Vector2, dir: int, player: int = 0) -> Fighter:
 	f.facing = dir
 	f.setup()
 	Specials.attach(f)
+	SpecialWorld.of(f)
 	return f
 
 
@@ -1123,6 +1124,27 @@ func _test_cleanup_on_death() -> void:
 	idle(fs, 2)
 	check("dood: entities opgeruimd", world().alive_of(a).is_empty())
 	check("dood: limieten gereset", SpecialKit.of(a).uses("up") == 0)
+	free_all(fs)
+	# Robuust bij vrijgegeven fighters en een stage-wissel: geen fouten, ongeldige fighters gesnoeid.
+	fs = pair(-30.0, 30.0)
+	var extra: Array[Fighter] = []
+	for i in 6:
+		extra.append(make(Vector2(-50 + i * 10, 0), 1, 2 + i))
+	start(fs[0], d)
+	idle(fs, 4)
+	for e: Fighter in extra:
+		e.free()
+	idle(fs, 4)
+	check("vrijgegeven fighters gesnoeid", world().fighters.size() == 2, str(world().fighters.size()))
+	var old: SpecialWorld = world()
+	var other := SandboxStage.new()
+	(fs[1] as Fighter).stage = other
+	Specials.attach(fs[1])
+	idle(fs, 2)
+	check("fighter op andere stage valt uit de wereld", old.fighters.size() == 1)
+	(fs[1] as Fighter).stage = stage
+	SpecialWorld.dispose(other)
+	other.free()
 	free_all(fs)
 
 

@@ -451,6 +451,7 @@ func _end_match(ev: Dictionary) -> void:
 	_phase_frame = 0
 	_set_blank_inputs(false)
 	result = _make_result(ev)
+	SpecialWorld.dispose(stage)   # projectielen/traps van specials opruimen
 	_sfx("go")   # ⚠️ placeholder voor een eigen "GAME!"-stem: hergebruikt de GO-sfx
 
 

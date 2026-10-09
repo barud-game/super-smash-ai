@@ -41,14 +41,13 @@ static func register_states(f: Fighter) -> void:
 
 
 ## Koppelt een fighter aan de toolkit: states, kit, `Fighter.special_hook` (M4-hook in check_special) en - als de
-## stage al bekend is - de wereld. Idempotent. Aansluiting in het spel: één aanroep per fighter na setup()
+## stage bekend is - een O(1)-registratie op de stage. Goedkoop: de SpecialWorld ontstaat pas bij de eerste special.
 ## (zie docs/specials.md). Tests roepen dit voor alle fighters aan (ook tegenstanders zonder specials).
 static func attach(f: Fighter) -> SpecialKit:
 	register_states(f)
 	if "special_hook" in f and not (f.get("special_hook") as Callable).is_valid():
 		f.set("special_hook", Specials.hook)
-	if f.stage != null:
-		SpecialWorld.of(f)
+	SpecialWorld.register_fighter(f)
 	return SpecialKit.of(f)
 
 

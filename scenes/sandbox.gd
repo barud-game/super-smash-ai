@@ -216,6 +216,7 @@ func _input(event: InputEvent) -> void:
 				_build_stage()
 				for f in fighters:
 					f.stage = stage
+					Specials.attach(f)
 					f.spawn(stage.get_spawn(f.player), 1 if f.player == 0 else -1)
 					f._update_visual()
 				_setup_camera()
@@ -257,6 +258,7 @@ func _update_hud() -> void:
 ## (Her)bouwt de stage: SandboxStage-stub of de echte Eindpunt (engine/stage/stage.gd).
 func _build_stage() -> void:
 	if stage != null:
+		SpecialWorld.dispose(stage)   # projectielen/traps van de oude stage weg
 		remove_child(stage)
 		stage.queue_free()
 	if use_eindpunt:

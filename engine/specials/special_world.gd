@@ -107,10 +107,36 @@ func _exit_tree() -> void:
 		_sim.unregister(self)
 
 
+const REGISTRY_META: String = "special_fighters"
+
+
+## Lichte registratie van een fighter op zijn stage (instance-id -> fighter), zonder wereld aan te maken.
+## O(1); de wereld leest en snoeit de registry pas als hij bestaat (SpecialWorld._refresh_fighters).
+static func register_fighter(f: Fighter) -> void:
+	var h: Object = f.stage
+	if h == null:
+		return
+	if not h.has_meta(REGISTRY_META):
+		h.set_meta(REGISTRY_META, {})
+	(h.get_meta(REGISTRY_META) as Dictionary)[f.get_instance_id()] = f
+
+
 func add_fighter(f: Fighter) -> void:
+	if f == null or not is_instance_valid(f):
+		return
 	if not fighters.has(f):
 		fighters.append(f)
-		fighters.sort_custom(func(a: Fighter, b: Fighter) -> bool: return a.player < b.player)
+		_sort_fighters()
+
+
+## Ongeldige (vrijgegeven) fighters weg, dan op speler-id sorteren. Ongetypeerde lambda: geen conversiefout.
+func _sort_fighters() -> void:
+	var i: int = fighters.size() - 1
+	while i >= 0:
+		if not is_instance_valid(fighters[i]):
+			fighters.remove_at(i)
+		i -= 1
+	fighters.sort_custom(func(a, b) -> bool: return a.player < b.player)
 
 
 func next_instance() -> int:
@@ -195,6 +221,12 @@ func had_event(kind: String) -> bool:
 # =============================================================================================
 
 func sim_tick(_frame: int) -> void:
+	# Stage weg zonder dispose (bv. stage-wissel): wereld ruimt zichzelf op.
+	if _holder == null or not is_instance_valid(_holder) or not _holder.has_meta(META) or _holder.get_meta(META) != self:
+		_dispose()
+		if is_inside_tree():
+			queue_free()
+		return
 	_ensure_after_fighters()
 	step()
 
@@ -233,15 +265,27 @@ func step() -> void:
 
 
 func _refresh_fighters() -> void:
-	var i: int = fighters.size() - 1
-	while i >= 0:
-		if not is_instance_valid(fighters[i]):
-			fighters.remove_at(i)
-		i -= 1
+	_sort_fighters()
+	# Fighters die naar een andere stage zijn verhuisd (sandbox F6) horen hier niet meer bij.
+	var k: int = fighters.size() - 1
+	while k >= 0:
+		if fighters[k].stage != stage and stage != null:
+			fighters.remove_at(k)
+		k -= 1
+	if _holder != null and is_instance_valid(_holder) and _holder.has_meta(REGISTRY_META):
+		var reg: Dictionary = _holder.get_meta(REGISTRY_META)
+		for id: int in reg.keys():
+			var o: Variant = reg[id]
+			if not is_instance_valid(o) or (o as Fighter).stage != stage:
+				reg.erase(id)
+			elif not fighters.has(o):
+				fighters.append(o)
+				_sort_fighters()
 	if _sim != null and is_instance_valid(_sim):
 		for e: Object in _sim.entities():
-			if e is Fighter and is_instance_valid(e) and (e as Fighter).stage == stage:
-				add_fighter(e)
+			if is_instance_valid(e) and e is Fighter and (e as Fighter).stage == stage and not fighters.has(e):
+				fighters.append(e)
+				_sort_fighters()
 
 
 func _cleanup() -> void:
