@@ -17,6 +17,12 @@ extends Node2D
 ## Zie docs/movement.md, sectie "M1-implementatie".
 
 signal state_changed(old_state: String, new_state: String)
+## Uitgezonden op het frame dat de fighter de blast zone verlaat. side ∈ &"left", &"right", &"top", &"bottom".
+signal blast_ko(fighter: Fighter, side: StringName)
+signal percent_changed(new_percent: float)
+## Een andere fighter heeft de ledge van deze fighter overgenomen (ledge-steal); `by` is de nieuwe hanger.
+signal ledge_stolen(by: Fighter)
+signal ledge_grabbed(side: int)
 
 const EPS: float = 0.0001
 ## Afstand onder een genegeerd platform waarna het weer meetelt (platform drop).
@@ -40,6 +46,33 @@ var tap_jump_override: int = -1
 var stage: Object
 ## Inputbron. Standaard InputManager.history(player); tests geven hun eigen InputHistory.
 var input: InputHistory
+
+## true = bij een blast-zone-KO zet de fighter zichzelf direct op het respawn-platform (sandbox-gedrag).
+## false = hij zet zichzelf op `active = false` (verborgen, geen ticks) en wacht op `respawn_at()`.
+var auto_respawn: bool = true
+## false = uit de match (na KO met auto_respawn = false); sim_tick doet dan niets.
+var active: bool = true
+## Schadepercentage. Alleen via de setter gewijzigd (combat volgt in M3).
+var percent: float = 0.0:
+	set = set_percent
+## Resterende intangible frames (ledge-grab, respawn). Leesbaar na elke tick; zie is_intangible().
+var intangible_frames: int = 0
+## Vanaf dit percentage gelden de "slow" ledge-getups en de korte max-hangtijd (Melee: 100%).
+@export var ledge_high_percent: float = 100.0
+
+# --- Ledge-toestand ---
+## Sleutel van de bezette ledge ("" = niet aan een ledge); zie check_ledge_grab().
+var ledge_key: String = ""
+## Laatst gegrepen ledge (blijft staan na loslaten; getup-states gebruiken hem).
+var ledge_pos: Vector2 = Vector2.ZERO
+var ledge_side: int = 1
+## Frames sinds de grab (alleen geldig terwijl ledge_key != "").
+var ledge_hang_frames: int = 0
+## Frames dat een nieuwe ledge grab nog geblokkeerd is.
+var ledge_cooldown_frames: int = 0
+## true = de volgende grab geeft ledge-intangibility. Wordt false bij een grab en weer true bij landen of
+## geraakt/eraf getrokken worden (Melee: geen regrab-invincibility zonder landen).
+var ledge_intang_ready: bool = true
 
 # --- Physics-toestand (Melee-units, y omhoog) ---
 ## Positie = onderpunt van de ECB (voeten).
@@ -65,6 +98,7 @@ var visual: CharacterVisual
 
 var _states: Dictionary = {}
 var _segments: Array = []
+var _ledges: Array = []
 var _consumed_tap_jump: int = -1000
 ## tick_count van de laatste omlaag-flick in de lucht (fast-fall-buffer).
 var _ff_flick_tick: int = -1000
@@ -124,6 +158,9 @@ func _register_default_states() -> void:
 		StateTurn.new(), StateRunTurn.new(), StateSquat.new(), StateSquatWait.new(), StateSquatRv.new(),
 		StateKneeBend.new(), StateJump.new(), StateJumpAerial.new(), StateFall.new(),
 		StateEscapeAir.new(), StateFallSpecial.new(), StateLanding.new(), StateLandingFallSpecial.new(),
+		StateTeeter.new(), StateCliffCatch.new(), StateCliffWait.new(), StateCliffClimb.new(),
+		StateCliffEscape.new(), StateCliffAttack.new(), StateCliffJump.new(), StateRebirthWait.new(),
+		StateDead.new(),
 	]:
 		register_state(s)
 
@@ -147,6 +184,9 @@ func change_state(id: String, args: Dictionary = {}) -> void:
 	if state != null:
 		state.exit()
 		old = state.id()
+	# Een state die de ledge niet vasthoudt geeft hem vrij (ook bij spawn/KO/ledge-steal).
+	if ledge_key != "" and not next.holds_ledge():
+		_free_ledge_slot()
 	prev_state_name = old
 	state = next
 	state_frame = 0
@@ -160,13 +200,24 @@ func state_name() -> String:
 
 ## Eén sim-frame. Aangeroepen door Sim (of direct door tests).
 func sim_tick(_frame: int = 0) -> void:
+	if not active:
+		return
 	tick_count += 1
+	if intangible_frames > 0:
+		intangible_frames -= 1
+	if ledge_cooldown_frames > 0:
+		ledge_cooldown_frames -= 1
+	if ledge_key != "":
+		ledge_hang_frames += 1
 	_segments = _read_segments()
+	_ledges = _read_ledges()
 	state_frame += 1
 	state.anim()
 	state.iasa()
 	state.phys()
 	state.coll()
+	if not grounded and state.can_grab_ledge():
+		check_ledge_grab()
 	_post_coll()
 	_update_visual()
 
@@ -174,6 +225,9 @@ func sim_tick(_frame: int = 0) -> void:
 ## Plaats de fighter. Staat hij (bijna) op een segment, dan op de grond in Wait, anders Fall.
 func spawn(at: Vector2, dir: int = 1) -> void:
 	_segments = _read_segments()
+	_ledges = _read_ledges()
+	active = true
+	visible = true
 	pos = at
 	vel = Vector2.ZERO
 	gr_vel = 0.0
@@ -181,6 +235,9 @@ func spawn(at: Vector2, dir: int = 1) -> void:
 	fastfalling = false
 	air_jumps_used = 0
 	ignore_platform = -1
+	intangible_frames = 0
+	ledge_cooldown_frames = 0
+	ledge_intang_ready = true
 	var seg: int = _segment_at(at, 0.01)
 	if seg >= 0:
 		_set_grounded(seg, at.x)
@@ -191,17 +248,59 @@ func spawn(at: Vector2, dir: int = 1) -> void:
 		change_state("Fall")
 
 
+## Respawn op het stage-respawnpunt met de standaard Melee-invincibility (zie respawn_at).
 func respawn() -> void:
 	var at: Vector2 = DEFAULT_RESPAWN
 	if stage != null and stage.has_method("get_respawn"):
 		at = stage.get_respawn(player)
-	spawn(at, facing)
-	# Respawn-punt ligt meestal op de grond; tijdelijk: altijd vallend vanaf iets erboven.
-	if grounded:
-		grounded = false
-		ground_seg = -1
-		pos.y += 40.0
-		change_state("Fall")
+	respawn_at(at, FighterConst.REBIRTH_INVINCIBLE_FRAMES)
+
+
+## Zet de fighter op `p` in RebirthWait (stilstaan op een respawn-platform tot input, max ~5 s, daarna vallen)
+## met `invincible_frames` intangible frames (tellen af in alle volgende states). Maakt hem weer `active`.
+func respawn_at(p: Vector2, invincible_frames: int) -> void:
+	_segments = _read_segments()
+	_ledges = _read_ledges()
+	active = true
+	visible = true
+	pos = p
+	vel = Vector2.ZERO
+	gr_vel = 0.0
+	grounded = false
+	ground_seg = -1
+	fastfalling = false
+	air_jumps_used = 0
+	ignore_platform = -1
+	ledge_cooldown_frames = 0
+	ledge_intang_ready = true
+	if absf(p.x) > 1.0:
+		facing = -1 if p.x > 0.0 else 1
+	reset_fast_fall_buffer()
+	change_state("RebirthWait")
+	intangible_frames = maxi(invincible_frames, 0)
+	_sfx("respawn")
+	_update_visual()
+
+
+func set_percent(v: float) -> void:
+	v = maxf(v, 0.0)
+	if is_equal_approx(v, percent):
+		return
+	percent = v
+	percent_changed.emit(v)
+
+
+## Intangible door de ledge/respawn-teller of door de huidige state (air dodge, getups). Combat gebruikt dit.
+func is_intangible() -> bool:
+	return intangible_frames > 0 or (state != null and state.intangible())
+
+
+func _sfx(sfx_name: String) -> void:
+	if not is_inside_tree():
+		return
+	var s: Node = get_node_or_null("/root/Sfx")
+	if s != null and s.has_method("play"):
+		s.play(sfx_name, 0.03, 0.0, character_id)
 
 
 func set_stats(s: FighterStats) -> void:
@@ -346,6 +445,158 @@ func check_platform_drop() -> bool:
 
 
 # =============================================================================================
+# Teeter en ledge (M2). Zie docs/movement.md, "M2-implementatie".
+# =============================================================================================
+
+## -1/+1 als de fighter op de grond precies aan een losse rand (links/rechts) van zijn segment staat, anders 0.
+func edge_side() -> int:
+	if not grounded or ground_seg < 0 or ground_seg >= _segments.size():
+		return 0
+	var s: Dictionary = _segments[ground_seg]
+	if pos.x >= s["b"].x - 0.01 and _connected_segment(ground_seg, s["b"], 1) < 0:
+		return 1
+	if pos.x <= s["a"].x + 0.01 and _connected_segment(ground_seg, s["a"], -1) < 0:
+		return -1
+	return 0
+
+
+## Wait -> Teeter als de fighter naar de rand kijkt waar hij op staat.
+func check_teeter() -> bool:
+	var e: int = edge_side()
+	if e != 0 and e == facing:
+		change_state("Teeter")
+		return true
+	return false
+
+
+func ledge_high() -> bool:
+	return percent >= ledge_high_percent
+
+
+## Hang-positie (voeten) bij de ledge `lpos` aan zijde `side`.
+func ledge_hang_pos(lpos: Vector2, side: int) -> Vector2:
+	return Vector2(lpos.x + side * stats.ledge_snap_x, lpos.y - stats.ledge_hang_depth())
+
+
+func _ledge_registry() -> Dictionary:
+	if stage == null:
+		return {}
+	if not stage.has_meta("ledge_occupants"):
+		stage.set_meta("ledge_occupants", {})
+	return stage.get_meta("ledge_occupants")
+
+
+static func _ledge_key(lpos: Vector2, side: int) -> String:
+	return "%d:%d:%d" % [roundi(lpos.x * 100.0), roundi(lpos.y * 100.0), side]
+
+
+## Ledge grab (Melee: ftCliffCommon_CheckGrab, ⚠️ box-afmetingen). Voorwaarden: luchtstate die grabben toestaat,
+## vy < 0, geen lock, stick niet omlaag, kijkrichting naar de stage, ledge in de grab-box. Geeft true bij een grab.
+func check_ledge_grab() -> bool:
+	if ledge_cooldown_frames > 0 or ledge_key != "" or vel.y >= 0.0:
+		return false
+	if stick_y() <= -FighterConst.LEDGE_GRAB_DOWN_BLOCK + FighterConst.EPS:
+		return false
+	for l: Dictionary in _ledges:
+		var side: int = l["side"]
+		if facing != -side:
+			continue
+		var lp: Vector2 = l["pos"]
+		var outward: float = (pos.x - lp.x) * side   # >= 0: fighter staat buiten de rand
+		var above: float = lp.y - pos.y               # hoogte van de ledge boven de voeten
+		if outward < -stats.ledge_grab_back or outward > stats.ledge_grab_front:
+			continue
+		if above < stats.ledge_grab_y_min or above > stats.ledge_grab_y_max:
+			continue
+		grab_ledge(lp, side)
+		return true
+	return false
+
+
+## Hang aan de ledge: snap, jumps terug, intangibility (alleen de eerste grab na landen/geraakt) en ledge-steal.
+func grab_ledge(lp: Vector2, side: int) -> void:
+	var key: String = _ledge_key(lp, side)
+	var reg: Dictionary = _ledge_registry()
+	var occ: Variant = reg.get(key)
+	if occ is Fighter and is_instance_valid(occ) and occ != self and occ.ledge_key == key:
+		occ._lose_ledge_to(self)
+	ledge_key = key
+	ledge_pos = lp
+	ledge_side = side
+	ledge_hang_frames = 0
+	reg[key] = self
+	pos = ledge_hang_pos(lp, side)
+	vel = Vector2.ZERO
+	gr_vel = 0.0
+	grounded = false
+	ground_seg = -1
+	fastfalling = false
+	air_jumps_used = 0
+	reset_fast_fall_buffer()
+	facing = -side
+	if ledge_intang_ready:
+		intangible_frames = maxi(intangible_frames, stats.ledge_catch_frames + stats.ledge_grab_intangible)
+		ledge_intang_ready = false
+	change_state("CliffCatch")
+	ledge_grabbed.emit(side)
+	_sfx("ledge_grab")
+
+
+## Ledge-steal: een ander grijpt "mijn" ledge. Ik val (Fall, jumps terug), krijg een lock en mijn
+## regrab-intangibility wordt hersteld (als "geraakt"). ⚠️ Melee-details onbekend; TODO M3: damage/knockback-hook.
+func _lose_ledge_to(by: Fighter) -> void:
+	release_ledge(stats.ledge_hit_cooldown)
+	ledge_intang_ready = true
+	vel = Vector2.ZERO
+	air_jumps_used = 0
+	change_state("Fall")
+	ledge_stolen.emit(by)
+
+
+## Laat de ledge los: slot vrij + lock. De aanroeper wisselt zelf van state.
+func release_ledge(cooldown: int) -> void:
+	_free_ledge_slot()
+	ledge_cooldown_frames = maxi(ledge_cooldown_frames, cooldown)
+
+
+func _free_ledge_slot() -> void:
+	if ledge_key == "":
+		return
+	var reg: Dictionary = _ledge_registry()
+	if reg.get(ledge_key) == self:
+		reg.erase(ledge_key)
+	ledge_key = ""
+
+
+## Loslaten (stick weg/omlaag, max hangtijd): Fall met alle sprongen terug. Intangible frames lopen door.
+func ledge_drop() -> void:
+	release_ledge(stats.ledge_cooldown)
+	vel = Vector2.ZERO
+	fastfalling = false
+	air_jumps_used = 0
+	change_state("Fall")
+
+
+## Hook voor combat (M3): geraakt worden herstelt de regrab-intangibility.
+func on_hit_reset_ledge() -> void:
+	ledge_intang_ready = true
+
+
+## Einde van een getup/roll/attack: zet de fighter op de stage-grond op `at` en ga naar Wait.
+func finish_ledge_move(at: Vector2) -> void:
+	_segments = _read_segments()
+	var seg: int = _segment_at(at, 0.5)
+	vel = Vector2.ZERO
+	if seg >= 0:
+		_set_grounded(seg, at.x)
+		change_state("Wait")
+	else:
+		pos = at
+		grounded = false
+		change_state("Fall")
+
+
+# =============================================================================================
 # Physics-helpers (Melee-formules, zie docs/movement.md)
 # =============================================================================================
 
@@ -449,6 +700,7 @@ func ground_jump(short_hop: bool) -> void:
 
 
 func _set_grounded(seg: int, x: float) -> void:
+	ledge_intang_ready = true   # landen herstelt de ledge-intangibility
 	grounded = true
 	ground_seg = seg
 	pos = Vector2(x, _seg_y(_segments[seg], x))
@@ -497,6 +749,7 @@ func ground_coll() -> void:
 		if state.stops_at_edge():
 			gr_vel = 0.0
 			_set_grounded(seg, edge.x)
+			state.on_edge_stop(side)
 		else:
 			pos = Vector2(nx, edge.y)
 			leave_ground(Vector2(gr_vel, 0.0))
@@ -536,7 +789,33 @@ func _post_coll() -> void:
 	if stage != null and stage.has_method("get_blast_zone"):
 		var bz: Rect2 = stage.get_blast_zone()
 		if bz.size != Vector2.ZERO and not bz.has_point(pos):
-			respawn()
+			_blast_ko(bz)
+
+
+## Blast zone verlaten: bepaal de zijde (grootste overschrijding), zet de fighter uit de match, meld het via
+## `blast_ko` en respawn bij auto_respawn (tenzij een handler hem in de tussentijd al heeft teruggezet).
+func _blast_ko(bz: Rect2) -> void:
+	var over: Dictionary = {
+		&"left": bz.position.x - pos.x, &"right": pos.x - bz.end.x,
+		&"top": pos.y - bz.end.y, &"bottom": bz.position.y - pos.y,
+	}
+	var side: StringName = &"left"
+	var best: float = -INF
+	for k: StringName in [&"left", &"right", &"top", &"bottom"]:
+		if over[k] > best:
+			best = over[k]
+			side = k
+	vel = Vector2.ZERO
+	gr_vel = 0.0
+	grounded = false
+	ground_seg = -1
+	intangible_frames = 0
+	change_state("Dead")
+	active = false
+	visible = false
+	blast_ko.emit(self, side)
+	if auto_respawn and not active:
+		respawn()
 
 
 # --- segmenten ---
@@ -549,6 +828,24 @@ func _read_segments() -> Array:
 		var n: Dictionary = normalize_segment(raw)
 		if not n.is_empty():
 			out.append(n)
+	return out
+
+
+func _read_ledges() -> Array:
+	var out: Array = []
+	if stage == null or not stage.has_method("get_ledges"):
+		return out
+	for raw: Variant in stage.get_ledges():
+		var p: Variant = null
+		var s: Variant = null
+		if raw is Dictionary:
+			p = raw.get("position")
+			s = raw.get("side")
+		elif raw is Object:
+			p = raw.get("position")
+			s = raw.get("side")
+		if p is Vector2 and (s is int or s is float) and int(s) != 0:
+			out.append({"pos": p, "side": 1 if int(s) > 0 else -1})
 	return out
 
 
@@ -631,6 +928,12 @@ func _update_visual() -> void:
 
 
 func _draw() -> void:
+	if state != null and state.id() == "RebirthWait" and stats != null:
+		# Respawn-platform onder de voeten (presentatie).
+		var k0: float = Units.UNIT_TO_PX
+		var w: float = 14.0 * k0
+		draw_rect(Rect2(Vector2(-w, 0.0), Vector2(2.0 * w, 3.0 * k0)), Color(0.55, 0.85, 1.0, 0.85))
+		draw_rect(Rect2(Vector2(-w, 3.0 * k0), Vector2(2.0 * w, 1.0 * k0)), Color(0.3, 0.5, 0.9, 0.6))
 	var sim: Node = get_node_or_null("/root/Sim")
 	if sim == null or not sim.debug_hitboxes or stats == null:
 		return
@@ -655,11 +958,14 @@ func get_debug_state_name() -> String:
 	s += "  jumps %d/%d" % [stats.air_jumps - air_jumps_used, stats.air_jumps]
 	if fastfalling:
 		s += "  FF"
-	if state != null and state.intangible():
+	if is_intangible():
 		s += "  INTANGIBLE"
+		if intangible_frames > 0:
+			s += "(%d)" % intangible_frames
 	return s
 
 
 ## Momentopname voor tests/determinisme.
 func snapshot() -> Array:
-	return [state_name(), state_frame, pos, vel, gr_vel, facing, grounded, air_jumps_used, fastfalling]
+	return [state_name(), state_frame, pos, vel, gr_vel, facing, grounded, air_jumps_used, fastfalling,
+		intangible_frames, ledge_key, active]

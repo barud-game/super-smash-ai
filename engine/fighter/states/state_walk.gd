@@ -45,3 +45,9 @@ func pose() -> String:
 
 func pose_speed() -> float:
 	return clampf(absf(f.gr_vel) / 0.9, 0.25, 2.0)
+
+
+func on_edge_stop(side: int) -> void:
+	# Langzaam lopen tegen de rand aan: wankelen (alleen als we naar de afgrond kijken).
+	if side == f.facing:
+		f.change_state("Teeter")

@@ -117,7 +117,7 @@ gr_vel += accel  (nooit voorbij ground_max_horizontal_velocity)
 - **Doorzakken (platform drop)**: stick omlaag-flick (≤ −`x464`, binnen `x468` frames na de deadzone) terwijl je op een platform staat, óf L/R vast + omlaag. Zet `vy = x46C` (kleine neerwaartse impuls) en schakelt “floor skip” aan; daarna normale Fall. [S12] ✅ structuur, ⚠️ getallen (verwacht ≈ −0.6625 en ~ 3–4 frames; niet gevonden).
 - Springen door platform omhoog kan altijd (alleen als bovenop landen vereist vy ≤ 0).
 
-## Ledge (documentatie voor M2)
+## Ledge (bronnen; implementatie zie "M2-implementatie" onderaan)
 - **Grab-conditie**: ledge-grab-flag van de collision (sweetspot-boxen voor/achter het hoofd per character); je kijkt de ledge in (anders niet, behalve bv. Falcon Dive/Spinning Kong); **niet** als stick-y ≤ −`x480` (omlaag houden voorkomt grab). [S15, S12] ✅ structuur, ⚠️ box-afmetingen en `x480`.
 - **Snap**: positie wordt elke frame vastgezet op de ledge-positie met per-character offset (`ledge_snap_x/y/height`) ⚠️ waarden niet verzameld.
 - **Invincibility**: **30 frames + de grab-animatie (7 frames; Link 3)** intangible bij grabben. Intangibility blijft behouden bij loslaten (ledgestall). [S15] ✅
@@ -193,10 +193,10 @@ Platform drop gebruikt Fall (geen aparte Pass-state); van de rand af gaat ook na
 
 ### ECB en grond (keuze)
 - **ECB = diamant** met het onderpunt op `pos` (voeten), bovenpunt op `ecb_height`, zijpunten op `ecb_mid_y` ± `ecb_half_width` (per preset ⚠️; zichtbaar met F2). Voor M1 doet alleen het **onderpunt** mee: landen = het onderpunt kruist een segment van boven naar beneden met vy ≤ 0 (lijnstuk van vorige naar nieuwe positie, hoogste segment wint). Geen muren/plafonds nog. Melee verschuift de ECB-onderkant in de lucht per animatie omhoog; dat doen we (nog) niet ⚠️ — gevolg: landen gebeurt exact op voethoogte.
-- Op de grond: `x += gr_vel` langs het segment (y = segmenthoogte; schuine segmenten via interpolatie, aansluitende segmenten worden gevolgd). Aan de rand: `stops_at_edge()` per state. Stoppen: Wait, Walk met |x| < 0.75 (teeter-walk ✅), Turn, Squat*, KneeBend, RunBrake ⚠️, RunTurn ⚠️. Eraf: Dash, Run, Walk ≥ 0.75, Landing, LandingFallSpecial (wavedash van de rand af). Geen Teeter-state nog.
+- Op de grond: `x += gr_vel` langs het segment (y = segmenthoogte; schuine segmenten via interpolatie, aansluitende segmenten worden gevolgd). Aan de rand: `stops_at_edge()` per state. Stoppen: Wait, Walk met |x| < 0.75 (teeter-walk ✅), Turn, Squat*, KneeBend, RunBrake ⚠️, RunTurn ⚠️. Eraf: Dash, Run, Walk ≥ 0.75, Landing, LandingFallSpecial (wavedash van de rand af). Teeter-state sinds M2.
 - Pass-through platforms: landen alleen van boven en met vy ≤ 0; in FallSpecial niet als stick-y ≤ −0.6875. Platform drop zet `ignore_platform` tot je 0.5 unit onder het platform bent.
-- Stage-interface: `get_ground_segments()` (objecten of dictionaries met `a`, `b`, `type`: `StageSegment.Type` 0/1 of `"solid"`/`"platform"`), `get_blast_zone()` (Rect2, position = links/onder), optioneel `get_respawn(i)`. Sandbox-stub: `scenes/sandbox_stage.gd`.
-- Blast zone: buiten de Rect2 → tijdelijk respawn op `get_respawn()` (+40 als dat op de grond ligt) in Fall.
+- Stage-interface: `get_ledges()` (optioneel, M2), `get_ground_segments()` (objecten of dictionaries met `a`, `b`, `type`: `StageSegment.Type` 0/1 of `"solid"`/`"platform"`), `get_blast_zone()` (Rect2, position = links/onder), optioneel `get_respawn(i)`. Sandbox-stub: `scenes/sandbox_stage.gd`.
+- Blast zone: buiten de Rect2 → `blast_ko`-signaal en respawn-platform (zie M2-implementatie).
 
 
 ### Speeltest-feedback M1 (Xbox-controller): leniency-keuzes
@@ -260,3 +260,53 @@ Gemeten wavedash-afstand (test-stick 75/−27, frame-perfect): Marth 47.5, Fox 3
 - `fast_fall_while_rising = false` (standaard): fast fall zoals Melee (na de apex), met de Xbox-leniency (`FAST_FALL_BUFFER`): een tik vlak vóór de apex telt nog.
 - **Hitfall (M3):** tijdens de **hitlag van een eigen treffer** mag je fast fallen, ook tijdens het stijgen (zoals Rivals of Aether). **Niet** bij een treffer op een shield.
 - De losse variant (`true`) blijft beschikbaar als schakelaar en wordt nog getest.
+
+## M2-implementatie: ledge, teeter, respawn-platform, KO-API (`engine/fighter/`)
+Status: gebouwd en headless getest (`tests/test_ledge.gd`, 117 checks; `test_movement.gd` blijft 623/623). Alle getallen hieronder zijn ⚠️ (geschat) tenzij ✅ vermeld; ze staan in `FighterStats` (groep "Ledge", per character overschrijfbaar) of `FighterConst`.
+
+### Ledge grab (`Fighter.check_ledge_grab`, aangeroepen na `coll()` in luchtstates met `can_grab_ledge()`)
+- Toegestane states: Fall, FallSpecial, Jump, JumpAerial (EscapeAir niet; na de animatie is het FallSpecial). Altijd: `vel.y < 0` (✅ alleen vallen), geen ledge-lock, niet al aan een ledge.
+- Stick omlaag (≤ −0.6875, `LEDGE_GRAB_DOWN_BLOCK`) voorkomt de grab. ✅ regel [S15, S12], ⚠️ drempel.
+- Kijkrichting: de fighter moet naar de stage kijken (`facing == −side`); met je rug naar de ledge geen grab. ⚠️ Melee-details (bv. omgekeerd grabben) niet geverifieerd. Gevolg: van de rand af rennen/vallen (kijkt van de stage af) grabt nooit.
+- Grab-box (units, ⚠️): ledge ligt 0..`ledge_grab_front` (14) vóór de fighter (buiten de rand), de fighter mag tot `ledge_grab_back` (4) onder de stage zitten (nog geen muur-collision), en de ledge ligt `ledge_grab_y_min..max` (4..24) boven de voeten.
+- Snap: voeten staan op `ledge + (side·ledge_snap_x (6), −visual_height·ledge_snap_y_ratio (0.85))`; elke frame vastgezet. Facing = naar de stage. Alle sprongen terug.
+- Stage-data: `get_ledges()` (`StageLedge.position/side`, ook Dictionaries); geen extra API nodig. Platforms hebben geen ledges.
+
+### States
+| State | Duur | Kern |
+|---|---|---|
+| CliffCatch | 7 frames ✅ (`ledge_catch_frames`, Link 3) | geen input, snap |
+| CliffWait | max 660 frames < 100%, 480 vanaf 100% ✅ (11 s / 8 s) → automatisch loslaten | opties, zie onder |
+| CliffClimb (getup) | 33 (Slow ≥100%: 43) | omhoog langs de muur (`rise` 15 / 20 frames), dan 12 units de stage op; intangible 1–23 (Slow 1–13) |
+| CliffEscape (roll) | 36 (46) | rise 10, dan 28 units de stage op; intangible 1–26 (1–16) |
+| CliffAttack | 55 (70) | beweegt als getup; **hitbox-hook** `StateCliffAttack._on_frame()` op `opt["hit"]` (25 / 35) = TODO M3; intangible 1–20 (1–10) |
+| CliffJump | startup 5 (9), dan Jump | vy = `jump_v_initial_velocity × ledge_jump_vy_mult`, vx = `ledge_jump_vx` (1.1) naar de stage; double jump blijft; intangible 1–10 (1–8) |
+| Loslaten | direct | Fall, vel 0, alle sprongen terug (`Fighter.ledge_drop()`) |
+
+Getup-tabel: `FighterStats.LEDGE_OPTION_DEFAULTS`/`ledge_options` (frames, rise, dx, i0..i1, hit), per variant `low` (< 100%) en `high`. De variant volgt `Fighter.percent >= Fighter.ledge_high_percent` (100). Positie tijdens een getup is een functie van het state-frame; het einde zet de fighter op de grond in Wait (`finish_ledge_move`).
+
+Inputs in CliffWait (prioriteit): jump (knop of omhoog-flick/tap jump) → CliffJump; A → CliffAttack; shield (nieuw ingedrukt) → CliffEscape; stick naar de stage (≥ 0.5) of omhoog (≥ 0.6875, alleen zonder tap jump, anders is omhoog een jump) → CliffClimb; stick omlaag of van de stage af (≥ 0.6875) → loslaten. Stick-richtingen tellen alleen als ze ná de grab zijn ingeduwd (`stick_timer ≤ ledge_hang_frames`); anders zou een vastgehouden stick tijdens de val meteen een getup/drop geven. ⚠️ Volgorde en drempels zijn gekozen, niet uit Melee.
+
+### Intangibility en regrab
+- Generiek: `Fighter.intangible_frames` (resterend, gelezen na een tick; telt per tick af, loopt door na state-wissels) en `Fighter.is_intangible()` = teller > 0 **of** `state.intangible()` (air dodge, getups, CliffJump). Combat (M3) gebruikt alleen `is_intangible()`.
+- Eerste grab: `ledge_catch_frames + ledge_grab_intangible` = 7 + 30 = 37 frames ✅ [S15]. Loslaten behoudt het restant (ledgestall ✅).
+- Regrab-regel: `ledge_intang_ready` wordt false bij een grab en weer true bij **landen** (`_set_grounded`, dus ook na een getup) of **geraakt worden** (`Fighter.on_hit_reset_ledge()`, hook voor M3; ook bij ledge-steal). Een regrab zonder dat geeft geen nieuwe intangible frames (het restant van de vorige loopt gewoon door). Geen afnemende invincibility (Melee ✅).
+- Lock na loslaten (`ledge_cooldown` 30 ⚠️) en na eraf getrokken worden (`ledge_hit_cooldown` 54 ⚠️ [S16]). Na een getup geen lock nodig (je staat op de stage).
+
+### Ledge-steal
+Het ledge-register hangt als meta (`ledge_occupants`) aan het stage-object (sleutel = positie+zijde). Grabt een ander een bezette ledge, dan grabt hij hem gewoon en de vorige hanger krijgt `_lose_ledge_to()`: Fall, alle sprongen terug, lock 54, regrab-intangibility hersteld, signaal `ledge_stolen(by)`. TODO M3: damage/knockback-hook voor het slachtoffer; ⚠️ Melee-afhandeling (`ft_80082E3C`) niet geverifieerd — ook of het slachtoffer intangible frames houdt (hier: restant blijft).
+
+### Teeter
+`StateTeeter`: Wait (en Walk dat aan de rand stopt, `FighterState.on_edge_stop`) → Teeter als de fighter precies aan een losse segmentrand staat én naar de afgrond kijkt (`Fighter.edge_side()`). Actionable zoals Wait (jump, dash — valt eraf —, squat, omdraaien); naar de rand duwen blijft Teeter; rug naar de afgrond = Wait. Pose: `teeter` als de rig die heeft, anders de walk-pose op frame 0 (`FighterState.pick_pose`). ⚠️ Melee-teeter (ECB-gebaseerd, ook bij andere facing) vereenvoudigd.
+
+### KO-API en respawn
+- `signal blast_ko(fighter, side)` met `side` ∈ `&"left"`, `&"right"`, `&"top"`, `&"bottom"` (grootste overschrijding van de `get_blast_zone()`-Rect2 bij een hoek), uitgezonden op het frame dat de fighter de zone verlaat, ná het inactief zetten (state `Dead`, `active = false`, `visible = false`; `sim_tick` doet dan niets). Een handler mag in het signaal al `respawn_at()` aanroepen.
+- `auto_respawn` (standaard true): na het signaal meteen `respawn()` = `respawn_at(stage.get_respawn(player), 120)`. false: de fighter blijft weg tot `respawn_at()`/`spawn()`.
+- `respawn_at(p, invincible_frames)`: zet hem op `p` in **RebirthWait** (geen gravity/collision, platform getekend onder de voeten), `intangible_frames = invincible_frames` (standaard 120 ⚠️). Eindigt op input (stick of knop, pas na 20 frames ⚠️) of na 300 frames ⚠️ (5 s) met Fall en alle sprongen terug; de invincibility loopt door tot ze op is.
+- `var percent` met setter (klemt op ≥ 0) en `signal percent_changed(new_percent)`; verder niets.
+- Sandbox: F6 wisselt stub ↔ echte Eindpunt (MatchCamera, bounds uit de stage), F7 zet auto-respawn aan/uit, CLI `--stage eindpunt`.
+
+### Niet gedaan / open
+- Geen muur-collision of ECB-onderkant-verschuiving; de grab-box heeft daarom ruime marges.
+- Geen eigen ledge-poses in de rig (`ledge_hang`, `ledge_getup`, `roll`, `ledge_attack`, `ledge_jump`, `teeter` zijn de verwachte namen; tot dan fallback-poses).
+- Ledge-getup-frames en intangible-vensters zijn geschat; met Melee-framedata te vervangen via `ledge_options`.

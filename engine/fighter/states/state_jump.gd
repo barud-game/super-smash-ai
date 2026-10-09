@@ -41,3 +41,7 @@ func is_grounded() -> bool:
 
 func pose() -> String:
 	return "jump"
+
+
+func can_grab_ledge() -> bool:
+	return true

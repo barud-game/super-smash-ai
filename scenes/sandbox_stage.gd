@@ -21,6 +21,25 @@ var segments: Array = [
 ## position = links/onder, size = breedte/hoogte (zelfde conventie als Stage).
 var blast_zone: Rect2 = Rect2(-224.0, -108.8, 448.0, 308.8)
 var spawns: Array[Vector2] = [Vector2(-30.0, 0.0), Vector2(30.0, 0.0)]
+## Camera bounds (units, zelfde conventie); gelijk aan Eindpunt.
+var camera_bounds: Rect2 = Rect2(-200.0, -85.0, 400.0, 225.0)
+var ledges: Array[StageLedge] = []
+
+
+func _init() -> void:
+	for side: int in [-1, 1]:
+		var l := StageLedge.new()
+		l.position = Vector2(side * MAIN_HALF_WIDTH, 0.0)
+		l.side = side
+		ledges.append(l)
+
+
+func get_ledges() -> Array[StageLedge]:
+	return ledges
+
+
+func get_camera_bounds() -> Rect2:
+	return camera_bounds
 
 
 func get_ground_segments() -> Array:

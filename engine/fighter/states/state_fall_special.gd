@@ -34,3 +34,7 @@ func on_land() -> void:
 
 func pose() -> String:
 	return "fastfall" if f.fastfalling else "fall"
+
+
+func can_grab_ledge() -> bool:
+	return true

@@ -72,6 +72,28 @@ func intangible() -> bool:
 	return false
 
 
+## Luchtstates waarin een ledge grab mogelijk is (naast de voorwaarde vy < 0, zie Fighter.check_ledge_grab).
+func can_grab_ledge() -> bool:
+	return false
+
+
+## True voor CliffCatch/CliffWait: de fighter bezet dan de ledge.
+func holds_ledge() -> bool:
+	return false
+
+
+## Aangeroepen door Fighter.ground_coll() als de fighter aan de rand tot stilstand komt (side = -1 links, +1 rechts).
+func on_edge_stop(_side: int) -> void:
+	pass
+
+
+## Kies `wanted` als de visual die pose heeft, anders `fallback` (pose-hooks die nog niet getekend zijn).
+func pick_pose(wanted: String, fallback: String) -> String:
+	if f.visual != null and f.visual.has_pose(wanted):
+		return wanted
+	return fallback
+
+
 ## Pose-naam voor CharacterVisual (docs/rig.md §6).
 func pose() -> String:
 	return "idle"

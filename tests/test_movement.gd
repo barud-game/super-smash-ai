@@ -480,7 +480,7 @@ func _test_edges() -> void:
 		step(w, 30, 0)
 	check("langzaam lopen stopt aan de rand", w.grounded and near(w.pos.x, SandboxStage.MAIN_HALF_WIDTH), "x %.3f %s" % [w.pos.x, w.state_name()])
 	w.free()
-	# Onder de blast zone: respawn bovenaan.
+	# Onder de blast zone: respawn bovenaan (op het respawn-platform; zie test_ledge.gd voor de rest).
 	var b := make("fast_faller", Vector2(120, 0))
 	var respawned: bool = false
 	var lowest: float = 0.0
@@ -491,7 +491,7 @@ func _test_edges() -> void:
 		if b.pos.y > prev_y + 50.0:
 			respawned = true
 			break
-	check("onder blast zone (-108.8) = respawn bovenaan", respawned and lowest > -108.8 - 4.0 and near(b.pos.x, 0.0) and b.state_name() == "Fall",
+	check("onder blast zone (-108.8) = respawn bovenaan", respawned and lowest > -108.8 - 4.0 and near(b.pos.x, 0.0) and b.state_name() == "RebirthWait",
 		"respawned %s, laagste y %.2f, pos %s" % [respawned, lowest, b.pos])
 	b.free()
 

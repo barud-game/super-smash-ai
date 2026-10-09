@@ -1,19 +1,21 @@
 extends Node2D
-## Sandbox: 2 fighters op de test-stage (scenes/sandbox_stage.gd) met een simpele volg-camera.
-## F3 / F4 = archetype van speler 1 / 2 wisselen. F5 = beide respawnen. F1/F2/P/. via de debug overlay/Sim.
+## Sandbox: 2 fighters op de test-stage (scenes/sandbox_stage.gd) of de echte Eindpunt-stage, met de MatchCamera.
+## F3 / F4 = archetype van speler 1 / 2 wisselen. F5 = beide respawnen. F6 = stage wisselen (stub / Eindpunt).
+## F7 = KO-gedrag wisselen (auto-respawn op het platform / blijft weg tot F5). F1/F2/P/. via de debug overlay/Sim.
 ##
 ## Screenshot-modus (windowed, voor review):
 ##   Godot_console.exe --path . res://scenes/sandbox.tscn -- --screenshot C:/pad/shot.png [--frames 90] [--demo]
 ## --demo speelt een vaste inputreeks af (P1 dash + jump, P2 wavedash) i.p.v. controller-input.
+## --stage eindpunt start direct op de echte stage.
 
-const CAM_MARGIN_PX: float = 260.0
-const CAM_MIN_ZOOM: float = 0.45
-const CAM_MAX_ZOOM: float = 0.9
+const EINDPUNT_SCENE: String = "res://stages/eindpunt/eindpunt.tscn"
 
-var stage: SandboxStage
+## SandboxStage (stub) of Stage (Eindpunt); beide hebben dezelfde minimale API.
+var stage: Node2D
+var use_eindpunt: bool = false
 var fighters: Array[Fighter] = []
 var archetype_index: Array[int] = [0, 1]
-var camera: Camera2D
+var camera: MatchCamera
 var hud: Label
 
 var _shot_path: String = ""
@@ -24,10 +26,10 @@ var _frames_seen: int = 0
 
 
 func _ready() -> void:
+	Sim.debug_context = true
 	RenderingServer.set_default_clear_color(Color(0.13, 0.13, 0.17))
 	_parse_args()
-	stage = SandboxStage.new()
-	add_child(stage)
+	_build_stage()
 	for p in 2:
 		var f := Fighter.new()
 		f.player = p
@@ -41,9 +43,10 @@ func _ready() -> void:
 			f.input = h
 		add_child(f)
 		fighters.append(f)
-	camera = Camera2D.new()
+	camera = MatchCamera.new()
 	add_child(camera)
 	camera.make_current()
+	_setup_camera()
 	var layer := CanvasLayer.new()
 	layer.layer = 50
 	add_child(layer)
@@ -53,10 +56,15 @@ func _ready() -> void:
 	hud.position = Vector2(12, 680)
 	layer.add_child(hud)
 	_update_hud()
-	_update_camera(true)
 	var sim: Node = get_node_or_null("/root/Sim")
 	if sim != null:
 		sim.frame_advanced.connect(_on_frame)
+
+
+func _exit_tree() -> void:
+	var sim: Node = get_node_or_null("/root/Sim")
+	if sim != null:
+		sim.debug_context = false
 
 
 func _parse_args() -> void:
@@ -71,11 +79,13 @@ func _parse_args() -> void:
 					_shot_frames = int(a[i + 1])
 			"--demo":
 				_demo = true
+			"--stage":
+				if i + 1 < a.size():
+					use_eindpunt = a[i + 1] == "eindpunt"
 
 
 func _on_frame(frame: int) -> void:
 	_frames_seen += 1
-	_update_camera(false)
 	if _shot_path != "" and _frames_seen == _shot_frames:
 		_save_shot()
 
@@ -115,6 +125,20 @@ func _input(event: InputEvent) -> void:
 				for f in fighters:
 					f.spawn(stage.get_spawn(f.player), 1 if f.player == 0 else -1)
 					f._update_visual()
+			KEY_F6:
+				use_eindpunt = not use_eindpunt
+				_build_stage()
+				for f in fighters:
+					f.stage = stage
+					f.spawn(stage.get_spawn(f.player), 1 if f.player == 0 else -1)
+					f._update_visual()
+				_setup_camera()
+				_update_hud()
+			KEY_F7:
+				var auto: bool = not fighters[0].auto_respawn
+				for f in fighters:
+					f.auto_respawn = auto
+				_update_hud()
 
 
 func _cycle(p: int) -> void:
@@ -127,26 +151,30 @@ func _update_hud() -> void:
 	var parts: PackedStringArray = PackedStringArray()
 	for f in fighters:
 		parts.append("P%d: %s (%s)" % [f.player + 1, f.stats.display_name, f.stats.reference.get_slice(" ", 0)])
-	hud.text = "%s     F3/F4 = archetype wisselen, F5 = reset, F1 = overlay, F2 = ECB, P = pauze, . = frame" % "   ".join(parts)
+	hud.text = "%s   [%s, KO: %s]     F3/F4 = archetype, F5 = reset, F6 = stage, F7 = KO-gedrag, F1 = overlay, F2 = ECB, P = pauze, . = frame" % [
+		"   ".join(parts), "Eindpunt" if use_eindpunt else "stub", "auto-respawn" if fighters[0].auto_respawn else "blijft weg"]
 
 
-func _update_camera(snap: bool) -> void:
-	if fighters.is_empty():
-		return
-	var r := Rect2(fighters[0].position, Vector2.ZERO)
-	for f in fighters:
-		r = r.expand(f.position)
-		r = r.expand(f.position + Vector2(0, -160))
-	r = r.grow(CAM_MARGIN_PX)
-	var vp: Vector2 = get_viewport_rect().size
-	var z: float = clampf(minf(vp.x / r.size.x, vp.y / r.size.y), CAM_MIN_ZOOM, CAM_MAX_ZOOM)
-	var goal_pos: Vector2 = r.get_center()
-	if snap:
-		camera.position = goal_pos
-		camera.zoom = Vector2(z, z)
+## (Her)bouwt de stage: SandboxStage-stub of de echte Eindpunt (engine/stage/stage.gd).
+func _build_stage() -> void:
+	if stage != null:
+		remove_child(stage)
+		stage.queue_free()
+	if use_eindpunt:
+		stage = (load(EINDPUNT_SCENE) as PackedScene).instantiate()
 	else:
-		camera.position = camera.position.lerp(goal_pos, 0.12)
-		camera.zoom = camera.zoom.lerp(Vector2(z, z), 0.06)
+		stage = SandboxStage.new()
+	add_child(stage)
+	move_child(stage, 0)
+
+
+func _setup_camera() -> void:
+	var targets: Array[Node2D] = []
+	for f in fighters:
+		targets.append(f)
+	camera.set_targets(targets)
+	camera.set_bounds_units(stage.get_camera_bounds())
+	camera.snap_next()
 
 
 func _save_shot() -> void:

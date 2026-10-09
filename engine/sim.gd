@@ -11,6 +11,9 @@ var frame: int = 0
 var paused: bool = false
 ## Debug-toggle (F2); de eigenlijke hitbox-weergave volgt in een latere mijlpaal.
 var debug_hitboxes: bool = false
+## Debug-toetsen (P = pauze, `.` = stap, Back = pauze, RB = stap) werken alleen als dit aan staat:
+## de sandbox en training zetten het aan. In menu's en in een gewone match is Start de pauze.
+var debug_context: bool = false
 
 var _entities: Array[Object] = []
 var _step_requested: bool = false
@@ -51,19 +54,23 @@ func _physics_process(_delta: float) -> void:
 
 func _advance() -> void:
 	InputManager.sample(frame)
-	var i: int = 0
-	while i < _entities.size():
-		var e: Object = _entities[i]
-		if is_instance_valid(e):
+	# Over een kopie lopen: een entity mag zich tijdens een tick afmelden of registreren zonder dat de
+	# volgorde van de rest van dit frame verschuift.
+	for e: Object in _entities.duplicate():
+		if is_instance_valid(e) and _entities.has(e):
 			e.sim_tick(frame)
-			i += 1
-		else:
-			_entities.remove_at(i)
+	var k: int = _entities.size() - 1
+	while k >= 0:
+		if not is_instance_valid(_entities[k]):
+			_entities.remove_at(k)
+		k -= 1
 	frame += 1
 	frame_advanced.emit(frame)
 
 
 func _input(event: InputEvent) -> void:
+	if not debug_context:
+		return
 	if event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
 			KEY_P:

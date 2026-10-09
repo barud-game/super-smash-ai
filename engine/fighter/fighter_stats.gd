@@ -124,3 +124,70 @@ func air_jump_velocity(index: int) -> float:
 	if index < air_jump_forces.size():
 		return air_jump_forces[index]
 	return jump_v_initial_velocity * air_jump_v_multiplier
+
+
+# =============================================================================================
+# Ledge (M2). Alle waarden ⚠️ tenzij anders vermeld; zie docs/movement.md, sectie "M2-implementatie".
+# =============================================================================================
+@export_group("Ledge")
+## Grab-box: de ledge moet binnen deze afstand vóór de fighter liggen (units, in kijkrichting). ⚠️
+@export var ledge_grab_front: float = 14.0
+## Zoveel units mag het midden van de fighter al voorbij (onder de stage) de rand zijn (nog geen muur-collision). ⚠️
+@export var ledge_grab_back: float = 4.0
+## Hoogte van de ledge boven de voeten (min..max) waarbinnen grabben kan. ⚠️
+@export var ledge_grab_y_min: float = 4.0
+@export var ledge_grab_y_max: float = 24.0
+## Hang-offset: voeten-midden staat `ledge_snap_x` buiten de rand en `visual_height * ledge_snap_y_ratio` eronder. ⚠️
+@export var ledge_snap_x: float = 6.0
+@export var ledge_snap_y_ratio: float = 0.85
+## CliffCatch-animatie in frames. ✅ 7 (Link 3)
+@export var ledge_catch_frames: int = 7
+## Extra intangible frames bovenop de catch-animatie (alleen bij de eerste grab na landen/geraakt). ✅ 30
+@export var ledge_grab_intangible: int = 30
+## Max hangtijd in frames: < 100% / ≥ 100%. ✅ 11 s / 8 s
+@export var ledge_max_hang_low: int = 660
+@export var ledge_max_hang_high: int = 480
+## Regrab-lock na zelf loslaten / na eraf getrokken worden (frames). ⚠️ 30 / 54 [S16]
+@export var ledge_cooldown: int = 30
+@export var ledge_hit_cooldown: int = 54
+## Ledge jump: horizontale snelheid richting de stage en verticale snelheid als factor op jump_v_initial_velocity. ⚠️
+@export var ledge_jump_vx: float = 1.1
+@export var ledge_jump_vy_mult: float = 1.0
+## Per getup-optie en per variant (low = < 100%, high = ≥ 100%): frames (totale duur; bij "jump" = startup),
+## rise (frames omhoog langs de muur), dx (units de stage op), i0..i1 (intangible, 1 = eerste frame),
+## hit (frame van de hitbox; alleen "attack"). Leeg = LEDGE_OPTION_DEFAULTS. ⚠️ allemaal geschat.
+@export var ledge_options: Dictionary = {}
+
+const LEDGE_OPTION_DEFAULTS: Dictionary = {
+	"getup": {
+		"low": {"frames": 33, "rise": 15, "dx": 12.0, "i0": 1, "i1": 23},
+		"high": {"frames": 43, "rise": 20, "dx": 12.0, "i0": 1, "i1": 13},
+	},
+	"roll": {
+		"low": {"frames": 36, "rise": 10, "dx": 28.0, "i0": 1, "i1": 26},
+		"high": {"frames": 46, "rise": 14, "dx": 28.0, "i0": 1, "i1": 16},
+	},
+	"attack": {
+		"low": {"frames": 55, "rise": 15, "dx": 12.0, "i0": 1, "i1": 20, "hit": 25},
+		"high": {"frames": 70, "rise": 20, "dx": 12.0, "i0": 1, "i1": 10, "hit": 35},
+	},
+	"jump": {
+		"low": {"frames": 5, "rise": 0, "dx": 0.0, "i0": 1, "i1": 10},
+		"high": {"frames": 9, "rise": 0, "dx": 0.0, "i0": 1, "i1": 8},
+	},
+}
+
+
+## Parameters van een getup-optie ("getup", "roll", "attack", "jump") voor < 100% (high = false) of ≥ 100%.
+func ledge_option(kind: String, high: bool) -> Dictionary:
+	var tbl: Dictionary = ledge_options if ledge_options.has(kind) else LEDGE_OPTION_DEFAULTS[kind]
+	return tbl["high" if high else "low"]
+
+
+func ledge_max_hang(high: bool) -> int:
+	return ledge_max_hang_high if high else ledge_max_hang_low
+
+
+## Hang-offset t.o.v. de ledge: (x buiten de rand, y eronder, beide positief).
+func ledge_hang_depth() -> float:
+	return visual_height * ledge_snap_y_ratio

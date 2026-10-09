@@ -15,3 +15,7 @@ Visual/rig:
 Movement (M1, vergelijking met Melee-waarden per archetype; gescripte input, geen controller nodig):
 
     <godot_console> --headless --path . --script res://tests/test_movement.gd
+
+Ledge, teeter, KO-API en respawn (M2):
+
+    <godot_console> --headless --path . --script res://tests/test_ledge.gd
