@@ -21,6 +21,11 @@ Exacte stats worden in M1 ingevuld op basis van Melee-referentiewaarden.
 Elk archetype heeft ook een **standaard-moveset** (alle normals, al geprijsd en gebalanceerd).
 Een nieuw character begint daarmee; alleen afwijkende moves worden opnieuw geprijsd.
 
+### Lengte
+Elk character heeft een `visual_height` (vloer tot kruin, Melee-units). Toegestaan: **8–30 units** (archetypes: 11–19).
+Groot zijn is een eigen nadeel (grotere hurtbox) en kost niets. **Kleiner dan het archetype** maakt je moeilijker te raken
+en kost **−2 per unit** onder de archetype-lengte. Alle systemen (ledge, hitboxes, hurtboxes, VFX) schalen mee met de lengte.
+
 ## 2. Aanvullingen op movement (kosten punten)
 
 Spelers mogen aanvullen. Een aanvulling kost punten, een nadeel levert punten op.
