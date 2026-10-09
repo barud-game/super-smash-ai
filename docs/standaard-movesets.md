@@ -130,3 +130,19 @@ Snelst van allemaal, zwak, klein bereik, veilig.
 | bthrow | 3/1 | 4 | |
 | uthrow | 3/1 | 4 | |
 | dthrow | 4/1 | 5 | |
+
+## Afspraken voor alle movesets (director)
+Gelden voor archetypes én characters. De validator controleert ze.
+
+1. **Hoeken** zijn relatief aan de kijkrichting (0° = vooruit, 90° = omhoog). Een move die naar
+   **achteren** lanceert heeft een hoek > 90° (bv. bthrow 135°, achterkant van dsmash 135° of 160°).
+   Standaard throws: fthrow 45°, **bthrow 135°**, uthrow 90°, dthrow 80° (combo-throws 70–85°).
+2. **Grab-whiff:** totale duur = laatste actieve frame + 23 (dash grab later: +7). Grab heeft geen Veiligheid-score.
+3. **Throws:** de launch-hitbox zit op de vasthoudpositie = de punt van de grab-hitbox, radius 3.0.
+   Launch-frame = round(totaal × 0.5). Geen Bereik/Veiligheid-score.
+4. **Pummel** staat niet in MoveData; komt in de grab-logica (M4), standaard 2–3 damage.
+5. **Sourspot** = round(0.7 × damage) (half omhoog), BKB −10. Shieldstun voor de veiligheid-berekening gebruikt de sourspot.
+6. **Multi-hit:** groep 0 = de kleine hits (d 1–2, BKB ≤ 10, hoek 361 of naar de laatste hit toe), laatste groep = de finisher met de Kracht-waarde.
+7. **"Sterk begin, zwak einde"** (sex kick): zelfde positie, twee frame-blokken; late blok = sourspot-regel.
+8. **Hoogtes:** horizontale moves op ~55% van `visual_height`, lage moves (dtilt/dsmash) op y=2, aerials op ~50%,
+   omhoog/omlaag gemeten vanaf de voeten.
