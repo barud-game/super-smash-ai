@@ -8,9 +8,17 @@
   volgens `docs/verificatie.md` — allemaal gecommit. ~2.300 headless checks over 15 suites slagen.
 - **Wacht op gebruiker:** speeltest ledges + M4 (shield/grabs); akkoord op **Captain Pep**
   (`characters/_concepten/captain_pep/ontwerp.md`: hamburger-neutral-B, racefiets-side-B, taunt "DA'S PAS SPUL!").
+- **Captain Pep (2026-10-10):** akkoord; klaar en gecommit: character.json, scores.json (194/200), art + props
+  (`art/props/props.json` met pivots), KO-effect, Jitter Knee (fair), taunt "DA'S PAS SPUL!" (gecontroleerd op screenshot).
+  **Nog te doen: zijn 4 specials** → `special-builder` in `characters/captain_pep/specials/` volgens `ontwerp.md`:
+  neutral `Last Shot` (dash_strike afstand 0; prop-events hamburger in hand_r + zoutvaatje in hand_l tijdens de startup,
+  eetpose, dan klap), side `Panic Rush` (dash_strike; prop `racefiets` under_feet tijdens de move), up `Grabby Hands`
+  (rising_multi + command_grab, paarse vonkenwolk), down `Stumble Kick` (stall_fall). Daarna validator, tests,
+  screenshots (na waarschuwing), commit, M7 ✅.
+- **Andere chat** bouwt tegelijk **Sonny Daylight** (`characters/sonny_daylight/`). Commit elkaars bestanden niet.
+- **Kleine bug:** sandbox-label toont het archetype van P2 verkeerd bij `--p1 <id>` (dummy staat als Fast-faller).
 - **Volgende:**
-  1. **M7 Captain Pep** bouwen na akkoord (svg-artist, normals-builder voor Jitter Knee, specials als sjabloon-config,
-     ko-effect-builder; props hamburger + racefiets).
+  1. **M7 Captain Pep afmaken** (specials, zie hierboven).
   2. **Special-VFX:** `VfxLayer.spawn_special_fx(...)` bestaat nog niet (events staan nu alleen in `SpecialKit.fx_log`).
   3. **Intercept-hook in `CombatSystem`** voor armor tegen grabs en buff-`damage_dealt_mult` op normals.
   4. Rest-⚠️ uit `docs/verificatie.md` (❓-punten), attacker-pushback op shield, shield-tilt.
