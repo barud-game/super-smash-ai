@@ -61,6 +61,8 @@ command grab, teleport, etc.
 De conversie van scores naar concrete frame data, hitboxen en knockback staat in `docs/move-conversie.md`.
 
 **Throws** scoren alleen op Snelheid en Kracht (max 10); Bereik en Veiligheid tellen niet mee.
+**Grab** scoort alleen op Snelheid en Bereik (max 10). De standaard-movesets per archetype staan in
+`docs/standaard-movesets.md` (normals ~140 punten, dus ~60 over voor specials en aanvullingen).
 
 **Kosten van een move = som van de assen.** Een "gemiddelde" move kost ~8. De 22 moves samen,
 plus de movement-aanvullingen, moeten **≤ 200** uitkomen.
