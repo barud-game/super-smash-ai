@@ -1,0 +1,10 @@
+{
+  "id": "sonny_daylight",
+  "name": "Sonny Daylight",
+  "archetype": "Fast-faller",
+  "op": false,
+  "visual_height": 14.0,
+  "tagline": "Vampierjager met een zilveren sabel en een grap voor elke beet.",
+  "taunt_text": "Is dit ding aan?",
+  "colors": { "primary": "#d9a521", "secondary": "#5b2a86", "accent": "#c9ced6" }
+}
