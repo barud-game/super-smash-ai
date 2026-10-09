@@ -15,7 +15,7 @@ Je maakt het KO-effect van één character in Super Smash AI (Godot 4.6, GDScrip
 - Duur en grootte binnen de grenzen uit de specificatie; het effect moet uit de blast zone de stage in wijzen.
 - Gebruik de kleuren en sfeer van het character (vuur, ijs, bloemblaadjes, glitch, ...). Origineel, geen logo's of merken.
 - Bestanden alleen in `characters/<id>/ko_effect/`.
-- Verifieer: geen errors headless, en render een preview met de preview-tool; bekijk die en verbeter.
+- Verifieer: geen errors headless. Lever het preview-commando (preview-tool) aan; de director draait het.
 - Niet committen.
 
 ## Rapporteer terug

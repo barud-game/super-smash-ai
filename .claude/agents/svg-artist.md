@@ -16,8 +16,8 @@ Je tekent het uiterlijk van één character als SVG-onderdelen voor Super Smash 
   "ongeveer". Pak de sfeer (bv. "vampierjager in lange jas") en maak er iets eigens van.
 - Platte, duidelijke vormen met een donkere outline; leesbaar op klein formaat; duidelijk silhouet.
 - Exact de onderdelen en pivots uit de rig-spec, anders kloppen de animaties niet.
-- **Render een preview** (het preview-script uit de rig, of Godot headless screenshot) naar PNG,
-  bekijk die met Read, en verbeter tot het er goed uitziet. Lever de preview mee.
+- **Lever het preview-commando aan** (preview-script uit de rig) met het PNG-pad; de director draait het
+  en geeft je de PNG terug om te bekijken (Read) en te verbeteren.
 - Niet committen.
 
 ## Rapporteer terug
