@@ -3,28 +3,24 @@
 ## Huidige status
 > Bijwerken aan het eind van elke sessie.
 
-- **Fase:** M1 movement ✅ (gebruiker: "het werkt allemaal"; fast fall op verzoek losser). Volgende: combat afmaken (M3) en ledges (M2).
-- **Laatste sessie (2026-10-08):** planning, agents, M0, M1, rig, stage, SFX, menu's. Speeltest 1: dash-dance te strikt,
-  fast fall bij short hop faalde, run turnaround bleef hangen → opgelost met Xbox-leniency (`DASH_FLICK_WINDOW=4`,
-  `FAST_FALL_BUFFER=6`, `RUN_TURN_DEBOUNCE=5` in `melee_stick.gd`). Wavedash, platform drop, run, walk, hops: goed.
-- **Onaf:** `engine/combat/` (M3-kernmodules: MoveData, HitboxData, Knockback, HitResolver, hitbox_draw) — agent werd
-  afgebroken; bestanden staan er (niet gecommit), `tests/test_combat.gd` en `docs/combat.md` ontbreken nog. Afmaken + reviewen.
-- **Tweede controller** nog niet bevestigd door de gebruiker.
-- **Code-overzicht:** `engine/sim.gd` (klok, frame advance), `engine/input/` (InputManager, MeleeStick,
-  InputFrame, InputHistory), `engine/units.gd` (UNIT_TO_PX = 7), `ui/debug_overlay/`, `scenes/sandbox.tscn`,
-  tests: zie `tests/README.md`.
-- **Ook al gebouwd (vooruit op M2/M6):** SVG-rig + dummy (`engine/visual/`, `docs/rig.md`), stage Eindpunt + camera
-  (`engine/stage/`, `engine/camera/`, `docs/stage.md`), SFX (`engine/audio/`, `docs/audio.md`), menu-schil
-  (`ui/`, `engine/roster/`, `docs/ui.md`). Ontwerp: `docs/special-sjablonen.md`, `docs/move-conversie.md`.
+- **Fase (2026-10-09):** M0 ✅, M1 ✅, M2 ledges gebouwd (117 tests), M6 wedstrijd gebouwd (89 tests).
+  Bezig: M3-integratie in de fighter (aanvallen, hitstun, tumble, tech, L-cancel, hitfall, VFX/SFX-hooks),
+  movesets gelijktrekken tot de validator slaagt, VFX aansluiten op de wedstrijd.
+- **Volgende:** M4 verdediging (shield, rolls, spotdodge, grabs/pummel/throws), special-sjablonen/toolkit,
+  dan M7: eerste character **Kade Torque** (voorstel in `characters/kade/ontwerp.md`, wacht op akkoord gebruiker).
+- **Gebouwd (overzicht):** sim + input (`engine/sim.gd`, `engine/input/`), fighter + states (`engine/fighter/`),
+  combat-modules (`engine/combat/`, `docs/combat.md`), rig + poses (`engine/visual/`, `docs/rig.md`),
+  stage Eindpunt + camera, SFX, VFX (`docs/vfx.md`), menu's + character select, wedstrijd/HUD/results/training
+  (`engine/match/`, `ui/`), validator (`tools/validator/`, `docs/validator.md`), standaard-movesets
+  (`engine/fighter/archetypes/*/moves/`, `docs/standaard-movesets.md`). Tests: `tests/README.md`.
+- **Speeltest-historie:** M1 test 1 → Xbox-leniency (dash-flick 4, fast-fall-buffer 6, run-turn-debounce 5).
+  Fast fall: Rivals-aanpak (Melee + hitfall). Characters verkleind naar Melee-formaat (`visual_height` per archetype).
 - **Open punten:**
-  - ⚠️-waarden in `docs/movement.md` verifiëren; F2-hitboxweergave is nog een lege hook.
-  - `Sim` pauzeert op de P-toets, ook in menu's/zoekveld (nu omzeild met `MenuNav.keep_sim_running()`): debug-toetsen
-    in `Sim` alleen tijdens een match/sandbox laten werken.
-  - Y en B zijn allebei `BTN_JUMP`, dus beide = "terug" in menu's. Prima voor nu.
-  - `Settings.sfx_volume` wordt nog niet door `Sfx` toegepast. Geen code roept `Sfx` al aan in gameplay.
-  - Stage: camera bounds en spawns zijn ⚠️ geschat. Ledge-snap-logica hoort bij de fighter (M2).
-  - SFX moeten nog op het gehoor beoordeeld worden door de gebruiker.
-- **Volgende stap:** feedback speeltest M1 verwerken; ledge-mechaniek (M2) en combat-kern (M3) starten. Sandbox: main menu → Sandbox (debug), F3/F4 = archetype wisselen, F5 = reset.
+  - ⚠️-waarden in `docs/movement.md`, `docs/combat.md`, `docs/stage.md` (camera bounds/spawns), respawn-timings.
+  - Y en B zijn allebei `BTN_JUMP` (beide = terug in menu's). D-pad zit niet in `InputFrame` (training leest hem direct).
+  - Gebruiker moet nog: tweede controller bevestigen, SFX op het gehoor beoordelen, ledges + wedstrijd speeltesten.
+  - Sommige aerial-poses (fair/dair) mogen dynamischer.
+- **Sandbox:** main menu → Sandbox (debug). F3/F4 archetype, F5 reset, F6 stub/Eindpunt, F7 auto-respawn.
 
 ## Besluiten
 - **Visuals:** SVG's (Godot importeert ze native). Characters zijn originele ontwerpen.
