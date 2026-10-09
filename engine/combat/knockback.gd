@@ -17,6 +17,11 @@ const SDI_DISTANCE: float = 6.0
 const ASDI_DISTANCE: float = 3.0
 const SDI_THRESHOLD: float = 0.7
 const ELECTRIC_HITLAG: float = 1.5
+const CROUCH_HITLAG_FACTOR: float = 2.0 / 3.0
+const MAX_HITLAG: int = 20
+const SMASH_CHARGE_VICTIM_FACTOR: float = 1.2
+const SHIELD_ANALOG_MIN: float = 0.3   ## shieldstun: analoge stand s wordt genormaliseerd met (s - 0.3) / 0.7
+const SHIELD_ANALOG_RANGE: float = 0.7
 
 
 ## KB = ((((p/10 + p*d/20) * 200/(w+100) * 1.4) + 18) * g/100) + b.  p = percentage NA de hit.
@@ -55,29 +60,43 @@ static func resolve_angle(angle: float, kb: float, grounded: bool) -> float:
 	return SAKURAI_AIR
 
 
-## Hitlag in frames: floor((d/3 + 3) * element-mult * hitbox-mult). Alleen electric heeft een element-multiplier.
-static func hitlag_frames(damage: float, element: int = HitboxData.Element.NORMAL, hitlag_mult: float = 1.0) -> int:
+## Hitlag in frames (ftCommon_CalcHitlag): int(int(dmg/3 + 3) * mul), dmg = integer damage, cap 20.
+## Alleen het SLACHTOFFER (victim) krijgt de electric-multiplier (1.5) en, als het hurkt, x2/3; de aanvaller m = hitbox-mult.
+static func hitlag_frames(damage: float, element: int = HitboxData.Element.NORMAL, hitlag_mult: float = 1.0,
+		victim: bool = false, crouching: bool = false) -> int:
 	var m: float = hitlag_mult
-	if element == HitboxData.Element.ELECTRIC:
-		m *= ELECTRIC_HITLAG
-	return int(floor((damage / 3.0 + 3.0) * m))
+	if victim:
+		if element == HitboxData.Element.ELECTRIC:
+			m *= ELECTRIC_HITLAG
+		if crouching:
+			m *= CROUCH_HITLAG_FACTOR
+	var base: int = int(floor(float(int(damage)) / 3.0 + 3.0))
+	return mini(int(floor(float(base) * m)), MAX_HITLAG)
 
 
-## Shieldstun: floor(200/201 * (d * (0.65*(1-a) + 0.3) * 1.5 + 2)); a = analoge shield-stand 0..1.
+## Genormaliseerde analoge shield-stand voor shieldstun: (s - 0.3) / 0.7, geklemd 0..1.
+static func shield_norm(analog: float) -> float:
+	return clampf((analog - SHIELD_ANALOG_MIN) / SHIELD_ANALOG_RANGE, 0.0, 1.0)
+
+
+## Shieldstun: floor(200/201 * (d * (0.65*(1-a) + 0.3) * 1.5 + 2)); a = shield_norm(s), s = ruwe analoge stand
+## (digitaal/vol = 1 -> a = 1). Lichtste shield (s ~ 0.307) geeft factor ~0.95.
 static func shieldstun_frames(damage: float, analog: float = 1.0) -> int:
-	var a: float = clampf(analog, 0.0, 1.0)
+	var a: float = shield_norm(analog)
 	return int(floor(200.0 / 201.0 * (damage * (0.65 * (1.0 - a) + 0.3) * 1.5 + 2.0)))
 
 
 ## Complete berekening voor één treffer. facing = kijkrichting van de aanvaller (+1/-1).
 static func compute(hb: HitboxData, damage: float, target_percent: float, weight: float,
-		grounded: bool, crouching: bool, facing: int) -> KnockbackResult:
+		grounded: bool, crouching: bool, facing: int, victim_charging: bool = false) -> KnockbackResult:
 	var r := KnockbackResult.new()
 	var kb: float = raw_kb(target_percent + damage, damage, weight, hb.kb_growth, hb.base_kb, hb.set_kb)
 	r.set_kb = hb.set_kb > 0.0
 	if grounded and crouching:
 		kb *= CROUCH_CANCEL_FACTOR
 		r.crouch_cancelled = true
+	if victim_charging:
+		kb *= SMASH_CHARGE_VICTIM_FACTOR   # slachtoffer laadt een smash op (kb_smashcharge_mul)
 	r.kb = kb
 	r.hitstun = hitstun_frames(kb)
 	r.speed = launch_speed(kb)
@@ -92,8 +111,8 @@ static func compute(hb: HitboxData, damage: float, target_percent: float, weight
 	return r
 
 
-## Directional influence: draait de launch-richting met maximaal 18 graden, evenredig met de component
-## van de stick loodrecht op de launch (stick in [-1,1]^2, y omhoog). Grootte blijft gelijk.
+## Directional influence (ftCo_8008E5A4): de launch-richting draait 18 graden x c*|c|, c = stickcomponent loodrecht
+## op de launch (kwadratisch, teken behouden; halve stick = 1/4 effect). Stick in [-1,1]^2, y omhoog. Grootte blijft gelijk.
 static func apply_di(launch_vel: Vector2, stick: Vector2) -> Vector2:
 	var len: float = launch_vel.length()
 	if len <= 0.0:
@@ -101,7 +120,7 @@ static func apply_di(launch_vel: Vector2, stick: Vector2) -> Vector2:
 	var dir: Vector2 = launch_vel / len
 	var perp: Vector2 = Vector2(-dir.y, dir.x)
 	var c: float = clampf(stick.dot(perp), -1.0, 1.0)
-	return dir.rotated(deg_to_rad(MAX_DI_DEG * c)) * len
+	return dir.rotated(deg_to_rad(MAX_DI_DEG * c * absf(c))) * len
 
 
 ## Hoekverandering (graden, + = tegen de klok in) die apply_di zou geven.
@@ -109,19 +128,20 @@ static func di_angle_delta(launch_vel: Vector2, stick: Vector2) -> float:
 	if launch_vel.length() <= 0.0:
 		return 0.0
 	var perp: Vector2 = Vector2(-launch_vel.y, launch_vel.x).normalized()
-	return MAX_DI_DEG * clampf(stick.dot(perp), -1.0, 1.0)
+	var c: float = clampf(stick.dot(perp), -1.0, 1.0)
+	return MAX_DI_DEG * c * absf(c)
 
 
 ## SDI: tijdens hitlag, op het frame dat de stick vanuit < 0.7 naar >= 0.7 beweegt (flick) verschuift de
-## fighter 6 units in de stickrichting. Geeft de positie-offset (units, y omhoog) of Vector2.ZERO.
+## fighter stick x 6 units (NIET genormaliseerd: stick 0.7 -> 4.2 units). Geeft de positie-offset (units, y omhoog) of Vector2.ZERO.
 static func sdi_offset(prev_stick: Vector2, stick: Vector2) -> Vector2:
 	if stick.length() >= SDI_THRESHOLD and prev_stick.length() < SDI_THRESHOLD:
-		return stick.normalized() * SDI_DISTANCE
+		return stick * SDI_DISTANCE
 	return Vector2.ZERO
 
 
 ## ASDI: op het laatste hitlag-frame, stick >= 0.7 vastgehouden: 3 units in de stickrichting.
 static func asdi_offset(stick: Vector2) -> Vector2:
 	if stick.length() >= SDI_THRESHOLD:
-		return stick.normalized() * ASDI_DISTANCE
+		return stick * ASDI_DISTANCE
 	return Vector2.ZERO

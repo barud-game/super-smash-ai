@@ -123,7 +123,12 @@ func _test_di() -> void:
 	var dn: Vector2 = Knockback.apply_di(v, Vector2(0, -1))
 	_check("DI andere kant -18", _near(rad_to_deg(dn.angle()), -18.0, 0.001))
 	_check("DI nooit meer dan 18 (overshoot)", absf(Knockback.di_angle_delta(v, Vector2(0, 5))) <= 18.0)
-	_check("DI half stick = 9 graden", _near(Knockback.di_angle_delta(v, Vector2(0, 0.5)), 9.0, 0.001))
+	_check("DI half stick = 4.5 graden (kwadratisch)", _near(Knockback.di_angle_delta(v, Vector2(0, 0.5)), 4.5, 0.001))
+	_check("DI half stick omlaag = -4.5 (teken blijft)", _near(Knockback.di_angle_delta(v, Vector2(0, -0.5)), -4.5, 0.001))
+	_check("DI apply_di half stick = 4.5 graden", _near(rad_to_deg(Knockback.apply_di(v, Vector2(0, 0.5)).angle()), 4.5, 0.001))
+	_check("SDI stick 0.8 = 4.8 units (niet genormaliseerd)", Knockback.sdi_offset(Vector2.ZERO, Vector2(0.8, 0)).is_equal_approx(Vector2(4.8, 0)))
+	_check("SDI diagonaal = stick x 6", Knockback.sdi_offset(Vector2.ZERO, Vector2(0.75, 0.75)).is_equal_approx(Vector2(4.5, 4.5)))
+	_check("ASDI stick 0.8 = 2.4 units", Knockback.asdi_offset(Vector2(0, -0.8)).is_equal_approx(Vector2(0, -2.4)))
 	_check("SDI flick = 6 units", Knockback.sdi_offset(Vector2.ZERO, Vector2(1, 0)).is_equal_approx(Vector2(6, 0)))
 	_check("SDI vastgehouden stick = niets", Knockback.sdi_offset(Vector2(1, 0), Vector2(1, 0)) == Vector2.ZERO)
 	_check("ASDI = 3 units", Knockback.asdi_offset(Vector2(0, -1)).is_equal_approx(Vector2(0, -3)))
@@ -133,8 +138,38 @@ func _test_di() -> void:
 func _test_hitlag_shieldstun() -> void:
 	_check("hitlag d=4 -> 4", Knockback.hitlag_frames(4.0) == 4)
 	_check("hitlag d=20 -> 9", Knockback.hitlag_frames(20.0) == 9)
-	_check("hitlag electric x1.5 (d=20 -> 14)", Knockback.hitlag_frames(20.0, HitboxData.Element.ELECTRIC) == 14)
+	_check("hitlag electric: aanvaller geen x1.5 (d=20 -> 9)", Knockback.hitlag_frames(20.0, HitboxData.Element.ELECTRIC) == 9)
+	_check("hitlag electric slachtoffer int(9*1.5) = 13", Knockback.hitlag_frames(20.0, HitboxData.Element.ELECTRIC, 1.0, true) == 13)
 	_check("hitlag mult 0.5", Knockback.hitlag_frames(20.0, HitboxData.Element.NORMAL, 0.5) == 4)
+	_check("hitlag integer damage (3.9 -> 3 -> 4)", Knockback.hitlag_frames(3.9) == 4 and Knockback.hitlag_frames(5.9) == 4 and Knockback.hitlag_frames(6.0) == 5)
+	_check("hitlag crouch slachtoffer x2/3 (d=20: int(9*2/3)=6)", Knockback.hitlag_frames(20.0, HitboxData.Element.NORMAL, 1.0, true, true) == 6)
+	_check("hitlag crouch telt niet voor aanvaller", Knockback.hitlag_frames(20.0, HitboxData.Element.NORMAL, 1.0, false, true) == 9)
+	_check("hitlag cap 20", Knockback.hitlag_frames(60.0, HitboxData.Element.ELECTRIC, 1.0, true) == 20 and Knockback.hitlag_frames(90.0) == 20)
+	_check("hitlag vlak onder cap: d=45 -> 18", Knockback.hitlag_frames(45.0) == 18)
+	# Resolver: slachtoffer-hitlag apart van aanvaller-hitlag
+	var el: HitboxData = _hb(0, Vector2.ZERO, 3.0, 20.0)
+	el.element = HitboxData.Element.ELECTRIC
+	var tv := _target(2)
+	var er: HitResolver.Result = _res([_ah(el, 1, 1, Vector2(0, 8))], [tv])
+	_check("resolver: electric aanvaller 9, slachtoffer 13", er.hits.size() == 1 and er.hits[0].attacker_hitlag == 9 and er.hits[0].defender_hitlag == 13)
+	var tc := _target(2)
+	tc.crouching = true
+	var cr: HitResolver.Result = _res([_ah(_hb(0, Vector2.ZERO, 3.0, 20.0), 1, 1, Vector2(0, 8))], [tc])
+	_check("resolver: crouching slachtoffer 6, aanvaller 9", cr.hits.size() == 1 and cr.hits[0].attacker_hitlag == 9 and cr.hits[0].defender_hitlag == 6)
+	# Shieldstun analoog: (s - 0.3)/0.7
+	_check("shield_norm", _near(Knockback.shield_norm(1.0), 1.0, 0.0001) and _near(Knockback.shield_norm(0.65), 0.5, 0.0001) and Knockback.shield_norm(0.2) == 0.0)
+	_check("shieldstun s=0.65 d=20: a=0.5", Knockback.shieldstun_frames(20.0, 0.65) == int(floor(200.0 / 201.0 * (20.0 * (0.65 * 0.5 + 0.3) * 1.5 + 2.0))))
+	_check("shieldstun s=0.307 factor ~0.95 (d=20)", Knockback.shieldstun_frames(20.0, 0.307) == int(floor(200.0 / 201.0 * (20.0 * (0.65 * 0.99 + 0.3) * 1.5 + 2.0))))
+	# Smash-charge x1.2 voor het slachtoffer
+	var ch: HitboxData = _hb_kb(60.0)
+	var k0: KnockbackResult = Knockback.compute(ch, 1.0, 0.0, 100.0, false, false, 1)
+	var k1: KnockbackResult = Knockback.compute(ch, 1.0, 0.0, 100.0, false, false, 1, true)
+	_check("charging slachtoffer KB x1.2", _near(k1.kb, k0.kb * 1.2, 0.0001) and k1.hitstun >= k0.hitstun)
+	var tch := _target(2)
+	tch.charging = true
+	var chr: HitResolver.Result = _res([_ah(_hb(0, Vector2.ZERO, 3.0, 20.0), 1, 1, Vector2(0, 8))], [tch])
+	var chn: HitResolver.Result = _res([_ah(_hb(0, Vector2.ZERO, 3.0, 20.0), 1, 1, Vector2(0, 8))], [_target(2)])
+	_check("resolver geeft CombatTarget.charging door", chr.hits.size() == 1 and _near(chr.hits[0].knockback.kb, chn.hits[0].knockback.kb * 1.2, 0.0001))
 	for d in [4.0, 10.0, 13.0, 20.0, 24.0]:
 		_check("shieldstun d=%d volle shield = floor(0.448d+2)" % int(d), Knockback.shieldstun_frames(d, 1.0) == int(floor(0.448 * d + 2.0)))
 	_check("lichte shield = meer shieldstun", Knockback.shieldstun_frames(20.0, 0.0) > Knockback.shieldstun_frames(20.0, 1.0))

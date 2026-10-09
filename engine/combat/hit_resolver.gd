@@ -64,8 +64,8 @@ static func resolve(active: Array[ActiveHitbox], targets: Array[CombatTarget], a
 			ev.hitbox = a
 			ev.other_hitbox = b
 			ev.attacker_hitlag = Knockback.hitlag_frames(a.damage, a.data.element, a.data.hitlag_mult)
-			ev.defender_hitlag = Knockback.hitlag_frames(b.damage, b.data.element, b.data.hitlag_mult)
-			var diff: float = a.damage - b.damage
+			ev.defender_hitlag = Knockback.hitlag_frames(b.damage, b.data.element, b.data.hitlag_mult)   # clank: beide aanvallers, geen electric
+			var diff: float = floorf(a.damage) - floorf(b.damage)   # integer damage (Melee)
 			if absf(diff) >= CLANK_DAMAGE_DIFF:
 				if diff > 0.0:
 					ev.defender_rebounds = true
@@ -121,7 +121,7 @@ static func resolve(active: Array[ActiveHitbox], targets: Array[CombatTarget], a
 			ev.key = gkey
 			ev.damage = h.damage
 			ev.attacker_hitlag = Knockback.hitlag_frames(h.damage, d.element, d.hitlag_mult)
-			ev.defender_hitlag = ev.attacker_hitlag
+			ev.defender_hitlag = Knockback.hitlag_frames(h.damage, d.element, d.hitlag_mult, true, t.crouching)
 			if shielded:
 				ev.kind = HitEvent.Kind.SHIELD
 				ev.shield_stun = Knockback.shieldstun_frames(h.damage, t.shield_analog)
@@ -129,6 +129,6 @@ static func resolve(active: Array[ActiveHitbox], targets: Array[CombatTarget], a
 			else:
 				ev.kind = HitEvent.Kind.HIT
 				ev.attacker_hitfall_allowed = true
-				ev.knockback = Knockback.compute(d, h.damage, t.percent, t.weight, t.grounded, t.crouching, h.facing)
+				ev.knockback = Knockback.compute(d, h.damage, t.percent, t.weight, t.grounded, t.crouching, h.facing, t.charging)
 			res.hits.append(ev)
 	return res
