@@ -54,6 +54,7 @@ Per grond-/luchtmove, tegen de score (exacte tabelwaarde, geen interpolatie):
 - **Sanity**: ≥ 1 hitbox; frames binnen `total_frames`/iasa; geen negatieve waarden/NaN; radius > 0; `total_frames` ≥ 10; offsets voor facing = +1
   (vooruit-moves niet achter de fighter, bair niet ervoor); aerials hebben `aerial=true` en landing lag, grondmoves niet; unieke hitbox-id's (WARN).
 - **Scores**: alle assen aanwezig en in 0..5, niet alles 0, niet S/K/B/V alle vijf (specials: U 0..10; alles-0 incl. U).
+- **Special-definities** (`characters/<id>/specials/<slot>.tres`, regel `special_def/<slot>`): sjablonen, parameterbereiken, director-besluiten en scores tegen de prijs-richtlijn; zie `docs/specials.md` §5 (`special_validator.gd`, `special_table.gd`).
 
 ## Afspraken van de director (`docs/standaard-movesets.md`)
 

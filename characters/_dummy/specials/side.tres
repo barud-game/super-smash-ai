@@ -1,0 +1,44 @@
+[gd_resource type="Resource" script_class="SpecialDef" format=3]
+
+[ext_resource type="Script" path="res://engine/combat/hitbox_data.gd" id="1_mrtmu"]
+[ext_resource type="Script" path="res://engine/specials/special_def.gd" id="2_t7byi"]
+
+[sub_resource type="Resource" id="Resource_blcya"]
+script = ExtResource("1_mrtmu")
+end_frame = -1
+offset = Vector2(5, 7.5)
+radius = 5.0
+damage = 8.0
+angle = 40.0
+base_kb = 40.0
+kb_growth = 70.0
+
+[resource]
+script = ExtResource("2_t7byi")
+slot = "side"
+display_name = "Plankstoot"
+templates = Array[String](["dash_strike"])
+params = {
+"cliff_stop": false,
+"dash_frames": 22,
+"dash_gravity": 0.0,
+"dash_speed": 3.5,
+"endlag": 22,
+"ends_with": "slide",
+"hitbox_mode": "first_contact_stop",
+"startup": 12
+}
+hitboxes = {
+"dash": Array[ExtResource("1_mrtmu")]([SubResource("Resource_blcya")])
+}
+helpless_after = true
+landing_lag = 15
+ledge_snap = "during"
+air_use_limit = 1
+scores = {
+"B": 2,
+"K": 2,
+"S": 3,
+"U": 4,
+"V": 2
+}

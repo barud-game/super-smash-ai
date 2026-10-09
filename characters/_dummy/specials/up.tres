@@ -1,0 +1,60 @@
+[gd_resource type="Resource" script_class="SpecialDef" format=3]
+
+[ext_resource type="Script" path="res://engine/combat/hitbox_data.gd" id="1_vfro2"]
+[ext_resource type="Script" path="res://engine/specials/special_def.gd" id="2_7dg78"]
+
+[sub_resource type="Resource" id="Resource_lpalk"]
+script = ExtResource("1_vfro2")
+end_frame = -1
+offset = Vector2(0, 7.5)
+radius = 6.0
+damage = 1.5
+angle = 90.0
+base_kb = 20.0
+kb_growth = 0.0
+
+[sub_resource type="Resource" id="Resource_klqse"]
+script = ExtResource("1_vfro2")
+end_frame = -1
+offset = Vector2(0, 10)
+radius = 7.0
+damage = 6.0
+angle = 75.0
+base_kb = 40.0
+kb_growth = 90.0
+
+[resource]
+script = ExtResource("2_7dg78")
+slot = "up"
+display_name = "Wervelspaan"
+templates = Array[String](["rising_multi"])
+params = {
+"endlag": 24,
+"h_control": "x_only",
+"hits": 5,
+"interval": 5,
+"rise_angle": 70.0,
+"rise_curve": "decel",
+"rise_frames": 30,
+"rise_speed": 3.4,
+"startup": 5
+}
+hitboxes = {
+"finisher": Array[ExtResource("1_vfro2")]([SubResource("Resource_klqse")]),
+"multi": Array[ExtResource("1_vfro2")]([SubResource("Resource_lpalk")])
+}
+helpless_after = true
+landing_lag = 20
+ledge_snap = "during"
+air_use_limit = 1
+intangible = {
+"from": 0,
+"to": 3
+}
+scores = {
+"B": 2,
+"K": 2,
+"S": 5,
+"U": 5,
+"V": 1
+}

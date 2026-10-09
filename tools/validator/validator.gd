@@ -3,6 +3,7 @@ extends RefCounted
 ## Puur (geen SceneTree nodig); validate.gd is de CLI eromheen.
 
 const CT := preload("res://tools/validator/conversion_table.gd")
+const SV := preload("res://tools/validator/special_validator.gd")
 
 const ARCHETYPES_DIR := "res://engine/fighter/archetypes"
 const CHARACTERS_DIR := "res://characters"
@@ -686,6 +687,7 @@ func validate_character(id: String) -> Dictionary:
 		var r5 := _new_result(scope, "special/" + str(k), specials[k])
 		_check_special(r5, str(k), specials[k])
 		out["results"].append(_finish(r5))
+	_validate_special_defs(out, scope, base, specials)
 	var extras: Dictionary = {}
 	var ex: Variant = cs.get("movement_extras", {})
 	if ex is Dictionary:
@@ -719,3 +721,36 @@ static func _check_special(res: Dictionary, name: String, s: Dictionary) -> void
 		_add(res, "fail", "alle assen 0")
 	if all_five:
 		_add(res, "fail", "S/K/B/V allemaal 5")
+
+
+## Special-definities (`characters/<id>/specials/<slot>.tres`): special_validator.gd, plus: scores in de .tres en in
+## scores.json (`<slot>_b`) gelijk (WARN), en minstens één recovery (WARN). Zie docs/specials.md.
+func _validate_special_defs(out: Dictionary, scope: String, base: String, json_specials: Dictionary) -> void:
+	var sv: RefCounted = SV.new()
+	var defs: Dictionary = {}
+	for slot: String in SpecialDef.SLOTS:
+		var path := "%s/specials/%s.tres" % [base, slot]
+		if not ResourceLoader.exists(path):
+			continue
+		var r: Resource = ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE)
+		if not (r is SpecialDef):
+			var bad := _new_result(scope, "special_def/" + slot, {})
+			_add(bad, "fail", "%s is geen SpecialDef" % path)
+			out["results"].append(_finish(bad))
+			continue
+		var d: SpecialDef = r
+		defs[slot] = d
+		var res: Dictionary = sv.validate_def(scope, d)
+		var js: Variant = json_specials.get(slot + "_b")
+		if js is Dictionary:
+			for a in ["S", "K", "B", "V", "U"]:
+				if int(js.get(a, -1)) != int(d.scores.get(a, -1)):
+					_add(res, "warn", "score %s in scores.json (%d) != %s.tres (%d)" % [a, int(js.get(a, -1)), slot,
+						int(d.scores.get(a, -1))])
+		out["results"].append(_finish(res))
+	if not defs.is_empty():
+		var w: String = SV.recovery_warning(defs)
+		if w != "":
+			var rr := _new_result(scope, "special_def/(recovery)", {})
+			_add(rr, "warn", w)
+			out["results"].append(_finish(rr))

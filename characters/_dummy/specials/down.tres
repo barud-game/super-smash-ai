@@ -1,0 +1,43 @@
+[gd_resource type="Resource" script_class="SpecialDef" format=3]
+
+[ext_resource type="Script" path="res://engine/combat/hitbox_data.gd" id="1_0ybvq"]
+[ext_resource type="Script" path="res://engine/specials/special_def.gd" id="2_77xut"]
+
+[sub_resource type="Resource" id="Resource_jg4pq"]
+script = ExtResource("1_0ybvq")
+end_frame = -1
+offset = Vector2(7, 8)
+radius = 8.0
+damage = 10.0
+angle = 40.0
+base_kb = 50.0
+kb_growth = 80.0
+
+[resource]
+script = ExtResource("2_77xut")
+slot = "down"
+display_name = "Knoestpareren"
+templates = Array[String](["counter"])
+params = {
+"counter_cap": 30.0,
+"counter_mult": 1.2,
+"startup": 6,
+"strike_active": 3,
+"strike_endlag": 20,
+"strike_startup": 4,
+"whiff_endlag": 30,
+"window_frames": 20
+}
+hitboxes = {
+"counter": Array[ExtResource("1_0ybvq")]([SubResource("Resource_jg4pq")])
+}
+vfx = {
+"strike": "counter_flash"
+}
+scores = {
+"B": 1,
+"K": 2,
+"S": 4,
+"U": 5,
+"V": 3
+}

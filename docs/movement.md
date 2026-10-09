@@ -355,3 +355,11 @@ Volledige beschrijving en alle waarden in `docs/combat.md`, sectie "M4-implement
 | Throw-richting | stick ≥ 0.6625 (dominante as) of verse C-stick | ⚠️ |
 | Grab-mash | elke nieuwe knop of verse stickrichting −6 frames van de grab-timer (90 + 1.7·%) | ⚠️ |
 | Special-hook | B; up/down ≥ 0.6625, side ≥ 0.6 (dominante as) | ⚠️ |
+
+## M5: specials (toolkit, zie docs/specials.md)
+- Special fall na een special: bestaande `FallSpecial` (drift × `special_fall_mobility`), landing lag per special (`SpecialDef.landing_lag`, vast, geen L-cancel). ⚠️ waarden per special.
+- Landen tijdens een special: in de startup gaat de move door op de grond; in actief/einde `landing_lag` of de resterende grond-endlag als die lager is (docs/special-sjablonen.md §0.3).
+- Ledge-snap door specials: grab-box + `ledge_snap_range`; tijdens stijgen alleen met de voeten onder de ledge ⚠️; specials grijpen ook achterwaarts ⚠️.
+- Per-airtime-limiet reset bij landen, ledge grab, geraakt worden, respawn en wall jump (director-besluit 10).
+- Solide blok onder een SOLID-segment: 30 units diep ⚠️ (teleport-doelen, projectielen).
+- Slot-drempels B: up/down vanaf stick-y ±0.6625, side vanaf |x| 0.6 ⚠️.
