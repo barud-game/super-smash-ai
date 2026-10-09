@@ -21,6 +21,7 @@ Zie `docs/character-creatie.md` en de skill `/nieuw-character`.
 | `docs/movement.md` | Melee-physics die we nabouwen (units, formules, timings) |
 | `docs/balans.md` | 200-puntensysteem, archetypes, prijsregels |
 | `docs/character-creatie.md` | Hoe het gesprek met een speler verloopt |
+| `docs/character-bouwen.md` | **Draaiboek**: van gesprek tot gebouwd character (start via `/nieuw-character`) |
 | `characters/<id>/` | Eén map per character (ontwerp + data + specials) |
 
 ## Kernregels voor de engine

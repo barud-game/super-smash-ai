@@ -1,6 +1,6 @@
 # Captain Pep — ontwerp
 
-**Status:** VOORSTEL — wacht op akkoord van de speler. Nog niet bouwen.
+**Status:** AKKOORD (2026-10-10) — in aanbouw.
 
 ## Concept
 Een uitgerangeerde straatracer die nooit meer van de pep af is gekomen. Hyperactief, trillerig en onvoorspelbaar,

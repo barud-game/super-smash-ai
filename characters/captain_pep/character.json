@@ -1,0 +1,10 @@
+{
+  "id": "captain_pep",
+  "name": "Captain Pep",
+  "archetype": "Fast-faller",
+  "op": false,
+  "visual_height": 14.0,
+  "tagline": "Uitgerangeerde straatracer. Nooit meer van de pep af gekomen.",
+  "taunt_text": "DA'S PAS SPUL!",
+  "colors": { "primary": "#7b2fbf", "secondary": "#7dff3a", "accent": "#1b1b1f" }
+}

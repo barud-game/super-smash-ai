@@ -1,24 +1,20 @@
 ---
 name: nieuw-character
-description: Start of hervat het gesprek waarin een speler een eigen Super Smash AI-character bedenkt, en implementeer het daarna. Gebruik als iemand een nieuw character wil maken of een bestaand character wil aanpassen.
+description: Start of hervat het gesprek waarin een speler een eigen Super Smash AI-character bedenkt, en bouw het daarna met agents. Gebruik als iemand een nieuw character wil maken of een bestaand character wil aanpassen.
 ---
 
 # Nieuw character maken
 
-1. Lees `CLAUDE.md`, `docs/character-creatie.md` en `docs/balans.md`.
-2. Bestaat `characters/<id>/` al? Lees `ontwerp.md` en ga verder waar het gebleven is.
-3. Check in `PLAN.md` welke onderdelen al bestaan (archetypes, sjablonen, skelet, validator).
-   Ontbreekt iets: voer het gesprek wel, sla `ontwerp.md` op, en zeg wat er nog niet gebouwd kan worden.
-4. Vraag: **"Wie wil je zijn?"** — en wacht op het antwoord.
-5. Doe meteen een **compleet voorstel**: naam, look, archetype (+aanvullingen), 4 specials in één zin,
-   afwijkende normals, puntentabel ≤ 200. Bekend personage genoemd → eigen variant met dezelfde sfeer.
-6. Stuur bij tot de speler akkoord geeft. Bij budgetproblemen: stel een ruil voor.
-7. Na akkoord:
-   - schrijf `ontwerp.md` en `stats.tres`; specials die in een sjabloon passen: configureer zelf
-   - start parallel: `svg-artist` voor het uiterlijk, `normals-builder` voor afwijkende normals,
-     `special-builder` per eigen special, `ko-effect-builder` voor het KO-effect
-   - meerdere characters in één chat: elk zijn eigen set agents, alles parallel
-   - bewust boven 200 (speler wil het)? `op = true`, wordt gemarkeerd op de character select
-   - review: bekijk de SVG-preview, lees de special-code
-   - draai de validator, los fouten op, werk `PLAN.md` bij, commit
-8. Laat de speler testen in training mode (reload-knop), pas aan op feedback.
+Volg **`docs/character-bouwen.md`** (het complete draaiboek). Kort:
+
+1. Lees `CLAUDE.md`, `PLAN.md`, `docs/character-bouwen.md`, `docs/character-creatie.md`, `docs/balans.md`.
+   Check `get_usage`.
+2. Bestaat er al `characters/<id>/` of `characters/_concepten/<id>/`? Lees `ontwerp.md` en ga verder waar het gebleven is.
+3. Vraag: **"Wie wil je zijn?"** — wacht op het antwoord.
+4. Doe meteen een **compleet voorstel** (naam, look, archetype + aanvullingen, 4 specials met sjabloon, afwijkende
+   normals, taunt, KO-effect, puntentabel ≤ 200) en schrijf het in `characters/_concepten/<id>/ontwerp.md`.
+   **Origineel:** bestaand personage genoemd → eigen character met dezelfde sfeer; geen verbasterde namen of kostuums.
+5. Stuur bij tot de speler **akkoord** zegt (ruilen bij budgetproblemen; OP alleen als de speler het wil).
+6. Na akkoord: bestanden maken (stap 3 van het draaiboek), agents parallel starten (stap 4), controleren
+   (validator, tests, screenshots **na waarschuwing**), committen, `PLAN.md` bijwerken.
+7. Laat de speler testen en stel bij.

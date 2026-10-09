@@ -1,0 +1,11 @@
+{
+  "fair": {"S": 3, "K": 5, "B": 1, "V": 2},
+  "specials": {
+    "neutral_b": {"S": 0, "K": 5, "B": 2, "V": 0, "U": 2},
+    "side_b": {"S": 2, "K": 3, "B": 3, "V": 1, "U": 4},
+    "up_b": {"S": 2, "K": 2, "B": 2, "V": 1, "U": 8},
+    "down_b": {"S": 3, "K": 3, "B": 2, "V": 1, "U": 3}
+  },
+  "movement_extras": {"zwaarder": -5},
+  "op": false
+}
