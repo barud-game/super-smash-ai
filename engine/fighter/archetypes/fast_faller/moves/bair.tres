@@ -7,7 +7,7 @@
 script = ExtResource("2_hb")
 start_frame = 5
 end_frame = 8
-offset = Vector2(-9.2, 6)
+offset = Vector2(-9.2, 3.6)
 radius = 2.5
 damage = 10.0
 angle = 135.0

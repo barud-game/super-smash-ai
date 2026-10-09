@@ -72,7 +72,7 @@ Per grond-/luchtmove, tegen de score (exacte tabelwaarde, geen interpolatie):
   damage `round(0,7 x d)`, BKB -10 (min 0), KBG gelijk. Een box op dezelfde positie die later start (zelfde groep) is het late blok van
   een sex kick en moet dezelfde regel volgen ("sex-kick late blok").
 - **Multi-hit (afspraak 6, WARN).** Alle groepen voor de laatste: damage 1-2, BKB <= 10, hoek 361 (of gelijk aan de finisher; 270-290 bij dair).
-- **Hoogtes (afspraak 8, WARN).** jab/ftilt/dash/fsmash/grab: y ~ 0,55 x visual_height; nair/fair/bair: ~ 0,5 x visual_height (beide +-12%);
+- **Hoogtes (afspraak 8, WARN).** jab/ftilt/dash/fsmash/grab: y ~ 0,55 x visual_height (+-12%); nair/fair/bair: elke box op 15-40% van visual_height (doel 30%) en de onderste box <= 35% (onder de heup; `HEIGHT_AERIAL_*` in `conversion_table.gd`);
   dtilt/dsmash: y = 2 (+-1).
 
 ## Budget

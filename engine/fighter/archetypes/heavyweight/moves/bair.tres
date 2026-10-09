@@ -7,7 +7,7 @@
 script = ExtResource("2")
 start_frame = 8
 end_frame = 12
-offset = Vector2(-17.75, 9.5)
+offset = Vector2(-17.75, 5.7)
 damage = 12.0
 angle = 135.0
 base_kb = 30.0
@@ -18,7 +18,7 @@ script = ExtResource("2")
 id = 1
 start_frame = 8
 end_frame = 12
-offset = Vector2(-8.85, 9.5)
+offset = Vector2(-8.85, 5.7)
 damage = 8.0
 angle = 135.0
 base_kb = 20.0

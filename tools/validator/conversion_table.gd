@@ -179,7 +179,11 @@ const THROW_RADIUS := 3.0
 const THROW_POS_TOL := 0.5
 ## 8. Hoogtes als fractie van visual_height (tolerantie ook als fractie); dtilt/dsmash op y = 2 (+-1).
 const HEIGHT_HORIZONTAL := 0.55
-const HEIGHT_AERIAL := 0.5
+## Aerials (nair/fair/bair): elke box tussen AERIAL_MIN en AERIAL_MAX x visual_height, de onderste box hooguit AERIAL_LOWEST_MAX
+## (onder de heup); doel 0,30. Zo raakt een short-hop-aerial een staande tegenstander.
+const HEIGHT_AERIAL_MIN := 0.15
+const HEIGHT_AERIAL_MAX := 0.40
+const HEIGHT_AERIAL_LOWEST_MAX := 0.35
 const HEIGHT_TOL := 0.12
 const HEIGHT_LOW := 2.0
 const HEIGHT_LOW_TOL := 1.0

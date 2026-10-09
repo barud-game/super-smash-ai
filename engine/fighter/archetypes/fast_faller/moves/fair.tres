@@ -7,7 +7,7 @@
 script = ExtResource("2_hb")
 start_frame = 6
 end_frame = 8
-offset = Vector2(11.2, 6)
+offset = Vector2(11.2, 3.6)
 damage = 2.0
 base_kb = 5.0
 
@@ -16,7 +16,7 @@ script = ExtResource("2_hb")
 id = 1
 start_frame = 6
 end_frame = 8
-offset = Vector2(5.6, 6)
+offset = Vector2(5.6, 3.6)
 damage = 1.0
 
 [sub_resource type="Resource" id="hb2"]
@@ -25,7 +25,7 @@ id = 2
 group = 1
 start_frame = 9
 end_frame = 9
-offset = Vector2(11.2, 6)
+offset = Vector2(11.2, 3.6)
 damage = 6.0
 base_kb = 15.0
 kb_growth = 110.0
@@ -36,7 +36,7 @@ id = 3
 group = 1
 start_frame = 9
 end_frame = 9
-offset = Vector2(5.6, 6)
+offset = Vector2(5.6, 3.6)
 damage = 4.0
 base_kb = 5.0
 kb_growth = 110.0

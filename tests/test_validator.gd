@@ -64,7 +64,7 @@ func _jab() -> MoveData:
 
 func _fair() -> MoveData:
 	# S3 K2 B3 V3: startup 7, active 6, r 3.5, R 20, d8/b20/g120, LL 20, LC 10, air_endlag 26.
-	var m := _md(38, [_hb(6, 11, Vector2(16.5, 7.5), 3.5, 8, 20, 120)], true)
+	var m := _md(38, [_hb(6, 11, Vector2(16.5, 4.5), 3.5, 8, 20, 120)], true)
 	m.landing_lag = 20
 	m.lcancel_lag = 10
 	m.autocancel_before = 5
@@ -314,6 +314,20 @@ func _test_agreements() -> void:
 	r = _v.validate_move("t", "jab", _jab(), sc, 19.0)
 	_check("schaal: hoogte y=8 bij 19 units: WARN op afspraak 8", _has(r, "afspraak 8"))
 
+	# 8: aerial-hoogtes (nair/fair/bair): 15-40% van visual_height, onderste box <= 35%.
+	var fr := _fair()
+	r = _v.validate_move("t", "fair", fr, {"S": 3, "K": 2, "B": 3, "V": 3})
+	_check("aerial-hoogte: fair op 30% van visual_height: geen afspraak-8 WARN", not _has(r, "afspraak 8"))
+	fr.hitboxes[0].offset.y = 7.5
+	r = _v.validate_move("t", "fair", fr, {"S": 3, "K": 2, "B": 3, "V": 3})
+	_check("aerial-hoogte: fair op 50% van visual_height: WARN op afspraak 8", _has(r, "afspraak 8"))
+	fr.hitboxes[0].offset.y = 1.5
+	r = _v.validate_move("t", "fair", fr, {"S": 3, "K": 2, "B": 3, "V": 3})
+	_check("aerial-hoogte: fair op 10% van visual_height: WARN op afspraak 8", _has(r, "afspraak 8"))
+	fr.hitboxes[0].offset.y = 6.0
+	r = _v.validate_move("t", "fair", fr, {"S": 3, "K": 2, "B": 3, "V": 3})
+	_check("aerial-hoogte: fair op 40%, onderste box ook 40%: WARN (niet onder de heup)", _has(r, "afspraak 8"))
+
 	# 1: achterwaarts > 90.
 	var bair := _bair()
 	r = _v.validate_move("t", "bair", bair, {"S": 3, "K": 2, "B": 2, "V": 3})
@@ -367,7 +381,7 @@ func _test_agreements() -> void:
 	_check("sourspot met verkeerde damage: WARN", r["status"] == "WARN" and _has(r, "sourspot"))
 	var sk := _nair()
 	sk.hitboxes[0].end_frame = 8
-	var late := _hb(9, 12, Vector2(9, 7.5), 3.0, 6, 15, 110, 361)
+	var late := _hb(9, 12, Vector2(9, 4.5), 3.0, 6, 15, 110, 361)
 	late.id = 2
 	sk.hitboxes.append(late)
 	sk.hitboxes[1].end_frame = 12
@@ -402,7 +416,7 @@ func _test_agreements() -> void:
 
 func _bair() -> MoveData:
 	# S3 K2 B2 V3: startup 9 (start 8), active 5, r 3.0, reach 17 (x -14), d8/b20/g120, LL 20, LC 10, air_endlag 26.
-	var m := _md(39, [_hb(8, 12, Vector2(-14, 7.5), 3.0, 8, 20, 120, 135)], true)
+	var m := _md(39, [_hb(8, 12, Vector2(-14, 4.5), 3.0, 8, 20, 120, 135)], true)
 	m.landing_lag = 20
 	m.lcancel_lag = 10
 	m.autocancel_before = 6
@@ -413,8 +427,8 @@ func _bair() -> MoveData:
 func _nair() -> MoveData:
 	# S3 K1 B2 V3: startup 6 (start 5), active 8 (5..12), r 3.0, reach 12 (x 9), d6/b15/g110; achter = sourspot.
 	var m := _md(39, [
-		_hb(5, 12, Vector2(9, 7.5), 3.0, 6, 15, 110),
-		_hb(5, 12, Vector2(-4.5, 7.5), 3.0, 4, 5, 110, 135)], true)
+		_hb(5, 12, Vector2(9, 4.5), 3.0, 6, 15, 110),
+		_hb(5, 12, Vector2(-4.5, 4.5), 3.0, 4, 5, 110, 135)], true)
 	m.landing_lag = 20
 	m.lcancel_lag = 10
 	m.autocancel_before = 4

@@ -144,8 +144,16 @@ Gelden voor archetypes én characters. De validator controleert ze.
 5. **Sourspot** = round(0.7 × damage) (half omhoog), BKB −10. Shieldstun voor de veiligheid-berekening gebruikt de sourspot.
 6. **Multi-hit:** groep 0 = de kleine hits (d 1–2, BKB ≤ 10, hoek 361 of naar de laatste hit toe), laatste groep = de finisher met de Kracht-waarde.
 7. **"Sterk begin, zwak einde"** (sex kick): zelfde positie, twee frame-blokken; late blok = sourspot-regel.
-8. **Hoogtes:** horizontale moves op ~55% van `visual_height`, lage moves (dtilt/dsmash) op y=2, aerials op ~50%,
-   omhoog/omlaag gemeten vanaf de voeten.
+8. **Hoogtes** (y gemeten vanaf de voeten, omhoog positief): horizontale grondmoves op ~55% van `visual_height`,
+   lage moves (dtilt/dsmash) op y=2.
+   **Aerials nair/fair/bair: hitbox-middelpunt op ~30% van `visual_height`** (elke box tussen 15% en 40%, de onderste box
+   hooguit 35% = duidelijk onder de heup, die op ~45% zit). Reden: een short hop (SH) komt ongeveer tot `visual_height`
+   (allrounder apex 14,0 bij 15; fast-faller 10,7 bij 12; floaty 16,8 bij 14; heavy 16,4 bij 19; light 14,0 bij 11) en de
+   standaard-hurtbox van een staande tegenstander reikt van 0 tot ~0,97 x `visual_height` (hoofd-top). Met het
+   middelpunt op 50% zat een SH-aerial met vroege invoer 7-10 units te hoog en miste; op 30% raken nair/fair/bair
+   (ook fast-fall) en dair een staande tegenstander, van vroege invoer tot in de afdaling (`tests/test_aerial_reach.gd`).
+   Uitzondering: de trage heavy-aerials (startup 8-12) raken pas in de afdaling. Melee-aerials zwaaien door tot onder de
+   voeten; houd de onderste box dus laag. Dair blijft onder de voeten (`-y`, afspraak 9).
 9. **Lengte-schaal:** de reach-posities in `docs/move-conversie.md` gelden voor een character van 15 units (allrounder).
    Hitbox-**posities** (offsets) worden geschaald met `visual_height / 15`; **radius** niet. Zo blijft een omhoog-move
    net boven het hoofd en een dair net onder de voeten, ook bij een klein of groot character.

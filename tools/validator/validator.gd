@@ -332,14 +332,27 @@ func _check_around(res: Dictionary, move: String, hbs: Array) -> void:
 				"geen box achter" if front else ("geen box voor" if back else "geen box voor en achter")])
 
 
-## Afspraak 8: hoogtes (WARN). Horizontale grondmoves ~55% van visual_height, aerials ~50%, dtilt/dsmash op y = 2.
+## Afspraak 8: hoogtes (WARN). Horizontale grondmoves ~55% van visual_height, dtilt/dsmash op y = 2.
+## Aerials nair/fair/bair: elke box op 15-40% van visual_height, de onderste box hooguit 35% (onder de heup).
 func _check_height(res: Dictionary, move: String, hbs: Array, vh: float) -> void:
+	if move in ["nair", "fair", "bair"]:
+		var lowest: float = INF
+		for h in hbs:
+			var frac: float = h.offset.y / maxf(vh, 0.001)
+			lowest = minf(lowest, frac)
+			if frac < CT.HEIGHT_AERIAL_MIN or frac > CT.HEIGHT_AERIAL_MAX:
+				_add(res, "warn", "hitbox %d y=%s (%d%% van visual_height %s), verwacht %d-%d%% (afspraak 8)" % [h.id,
+						_fmt(h.offset.y), roundi(frac * 100.0), _fmt(vh), roundi(CT.HEIGHT_AERIAL_MIN * 100.0),
+						roundi(CT.HEIGHT_AERIAL_MAX * 100.0)])
+				return
+		if lowest > CT.HEIGHT_AERIAL_LOWEST_MAX:
+			_add(res, "warn", "onderste box y=%s (%d%% van visual_height %s), moet onder de heup zitten: <= %d%% (afspraak 8)" % [
+					_fmt(lowest * vh), roundi(lowest * 100.0), _fmt(vh), roundi(CT.HEIGHT_AERIAL_LOWEST_MAX * 100.0)])
+		return
 	var target: float = -1.0
 	var tol: float = vh * CT.HEIGHT_TOL
 	if move in ["jab", "ftilt", "dash_attack", "fsmash", "grab"]:
 		target = vh * CT.HEIGHT_HORIZONTAL
-	elif move in ["nair", "fair", "bair"]:
-		target = vh * CT.HEIGHT_AERIAL
 	elif move in ["dtilt", "dsmash"]:
 		target = CT.HEIGHT_LOW
 		tol = CT.HEIGHT_LOW_TOL
