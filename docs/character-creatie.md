@@ -74,3 +74,7 @@ Subagents krijgen alleen `characters/<id>/ontwerp.md` en hun eigen opdracht.
 | `art/*.svg` | Lichaamsonderdelen |
 
 Een nieuwe chat moet het character kunnen aanpassen door alleen `ontwerp.md` te lezen.
+
+**Concepten:** een voorstel waar de speler nog geen akkoord op gaf staat in `characters/_concepten/<id>/ontwerp.md`.
+Mappen die met `_` beginnen worden overgeslagen door de character select en de validator.
+Na akkoord: verplaats naar `characters/<id>/` en bouw.

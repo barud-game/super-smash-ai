@@ -7,7 +7,7 @@
   Bezig: M3-integratie in de fighter (aanvallen, hitstun, tumble, tech, L-cancel, hitfall, VFX/SFX-hooks),
   movesets gelijktrekken tot de validator slaagt, VFX aansluiten op de wedstrijd.
 - **Volgende:** M4 verdediging (shield, rolls, spotdodge, grabs/pummel/throws), special-sjablonen/toolkit,
-  dan M7: eerste character **Kade Torque** (voorstel in `characters/kade/ontwerp.md`, wacht op akkoord gebruiker).
+  dan M7: eerste character **Kade Torque** (voorstel in `characters/_concepten/kade/ontwerp.md`, wacht op akkoord gebruiker).
 - **Gebouwd (overzicht):** sim + input (`engine/sim.gd`, `engine/input/`), fighter + states (`engine/fighter/`),
   combat-modules (`engine/combat/`, `docs/combat.md`), rig + poses (`engine/visual/`, `docs/rig.md`),
   stage Eindpunt + camera, SFX, VFX (`docs/vfx.md`), menu's + character select, wedstrijd/HUD/results/training
