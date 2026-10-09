@@ -45,7 +45,8 @@ func iasa() -> void:
 		# Pivot: smash-turn zonder dash is direct actionable.
 		f.check_wait_interrupts()
 		return
-	f.check_squat()
+	if not f.check_ground_attack():
+		f.check_squat()
 
 
 func phys() -> void:

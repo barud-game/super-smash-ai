@@ -13,6 +13,8 @@ func anim() -> void:
 
 
 func iasa() -> void:
+	if f.check_ground_attack():
+		return
 	if f.check_ground_jump():
 		return
 	f.check_platform_drop()
@@ -23,4 +25,12 @@ func phys() -> void:
 
 
 func pose() -> String:
+	return "crouch"
+
+
+func is_crouching() -> bool:
+	return true
+
+
+func hurtbox_shape() -> String:
 	return "crouch"

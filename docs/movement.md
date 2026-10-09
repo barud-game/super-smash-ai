@@ -308,5 +308,31 @@ Het ledge-register hangt als meta (`ledge_occupants`) aan het stage-object (sleu
 
 ### Niet gedaan / open
 - Geen muur-collision of ECB-onderkant-verschuiving; de grab-box heeft daarom ruime marges.
-- Geen eigen ledge-poses in de rig (`ledge_hang`, `ledge_getup`, `roll`, `ledge_attack`, `ledge_jump`, `teeter` zijn de verwachte namen; tot dan fallback-poses).
+- Ledge-poses: sinds M3 gekoppeld aan de rig-poses `cliff_catch`, `cliff_wait`, `cliff_getup`, `cliff_roll`, `cliff_attack`, `cliff_jump`, `teeter`, `respawn_platform` (zie docs/combat.md, "M3-integratie").
 - Ledge-getup-frames en intangible-vensters zijn geschat; met Melee-framedata te vervangen via `ledge_options`.
+
+## M3-implementatie: gevecht in de fighter
+Volledige beschrijving in `docs/combat.md`, sectie "M3-integratie" (tests: `tests/test_fighter_combat.gd`). Gebruikte waarden:
+
+| Mechaniek | Waarde | Zekerheid |
+|---|---|---|
+| Smash-aanval met A: flick-venster | teller < 4 (`FighterConst.SMASH_ATTACK_WINDOW`; Melee `SMASH_WINDOW` 2) | ⚠️ Xbox-leniency |
+| C-stick-drempel (smash/aerial) | 0.6625, vorige frame eronder | ⚠️ |
+| JC usmash | A + stick-y ≥ 0.6625 (of C-stick omhoog) tijdens KneeBend | ✅ structuur, ⚠️ drempel |
+| Smash charge | max 60 frames, damage × (1 + 0.3671·n/60) = ×1.3671 vol; houdt vast op move-frame 2 | ✅ 60 / 1.3671, ⚠️ frame |
+| Jab-combo | volgende jab na laatste actieve frame + 1 als A opnieuw is ingedrukt | ⚠️ |
+| L-cancel | L/R/Z (of analoog ≥ 0.3) ≤ 7 frames vóór de landing; lag = lcancel_lag of floor(lag/2), min 1 | ✅ (analoog ⚠️) |
+| Auto-cancel-landing | normal_landing_lag | ✅ structuur |
+| Hitlag | floor(d/3 + 3), aanvaller = slachtoffer, freeze van positie/timers | ⚠️ (zie combat.md) |
+| SDI / ASDI | 6 units per flick ≥ 0.7 / 3 units op het laatste hitlag-frame (C-stick voorrang) | ⚠️ |
+| DI | max 18°, stick op het laatste hitlag-frame | ✅ 18°, ⚠️ moment |
+| Knockback-snelheid | apart `kb_vel` = KB·0.03, −0.051/frame; self-vel 0 bij de hit, gravity loopt door | ✅ |
+| Hitstun | floor(KB·0.4) frames geen actie | ✅ |
+| Tumble | KB ≥ 80 → DamageFly, na hitstun DamageFall (drift, fast fall, aerial, jump, air dodge) | ✅ |
+| Tech | shield ≤ 20 frames vóór de grond; lockout 40 frames; in place 26 f / roll 40 f (28 units), intangible 1–20 | ✅ 20, rest ⚠️ |
+| Missed tech | DownBound 26 f, DownWait max 180 f, getup stand 30 / roll 35 (26 units) / attack 49 f | ⚠️ |
+| Crouch cancel | KB × 2/3; grounded-blijvende hit = geen flinch (blijft hurken) | ✅ 2/3, ⚠️ flinch-regel |
+| ASDI omlaag | grounded, geen tumble, stick-y ≤ −0.7 → blijft op de grond | ⚠️ |
+| Grond-bounce | tumble-launch de grond in → vy × −0.8 | ⚠️ |
+| Hitfall | fast fall tijdens eigen hitlag na een echte treffer, ook tijdens stijgen (Rivals-besluit) | besluit |
+| Rebound (clank) | 20 frames; aerials clanken niet | ⚠️ duur, ✅ regel |

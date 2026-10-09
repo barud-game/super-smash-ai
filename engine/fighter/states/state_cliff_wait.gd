@@ -65,4 +65,13 @@ func holds_ledge() -> bool:
 
 
 func pose() -> String:
-	return pick_pose("ledge_hang", "fall")
+	return pick_pose("cliff_wait", "fall")
+
+
+func visual_offset_px() -> Vector2:
+	return hang_offset(f)
+
+
+## Rig-px omlaag zodat de handen van de cliff-pose op de ledge liggen.
+static func hang_offset(fi: Fighter) -> Vector2:
+	return Vector2(0.0, FighterConst.CLIFF_HAND_PX - fi.stats.ledge_snap_y_ratio * Rig.STAND_HEIGHT_PX)

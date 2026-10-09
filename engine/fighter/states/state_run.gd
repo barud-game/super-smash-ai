@@ -9,6 +9,8 @@ func id() -> String:
 
 
 func iasa() -> void:
+	if f.check_dash_attack(false):
+		return
 	if f.check_ground_jump():
 		return
 	var d: float = f.stick_x() * f.facing

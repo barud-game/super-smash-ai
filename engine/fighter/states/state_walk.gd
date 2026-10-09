@@ -25,7 +25,7 @@ func enter(_args: Dictionary) -> void:
 
 
 func iasa() -> void:
-	if f.check_ground_jump() or f.check_dash() or f.check_squat() or f.check_turn():
+	if f.check_ground_attack() or f.check_ground_jump() or f.check_dash() or f.check_squat() or f.check_turn():
 		return
 	if f.stick_x() * f.facing <= 0.0:
 		f.change_state("Wait")

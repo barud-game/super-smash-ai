@@ -24,6 +24,8 @@ func anim() -> void:
 
 
 func iasa() -> void:
+	if f.check_dash_attack(true):
+		return
 	if f.check_ground_jump():
 		return
 	# Dash-dance: omgekeerde dash-flick.

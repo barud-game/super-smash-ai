@@ -1,6 +1,7 @@
 # Combat-kern (M3)
 
-Puur, deterministisch, zonder fighter-integratie. Code in `engine/combat/`, tests in `tests/test_combat.gd`.
+Kernmodules puur en deterministisch (`engine/combat/`, tests `tests/test_combat.gd`); de integratie in de fighter staat in
+"M3-integratie" hieronder (tests `tests/test_fighter_combat.gd`).
 Alles in frames (60 Hz) en Melee-units (y omhoog). Bronnen: `docs/movement.md` (Knockback), `docs/move-conversie.md` (§1, §6),
 SmashWiki (Knockback, Sakurai angle, Shield stun, Hitlag, Directional influence). ⚠️ = niet exact geverifieerd.
 
@@ -36,24 +37,90 @@ SmashWiki (Knockback, Sakurai angle, Shield stun, Hitlag, Directional influence)
 
 **Hitfall**: `HitEvent.attacker_hitfall_allowed` is `true` alleen bij `Kind.HIT` (niet bij SHIELD of CLANK); `is_shield_hit()` voor de zekerheid. Zie `docs/movement.md` "Besluit: Rivals-aanpak".
 
-## Integratieplan voor de Fighter (nog te doen)
-**Nieuwe/aan te passen states** (universeel in `Fighter`):
-- `Attack` (state_frame = move-frame; vraagt `MoveData.active_hitboxes()` per frame; eindigt op `iasa_frame()`/`total_frames`; aerial landing → `landing_lag_at()`, L-cancel bij shield-druk ≤ 7 frames voor landing ⚠️).
-- `DamageFly`/hitstun: `hitstun` frames, velocity = `launch_vel` met `Knockback.decay_step` per frame; DI toegepast bij binnenkomst op `launch_vel`. Grounded + `stays_grounded` → `DamageGround` (glijden met wrijving, geen lucht).
-- `DamageFall` (tumble, `KB ≥ 80`): na de launch of bij tumble; alleen air-drift beperkt; wall/floor-bounce en tech-input (shield binnen ~20 frames vóór de grond, ⚠️ venster) → `Tech`/`TechRoll`/`MissedTech` (liggen, getup).
-- Hitlag-freeze: fighter slaat gameplay-frame over (positie, state_frame, timers bevroren) voor `*_hitlag` frames; wel input lezen voor SDI/ASDI, DI-input bij het laatste hitlag-frame, en hitfall.
-- Hitfall: tijdens eigen hitlag na `attacker_hitfall_allowed` mag een verse flick omlaag fast fall zetten (ook tijdens stijgen); de fast-fall-vlag wordt daarna in de gewone airborne-state toegepast.
-- Crouch cancel: `crouching` vlag naar `CombatTarget`; bij `crouch_cancelled` korte hitstun, blijft in crouch.
-- Shield: `SHIELD`-event → shieldstun (state_frame wacht `shield_stun` frames), shield-HP −`shield_damage`; hitlag ook hier.
+## M3-integratie in de Fighter (gebouwd)
+Tests: `tests/test_fighter_combat.gd` (137 checks, twee fighters, gescripte input). ⚠️ = gekozen, niet uit Melee-data.
+Constanten staan in `FighterConst` (sectie "Gevecht").
 
-**Frame-volgorde in `Sim` per `_physics_process`:**
-1. Input lezen/kwantiseren (bestaand).
-2. Alle fighters: één `step()` (movement + state-logica + hitlag-countdown); hitboxen volgen de nieuwe positie/state_frame.
-3. Per fighter `ActiveHitbox`es verzamelen (deterministisch gesorteerd op fighter-id) en `CombatTarget`-snapshots maken.
-4. `HitResolver.resolve(...)` eenmaal voor alle fighters, met per attacker de `already_hit`-set (gecombineerd).
-5. Events toepassen in vaste volgorde (clanks, dan hits): damage/percent, `KnockbackResult` → target-state (DamageFly/Tumble/Ground), hitlag voor beide, `key` toevoegen aan `already_hit`, hitfall-vlag bij aanvaller, shieldstun/-damage.
-6. Blast-zone/KO, camera, UI (bestaand).
-Toepassen na resolven (stap 5) zorgt dat alle fighters in dezelfde frame symmetrisch worden behandeld (trades).
+### Frame-volgorde (Sim)
+1. Input samplen. 2. Alle entities `sim_tick` (fighters bewegen; een fighter in hitlag doet alleen `_hitlag_tick`).
+3. **Post-tick `Sim.combat.step(entities)`** (`engine/combat/combat_system.gd`, `CombatSystem`): fighters gesorteerd op `player` →
+`Fighter.active_hitboxes()` (leeg tijdens hitlag of na een rebound) + `combat_target()` → `HitResolver.resolve()` één keer
+(already_hit van alle fighters samengevoegd; sleutels bevatten owner+instance) → clanks → aanvallers (`on_hit_landed`: hitlag,
+hitfall-vlag, `already_hit`) → slachtoffers (`receive_hit`: percent + `percent_changed`, damage-state, hitlag, VFX/SFX).
+Toepassen ná het resolven = trades symmetrisch. Tests roepen `CombatSystem.step()` zelf aan.
+Gekozen voor een post-tick-hook i.p.v. een entity, zodat de volgorde (na álle fighters, ook als de MatchController zich
+ertussen registreert) vastligt zonder registratievolgorde.
+
+### Moves laden (`MoveSet`, `engine/combat/move_set.gd`)
+`Fighter.reload_moves()` (in `setup()` en `set_stats()`): alle `.tres` in `engine/fighter/archetypes/<archetype>/moves/`, per move
+overschreven door `characters/<character_id>/moves/<move>.tres`. Archetype = `Fighter.archetype_id`, anders afgeleid uit de
+stats-preset (`Archetypes.id_for_stats`), anders `character.json` (`Archetypes.id_for_character`), anders `allrounder`.
+Ingebouwd als er geen bestand is: `ledge_attack` / `ledge_attack_slow` (8% / 10%, frames uit de ledge-opties) en `getup_attack`
+(6%, voor en achter) ⚠️. Bestanden worden gecachet (`MoveSet.clear_cache()` voor hot reload).
+
+### Input → move (Melee-volgorde: aanval vóór sprong)
+| Waar | Input | Move |
+|---|---|---|
+| Wait, Walk, Turn, Squat(Wait), SquatRv, Teeter, IASA van een aanval | C-stick | f/u/dsmash (achteruit = omgedraaid) |
+| idem | A + flick (≥ 0.8, teller < `SMASH_ATTACK_WINDOW` 4 ⚠️ Xbox-leniency; Melee 2) | f/u/dsmash |
+| idem | A + stick (dominante as) | ftilt (achteruit = omgedraaid), utilt, dtilt |
+| idem | A neutraal | jab |
+| Dash | A / C-stick; A + omhoog-flick of C-stick omhoog | dash attack; usmash |
+| Run | A / C-stick | dash attack |
+| KneeBend | A + stick-y ≥ 0.6625 of C-stick omhoog | **JC usmash** (sprong vervalt) |
+| Lucht (Jump, JumpAerial, Fall, DamageFall, IASA aerial) | A + stick / C-stick, t.o.v. facing | nair, fair, bair, uair, dair |
+| overal | Z, shield + A | niets (TODO M4: grab), wordt geen jab |
+C-stick: één as ≥ 0.6625 en het vorige frame niet (⚠️ drempel).
+
+### States
+| State | Kern |
+|---|---|
+| `Attack` | grond, MoveData-gestuurd. move-frame = state_frame − charge. Einde → Wait (dtilt met stick omlaag → SquatWait). IASA → Wait-interrupts. Dash attack glijdt (traction ×1) en mag van de rand; rest stopt aan de rand ⚠️. |
+| Smash charge | op move-frame `SMASH_CHARGE_FRAME` = 2 ⚠️ blijft de move staan zolang A vast is, max 60 frames ✅; damage × (1 + 0.3671·charge/60) → ×1.3671 ✅. C-stick-smash laadt alleen met A vast. Pose: `atk_<x>smash_charge`, bij loslaten `atk_<x>smash` vanaf de charge-houding. |
+| Jab-combo | A (nieuw) tijdens jab N zet jab N+1 klaar als `jab2`/`jab3` bestaat; start na laatste actieve frame + 1 ⚠️. Multi-hit-jabs (groepen in één `jab.tres`) spelen gewoon helemaal af. Rapid jab: nog niet. |
+| `AttackAir` | drift/gravity/fast fall lopen door; einde → Fall; geen ledge grab. Landen: auto-cancel → `normal_landing_lag`; anders `landing_lag`, of bij L-cancel `lcancel_lag` (0 → floor(lag/2), min 1) → `Landing` (debug toont "fair 20, L-cancel"). |
+| L-cancel | LT/RT (digitaal of analoog ≥ 0.3), RB/Z binnen 7 frames vóór én op het landingsframe ✅. Hitlag-frames tellen gewoon mee (Melee verruimt; hier niet apart) ⚠️. |
+| Hitlag | `Fighter.hitlag_frames` = `HitEvent.*_hitlag` (= floor(d/3+3), electric ×1.5). Geen beweging, state_frame/timers bevroren. Slachtoffer: SDI per frame (flick ≥ 0.7: 6 units), op het laatste frame ASDI (3 units, C-stick heeft voorrang) en DI (stick, max 18°), daarna de launch. Grond-SDI blijft op het segment; lucht-SDI gaat niet door de vloer. |
+| Launch | `kb_vel` apart van `vel` (zoals Melee): positie += vel + kb_vel, kb_vel −0.051/frame (in elke state). Self-vel op 0 bij de hit; gravity werkt door. Grond + `stays_grounded` (361 met KB < 32, of ⚠️ ASDI omlaag zonder tumble) → glijden met gr_vel. Grond + tumble de grond in → vy gespiegeld ×0.8 ⚠️ (grond-bounce). |
+| `Damage` | hitstun zonder tumble (KB < 80): N = floor(KB·0.4) frames geen actie, frame N+1 actionable. Grond: wrijving; lucht: gravity, geen drift/fast fall. Landen: hitstun loopt door. Pose damage_low/mid/high bij KB < 30 / < 55 / rest ⚠️. Van de rand glijden eindigt de hitstun ⚠️. |
+| `DamageFly` | tumble (KB ≥ 80): hitstun zonder acties, dan `DamageFall`. Pose damage_fly → tumble. Launch-trail-VFX. |
+| `DamageFall` | tumble na hitstun: drift + fast fall; alleen aerial, double jump, air dodge (een shield-druk is hier dus een air dodge, zoals Melee); ledge grab mag. |
+| Tech | neerkomen in DamageFly/DamageFall met een shield-druk ≤ 20 frames ervoor ✅ (lockout 40 frames na een druk ⚠️): stick-x ≥ 0.5 → tech roll die kant op (40 f, 28 units, intangible 1–20 ⚠️), anders tech in place (26 f, intangible 1–20 ⚠️). |
+| Missed tech | `DownBound` (26 f ⚠️, kwetsbaar) → `DownWait` (liggen, lage hurtbox; max 180 f ⚠️) → `DownGetup`: A = getup attack (49 f, intangible 1–26), stick links/rechts = roll (35 f, 26 units, 1–25), stick omhoog/jump = opstaan (30 f, 1–22) ⚠️. |
+| Crouch cancel | Squat/SquatWait op de grond: KB × 2/3 (via `CombatTarget.crouching`). Blijft de hit grounded (`stays_grounded`), dan geen flinch: blijft hurken en glijdt (na DI) ⚠️. Anders gewone Damage/DamageFly. |
+| Hitfall | aanvaller in de lucht, in de hitlag van een echte treffer (`HitEvent.attacker_hitfall_allowed`): een omlaag-flick (fast-fall-drempel/-venster) zet `fastfalling`, ook tijdens stijgen; na de hitlag vy = −fast_fall_velocity. Niet na een clank (`on_clank`) of shield-hit, en niet bij een whiff. |
+| Clank | alleen tussen grondaanvallen (`HitResolver.resolve(..., no_clank)` met de eigenaren die in de lucht zijn: aerials traden, Melee). Hitlag voor beide; rebound-kant raakt niets meer en gaat op de grond naar `Rebound` (20 f ⚠️). Clank-VFX + SFX `hit_weak` ⚠️ (geen eigen recept). |
+| `CliffAttack` | hitboxes uit `ledge_attack(_slow)`; TODO uit M2 vervangen. |
+| Treffer algemeen | `on_hit_reset_ledge()`, ledge loslaten met `ledge_hit_cooldown`, fast fall uit, `last_hit_by`. |
+
+### Hurtboxes
+`Fighter.hurtboxes()`: `HurtboxData.default_for_height(visual_height)` (benen, romp, hoofd); `hurtbox_shape()` per state:
+"crouch" (Squat*, dtilt: laag), "lie" (DownBound/DownWait/begin getup: liggende capsule). Intangible via `is_intangible()`
+(ledge, air dodge, getups, tech, respawn) → `CombatTarget.intangible`.
+
+### Visuals, VFX, SFX
+- Aanvalsposes: `play_timed(atk_<move>, startup, active, total)` met startup = eerste 0-based actieve frame (`StateAttack.timing_for`);
+  `jab` → `atk_jab1`. Een nieuwe aanval herstart de pose (ook dezelfde move). `FighterState.pose_timing()`.
+- Combat-poses: damage_low/mid/high, damage_fly, tumble, tech, tech_roll, missed_tech_lie, getup_from_lie, roll_forward/back.
+- Ledge: CliffCatch → `cliff_catch`, CliffWait → `cliff_wait`, CliffClimb → `cliff_getup`, CliffEscape → `cliff_roll`,
+  CliffAttack → `cliff_attack` (play_timed op de hitbox), CliffJump → `cliff_jump`, Teeter → `teeter`, RebirthWait → `respawn_platform`.
+  Hang-poses zakken `CLIFF_HAND_PX (165) − ledge_snap_y_ratio·156` rig-px zodat de handen op de ledge liggen (`visual_offset_px()`);
+  bij getups loopt die offset tijdens het klimmen naar 0.
+- Hitlag-jitter van het slachtoffer: `VfxConst.hitlag_jitter(frames, 1.5 + 0.35·d px, max 9)`.
+- VfxLayer: `Fighter.vfx`, anders de eerste node in groep `vfx_layer`. Hit-spark (`spawn_hit`, sterkte KB/160, element, hoek),
+  kill-flash als de launch zonder én met ±18° DI de blast zone haalt (`Fighter.predict_ko`), launch-trail bij tumble,
+  land-/jump-/dash-dust, airdodge-trail. Geen respawn/KO-effect (doet de MatchController).
+- SFX: `hit_weak` / `hit_medium` (d ≥ 7 of KB ≥ 40) / `hit_strong` (tumble) / `hit_kill`, `jump`, `double_jump`, `land`,
+  `land_heavy` (fast fall of vy ≤ −2.8), `airdodge`, `dash`, `ledge_grab`.
+- F2: `Fighter` tekent ECB, hurtboxes (geel, blauw = intangible) en de hitboxes van het laatste actieve frame (rood) in een
+  `CombatDebug`-child boven de visual.
+
+### Sandbox
+F8 = P2 dummy (lege inputbron), F9/F10 = % van P2 −/+ 10. `--demo-fight --hitboxes --p2-percent 110` speelt een SH-fast-fall-fair.
+
+### Nog niet
+Shield/grab/throws (M4; `check_grab()` en `Kind.SHIELD` zijn hooks), rapid jab, staling, jab reset, wall/ceiling-bounce,
+hitstun-cancel, aparte L-cancel-verruiming tijdens hitlag, per-element effecten, reverse hits.
 
 ## Bewust niet (nog) gedaan
-Staling, charge, projectielen/reflect, armor, grabs/throws als aparte flow, wall/ceiling-bounce, shield-pushback en -HP, per-element effecten, reverse hits (hit-richting op basis van positie i.p.v. facing).
+Staling, projectielen/reflect, armor, grabs/throws als aparte flow, wall/ceiling-bounce, shield-pushback en -HP, per-element effecten, reverse hits (hit-richting op basis van positie i.p.v. facing).

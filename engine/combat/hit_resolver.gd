@@ -38,7 +38,9 @@ static func _sort_hitboxes(x: ActiveHitbox, y: ActiveHitbox) -> bool:
 	return x.data.id < y.data.id
 
 
-static func resolve(active: Array[ActiveHitbox], targets: Array[CombatTarget], already_hit: Dictionary = {}) -> Result:
+## `no_clank`: eigenaren (id -> true) waarvan de hitboxen niet clanken (aerials: Melee laat ze traden).
+static func resolve(active: Array[ActiveHitbox], targets: Array[CombatTarget], already_hit: Dictionary = {},
+		no_clank: Dictionary = {}) -> Result:
 	var res := Result.new()
 	var boxes: Array[ActiveHitbox] = active.duplicate()
 	boxes.sort_custom(_sort_hitboxes)
@@ -47,11 +49,11 @@ static func resolve(active: Array[ActiveHitbox], targets: Array[CombatTarget], a
 	var removed: Dictionary = {}
 	for i in boxes.size():
 		var a: ActiveHitbox = boxes[i]
-		if removed.has(i) or not a.data.clank:
+		if removed.has(i) or not a.data.clank or no_clank.has(a.owner):
 			continue
 		for j in range(i + 1, boxes.size()):
 			var b: ActiveHitbox = boxes[j]
-			if removed.has(j) or removed.has(i) or not b.data.clank or a.owner == b.owner:
+			if removed.has(j) or removed.has(i) or not b.data.clank or a.owner == b.owner or no_clank.has(b.owner):
 				continue
 			if a.pos.distance_to(b.pos) >= a.data.radius + b.data.radius:
 				continue

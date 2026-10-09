@@ -1,6 +1,7 @@
 extends Node
 ## Autoload `Sim`: de simulatieklok. Enige plek met een gameplay-_physics_process.
-## Volgorde per frame: 1) input samplen, 2) entities in registratievolgorde `sim_tick(frame)`.
+## Volgorde per frame: 1) input samplen, 2) entities in registratievolgorde `sim_tick(frame)`,
+## 3) post-tick: `combat.step()` (CombatSystem: hitboxes van alle fighters -> HitResolver -> treffers toepassen).
 ## Gameplay gebruikt nooit delta; alles in frames.
 
 signal frame_advanced(frame: int)
@@ -9,11 +10,14 @@ signal pause_changed(paused: bool)
 ## Aantal frames dat sim-ticks hebben gedraaid.
 var frame: int = 0
 var paused: bool = false
-## Debug-toggle (F2); de eigenlijke hitbox-weergave volgt in een latere mijlpaal.
+## Debug-toggle (F2): fighters tekenen ECB, hurtboxes en hitboxes.
 var debug_hitboxes: bool = false
 ## Debug-toetsen (P = pauze, `.` = stap, Back = pauze, RB = stap) werken alleen als dit aan staat:
 ## de sandbox en training zetten het aan. In menu's en in een gewone match is Start de pauze.
 var debug_context: bool = false
+
+## Gevecht: draait na alle entity-ticks (alle fighters hebben dan bewogen). Zie docs/combat.md.
+var combat: CombatSystem = CombatSystem.new()
 
 var _entities: Array[Object] = []
 var _step_requested: bool = false
@@ -59,6 +63,7 @@ func _advance() -> void:
 	for e: Object in _entities.duplicate():
 		if is_instance_valid(e) and _entities.has(e):
 			e.sim_tick(frame)
+	combat.step(_entities)
 	var k: int = _entities.size() - 1
 	while k >= 0:
 		if not is_instance_valid(_entities[k]):

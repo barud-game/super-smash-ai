@@ -87,9 +87,36 @@ func on_edge_stop(_side: int) -> void:
 	pass
 
 
+# --- Gevecht (M3) ---
+
+## Actieve hitboxes op dit frame (aanvallen). Wordt na alle fighter-ticks door CombatSystem opgevraagd.
+func hitboxes() -> Array[ActiveHitbox]:
+	return []
+
+
+## Vorm van de hurtboxes: "stand", "crouch" of "lie" (Fighter.hurtboxes()).
+func hurtbox_shape() -> String:
+	return "stand"
+
+
+## Gehurkt voor crouch cancel (KB × 2/3). Alleen Squat/SquatWait.
+func is_crouching() -> bool:
+	return false
+
+
+## [startup, active, total] voor CharacterVisual.play_timed (aanvalsposes), leeg = gewone play().
+func pose_timing() -> Array:
+	return []
+
+
+## Verschuiving van de visual t.o.v. de voeten, in rig-px (vóór schaal), bv. hang-poses aan de ledge.
+func visual_offset_px() -> Vector2:
+	return Vector2.ZERO
+
+
 ## Kies `wanted` als de visual die pose heeft, anders `fallback` (pose-hooks die nog niet getekend zijn).
 func pick_pose(wanted: String, fallback: String) -> String:
-	if f.visual != null and f.visual.has_pose(wanted):
+	if f.visual == null or f.visual.has_pose(wanted):
 		return wanted
 	return fallback
 

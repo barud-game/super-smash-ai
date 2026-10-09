@@ -12,4 +12,4 @@ func kind() -> String:
 
 
 func pose() -> String:
-	return pick_pose("roll", "dash")
+	return pick_pose("cliff_roll", "dash")

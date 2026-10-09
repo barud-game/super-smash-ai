@@ -27,3 +27,7 @@ func pose() -> String:
 func pose_frame() -> int:
 	# crouch-pose achterstevoren afspelen (8 frames lang)
 	return maxi(0, 8 - sf())
+
+
+func hurtbox_shape() -> String:
+	return "crouch"

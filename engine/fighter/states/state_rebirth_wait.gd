@@ -48,4 +48,4 @@ func is_grounded() -> bool:
 
 
 func pose() -> String:
-	return "idle"
+	return pick_pose("respawn_platform", "idle")

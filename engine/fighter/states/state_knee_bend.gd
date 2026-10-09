@@ -28,6 +28,8 @@ func anim() -> void:
 
 
 func iasa() -> void:
+	if f.check_jc_usmash():
+		return
 	if sf() < 1:
 		return
 	if tap:

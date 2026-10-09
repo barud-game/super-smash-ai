@@ -26,7 +26,8 @@ func anim() -> void:
 
 
 func iasa() -> void:
-	f.check_air_interrupts()
+	if not f.check_aerial():
+		f.check_air_interrupts()
 
 
 func phys() -> void:

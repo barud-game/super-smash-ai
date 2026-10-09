@@ -1,12 +1,15 @@
 extends Node2D
 ## Sandbox: 2 fighters op de test-stage (scenes/sandbox_stage.gd) of de echte Eindpunt-stage, met de MatchCamera.
 ## F3 / F4 = archetype van speler 1 / 2 wisselen. F5 = beide respawnen. F6 = stage wisselen (stub / Eindpunt).
-## F7 = KO-gedrag wisselen (auto-respawn op het platform / blijft weg tot F5). F1/F2/P/. via de debug overlay/Sim.
+## F7 = KO-gedrag wisselen (auto-respawn op het platform / blijft weg tot F5). F1/F2/P/. via de debug overlay/Sim
+## (F2 = hitboxes, hurtboxes en ECB). F8 = dummy-modus voor P2 (staat stil), F9 / F10 = % van P2 −/+ 10.
 ##
 ## Screenshot-modus (windowed, voor review):
 ##   Godot_console.exe --path . res://scenes/sandbox.tscn -- --screenshot C:/pad/shot.png [--frames 90] [--demo]
 ## --demo speelt een vaste inputreeks af (P1 dash + jump, P2 wavedash) i.p.v. controller-input.
 ## --stage eindpunt start direct op de echte stage.
+## --demo-fight speelt een gevecht af (P1 short hop, fast fall + fair (C-stick) op P2; P2 staat stil), --hitboxes zet F2 aan,
+## --p2-percent N zet het percentage van P2.
 
 const EINDPUNT_SCENE: String = "res://stages/eindpunt/eindpunt.tscn"
 
@@ -23,6 +26,11 @@ var _shot_frames: int = 90
 var _demo: bool = false
 var _demo_inputs: Array[InputHistory] = []
 var _frames_seen: int = 0
+var _demo_fight: bool = false
+var _p2_percent: float = 0.0
+## F8: P2 krijgt een lege inputbron (staat stil).
+var dummy_p2: bool = false
+var vfx: VfxLayer
 
 
 func _ready() -> void:
@@ -36,6 +44,8 @@ func _ready() -> void:
 		f.stage = stage
 		f.stats = Archetypes.load_stats(Archetypes.IDS[archetype_index[p]])
 		f.pos = stage.get_spawn(p)
+		if _demo_fight:
+			f.pos = Vector2(-14.0 if p == 0 else 2.0, 0.0)
 		f.facing = 1 if p == 0 else -1
 		if _demo:
 			var h := InputHistory.new()
@@ -43,9 +53,17 @@ func _ready() -> void:
 			f.input = h
 		add_child(f)
 		fighters.append(f)
+	fighters[1].percent = _p2_percent
 	camera = MatchCamera.new()
 	add_child(camera)
 	camera.make_current()
+	# VFX-laag op de wereldoorsprong; fighters vinden hem via `vfx` of groep "vfx_layer".
+	vfx = VfxLayer.new()
+	vfx.camera = camera
+	vfx.add_to_group(&"vfx_layer")
+	add_child(vfx)
+	for f in fighters:
+		f.vfx = vfx
 	_setup_camera()
 	var layer := CanvasLayer.new()
 	layer.layer = 50
@@ -56,6 +74,7 @@ func _ready() -> void:
 	hud.position = Vector2(12, 680)
 	layer.add_child(hud)
 	_update_hud()
+	fighters[1].percent_changed.connect(func(_v: float) -> void: _update_hud())
 	var sim: Node = get_node_or_null("/root/Sim")
 	if sim != null:
 		sim.frame_advanced.connect(_on_frame)
@@ -79,6 +98,16 @@ func _parse_args() -> void:
 					_shot_frames = int(a[i + 1])
 			"--demo":
 				_demo = true
+			"--demo-fight":
+				_demo = true
+				_demo_fight = true
+			"--hitboxes":
+				var sim: Node = get_node_or_null("/root/Sim")
+				if sim != null:
+					sim.debug_hitboxes = true
+			"--p2-percent":
+				if i + 1 < a.size():
+					_p2_percent = float(a[i + 1])
 			"--stage":
 				if i + 1 < a.size():
 					use_eindpunt = a[i + 1] == "eindpunt"
@@ -97,6 +126,9 @@ func _physics_process(_delta: float) -> void:
 	if not _demo:
 		return
 	var t: int = _frames_seen
+	if _demo_fight:
+		_demo_fight_inputs(t)
+		return
 	for p in 2:
 		var fr := InputFrame.new()
 		if p == 0:
@@ -139,6 +171,18 @@ func _input(event: InputEvent) -> void:
 				for f in fighters:
 					f.auto_respawn = auto
 				_update_hud()
+			KEY_F8:
+				dummy_p2 = not dummy_p2
+				if not _demo:
+					var im: Node = get_node_or_null("/root/InputManager")
+					fighters[1].input = InputHistory.new() if dummy_p2 or im == null else im.history(1)
+				_update_hud()
+			KEY_F9:
+				fighters[1].percent = maxf(fighters[1].percent - 10.0, 0.0)
+				_update_hud()
+			KEY_F10:
+				fighters[1].percent = minf(fighters[1].percent + 10.0, 999.0)
+				_update_hud()
 
 
 func _cycle(p: int) -> void:
@@ -151,8 +195,9 @@ func _update_hud() -> void:
 	var parts: PackedStringArray = PackedStringArray()
 	for f in fighters:
 		parts.append("P%d: %s (%s)" % [f.player + 1, f.stats.display_name, f.stats.reference.get_slice(" ", 0)])
-	hud.text = "%s   [%s, KO: %s]     F3/F4 = archetype, F5 = reset, F6 = stage, F7 = KO-gedrag, F1 = overlay, F2 = ECB, P = pauze, . = frame" % [
-		"   ".join(parts), "Eindpunt" if use_eindpunt else "stub", "auto-respawn" if fighters[0].auto_respawn else "blijft weg"]
+	hud.text = "%s   [%s, KO: %s, P2: %s %.0f%%]     F3/F4 = archetype, F5 = reset, F6 = stage, F7 = KO-gedrag, F8 = dummy, F9/F10 = P2 %% -/+10, F1 = overlay, F2 = hitboxes, P = pauze, . = frame" % [
+		"   ".join(parts), "Eindpunt" if use_eindpunt else "stub", "auto-respawn" if fighters[0].auto_respawn else "blijft weg",
+		"dummy" if dummy_p2 else "speler", fighters[1].percent]
 
 
 ## (Her)bouwt de stage: SandboxStage-stub of de echte Eindpunt (engine/stage/stage.gd).
@@ -188,3 +233,16 @@ func _save_shot() -> void:
 	for f in fighters:
 		print("  ", f, ": ", f.get_debug_state_name())
 	get_tree().quit(0 if err == OK else 1)
+
+
+## --demo-fight: P1 short hop + fair op P2 (P2 staat stil, eventueel op --p2-percent). Daarna niets.
+func _demo_fight_inputs(t: int) -> void:
+	var p1 := InputFrame.new()
+	if t == 10:
+		p1.buttons |= InputFrame.BTN_JUMP
+	if t == 25:
+		p1.cstick = Vector2i(80, 0)
+	if t >= 27 and t < 30:
+		p1.stick = Vector2i(0, -80)
+	_demo_inputs[0].push(p1)
+	_demo_inputs[1].push(InputFrame.new())

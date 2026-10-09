@@ -20,6 +20,10 @@ Ledge, teeter, KO-API en respawn (M2):
 
     <godot_console> --headless --path . --script res://tests/test_ledge.gd
 
+Gevecht in de fighter (M3; aanvallen, hitlag, knockback, DI, tech, L-cancel, hitfall):
+
+    <godot_console> --headless --path . --script res://tests/test_fighter_combat.gd
+
 Match-flow (M6; stocks, timer, tiebreak, sudden death, pauze, training):
 
     <godot_console> --headless --path . --script res://tests/test_match.gd

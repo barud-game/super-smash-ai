@@ -8,6 +8,8 @@ func id() -> String:
 
 
 func iasa() -> void:
+	if f.check_ground_attack():
+		return
 	if f.check_ground_jump() or f.check_platform_drop():
 		return
 	if f.stick_y() > -MeleeStick.CROUCH_THRESHOLD + FighterConst.EPS:
@@ -24,3 +26,11 @@ func pose() -> String:
 
 func pose_frame() -> int:
 	return 1000  # laatste key van de crouch-pose vasthouden
+
+
+func is_crouching() -> bool:
+	return true
+
+
+func hurtbox_shape() -> String:
+	return "crouch"

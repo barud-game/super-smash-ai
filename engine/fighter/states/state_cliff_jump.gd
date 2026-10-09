@@ -50,4 +50,8 @@ func intangible() -> bool:
 
 
 func pose() -> String:
-	return pick_pose("ledge_jump", "jumpsquat")
+	return pick_pose("cliff_jump", "jumpsquat")
+
+
+func visual_offset_px() -> Vector2:
+	return StateCliffWait.hang_offset(f)

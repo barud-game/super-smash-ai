@@ -62,3 +62,16 @@ func is_grounded() -> bool:
 func intangible() -> bool:
 	var n: int = sf() + 1
 	return n >= int(opt["i0"]) and n <= int(opt["i1"])
+
+
+## Pose over de hele getup uitgesmeerd (pose-lengte / duur).
+func pose_speed() -> float:
+	if f.visual == null:
+		return 1.0
+	return f.visual.pose_length(pose()) / float(maxi(int(opt.get("frames", 1)), 1))
+
+
+## Begint in de hang-houding: de offset naar de ledge verdwijnt tijdens het omhoogklimmen.
+func visual_offset_px() -> Vector2:
+	var rise: int = maxi(int(opt.get("rise", 0)), 1)
+	return StateCliffWait.hang_offset(f) * clampf(1.0 - float(sf()) / float(rise), 0.0, 1.0)

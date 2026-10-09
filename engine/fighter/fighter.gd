@@ -34,6 +34,9 @@ const SEG_PLATFORM: int = 1
 @export var player: int = 0
 @export var stats: FighterStats
 @export var character_id: String = "_dummy"
+## Archetype van de moveset (engine/fighter/archetypes/<id>/moves). "" = afleiden uit de stats-preset,
+## dan uit characters/<id>/character.json, anders "allrounder". Zie reload_moves().
+@export var archetype_id: String = ""
 @export var use_visual: bool = true
 ## Registreert zich in _ready bij het Sim-autoload (uit voor headless tests die zelf sim_tick aanroepen).
 @export var auto_register: bool = true
@@ -96,7 +99,43 @@ var tick_count: int = 0
 
 var visual: CharacterVisual
 
+# --- Gevecht (M3, docs/combat.md "M3-integratie") ---
+## Move-naam -> MoveData (archetype + character-overrides + ingebouwd). Zie reload_moves().
+var moves: Dictionary = {}
+## Knockback-snelheid (apart van vel, zoals Melee): telt op bij de positie, neemt 0.051/frame af.
+var kb_vel: Vector2 = Vector2.ZERO
+## Resterende hitlag-frames (freeze). hitlag_victim = geraakt (SDI/ASDI/DI), anders aanvaller (hitfall).
+var hitlag_frames: int = 0
+var hitlag_victim: bool = false
+## Sterkte van de hitlag-jitter op de sprite (px).
+var hitlag_strength: float = 0.0
+## Hitfall: in de hitlag van een eigen treffer (niet shield/clank) mag een omlaag-flick fast fall zetten.
+var hitfall_allowed: bool = false
+## Wachtende launch van het slachtoffer; wordt bij het einde van de hitlag (na DI/ASDI) toegepast.
+var pending_kb: KnockbackResult = null
+## Teller per gestarte aanval (HitResolver: owner+instance+group+target = al geraakt).
+var move_instance: int = 0
+var already_hit: Dictionary = {}
+## Na een clank/rebound raakt de huidige move-instantie niets meer.
+var hitboxes_off: bool = false
+## Hitboxes van het laatste frame (voor de F2-weergave).
+var last_hitboxes: Array[ActiveHitbox] = []
+## Speler-index van de laatste aanvaller (-1 = niemand).
+var last_hit_by: int = -1
+## Optioneel: VfxLayer voor effecten. Leeg = eerste node in groep "vfx_layer".
+var vfx: Node = null
+
 var _states: Dictionary = {}
+## Teller van state-wissels (visual: dezelfde pose opnieuw starten bij een nieuwe aanval).
+var _serial: int = 0
+var _vis_key: String = ""
+var _debug_node: Node2D = null
+## tick_count van de laatste L-cancel-druk (L/R/Z of analoge trigger) en van de laatste tech-druk.
+var _lc_tick: int = -1000
+var _tech_tick: int = -1000
+var _prev_trigger: float = 0.0
+## tick_count waarop deze fighter het laatst geraakt werd (trades: slachtoffer wint van aanvaller).
+var _victim_tick: int = -1000
 var _segments: Array = []
 var _ledges: Array = []
 var _consumed_tap_jump: int = -1000
@@ -130,6 +169,15 @@ func setup() -> void:
 		visual.character_id = character_id
 		visual.player_index = player
 		add_child(visual)
+	if use_visual and _debug_node == null:
+		# Debug-tekenlaag (F2) boven de visual.
+		_debug_node = Node2D.new()
+		_debug_node.name = "CombatDebug"
+		_debug_node.z_index = 100
+		_debug_node.draw.connect(_draw_debug)
+		add_child(_debug_node)
+	if moves.is_empty():
+		reload_moves()
 	if auto_register and is_inside_tree():
 		var sim: Node = get_node_or_null("/root/Sim")
 		if sim != null:
@@ -161,6 +209,8 @@ func _register_default_states() -> void:
 		StateTeeter.new(), StateCliffCatch.new(), StateCliffWait.new(), StateCliffClimb.new(),
 		StateCliffEscape.new(), StateCliffAttack.new(), StateCliffJump.new(), StateRebirthWait.new(),
 		StateDead.new(),
+		StateAttack.new(), StateAttackAir.new(), StateDamage.new(), StateDamageFly.new(), StateDamageFall.new(),
+		StateTech.new(), StateDownBound.new(), StateDownWait.new(), StateDownGetup.new(), StateRebound.new(),
 	]:
 		register_state(s)
 
@@ -190,8 +240,10 @@ func change_state(id: String, args: Dictionary = {}) -> void:
 	prev_state_name = old
 	state = next
 	state_frame = 0
+	_serial += 1
 	next.enter(args)
 	state_changed.emit(old, id)
+	_state_fx(old, id)
 
 
 func state_name() -> String:
@@ -203,6 +255,12 @@ func sim_tick(_frame: int = 0) -> void:
 	if not active:
 		return
 	tick_count += 1
+	_track_presses()
+	if hitlag_frames > 0:
+		# Hitlag-freeze: geen beweging, state_frame en timers staan stil. Wel SDI/ASDI/DI of hitfall.
+		_hitlag_tick()
+		_update_visual()
+		return
 	if intangible_frames > 0:
 		intangible_frames -= 1
 	if ledge_cooldown_frames > 0:
@@ -216,6 +274,8 @@ func sim_tick(_frame: int = 0) -> void:
 	state.iasa()
 	state.phys()
 	state.coll()
+	if kb_vel != Vector2.ZERO:
+		kb_vel = Knockback.decay_step(kb_vel)
 	if not grounded and state.can_grab_ledge():
 		check_ledge_grab()
 	_post_coll()
@@ -235,6 +295,7 @@ func spawn(at: Vector2, dir: int = 1) -> void:
 	fastfalling = false
 	air_jumps_used = 0
 	ignore_platform = -1
+	reset_combat()
 	intangible_frames = 0
 	ledge_cooldown_frames = 0
 	ledge_intang_ready = true
@@ -271,6 +332,7 @@ func respawn_at(p: Vector2, invincible_frames: int) -> void:
 	fastfalling = false
 	air_jumps_used = 0
 	ignore_platform = -1
+	reset_combat()
 	ledge_cooldown_frames = 0
 	ledge_intang_ready = true
 	if absf(p.x) > 1.0:
@@ -305,6 +367,7 @@ func _sfx(sfx_name: String) -> void:
 
 func set_stats(s: FighterStats) -> void:
 	stats = s
+	reload_moves()
 
 
 # =============================================================================================
@@ -359,7 +422,8 @@ func _y_excursion() -> int:
 
 ## Volledige lijst van Wait (en states die "actionable" zijn zoals Wait).
 func check_wait_interrupts() -> bool:
-	return check_ground_jump() or check_dash() or check_squat() or check_turn() or check_walk()
+	return check_ground_attack() or check_ground_jump() or check_dash() or check_squat() or check_turn() \
+		or check_walk()
 
 
 func check_ground_jump() -> bool:
@@ -597,6 +661,445 @@ func finish_ledge_move(at: Vector2) -> void:
 
 
 # =============================================================================================
+# Gevecht (M3). Zie docs/combat.md, "M3-integratie".
+# =============================================================================================
+
+const MAX_PERCENT: float = 999.0
+
+
+## (Her)laadt de moveset: archetype + character-overrides + ingebouwde moves (MoveSet).
+func reload_moves() -> void:
+	moves = MoveSet.load_for(resolved_archetype(), character_id, stats)
+
+
+## Archetype-id: expliciet, anders de stats-preset, anders character.json, anders "allrounder".
+func resolved_archetype() -> String:
+	if archetype_id != "":
+		return archetype_id
+	var a: String = Archetypes.id_for_stats(stats)
+	if a == "":
+		a = Archetypes.id_for_character(character_id)
+	return a if a != "" else "allrounder"
+
+
+func get_move(move_name: String) -> MoveData:
+	return moves.get(move_name)
+
+
+func has_move(move_name: String) -> bool:
+	return moves.has(move_name)
+
+
+## Nieuwe move-instantie: elk doelwit mag weer één keer (per hit-groep) geraakt worden.
+func start_move() -> void:
+	move_instance += 1
+	already_hit.clear()
+	hitboxes_off = false
+
+
+func reset_combat() -> void:
+	kb_vel = Vector2.ZERO
+	hitlag_frames = 0
+	hitlag_victim = false
+	hitfall_allowed = false
+	pending_kb = null
+	hitboxes_off = false
+	already_hit.clear()
+	last_hitboxes.clear()
+
+
+# --- input --------------------------------------------------------------------------------------
+
+## Onthoud L-cancel- en tech-drukken (ook tijdens hitlag). LT/RT (digitaal of analoog >= 0.3) en RB/Z
+## tellen voor L-cancel; alleen LT/RT voor tech (met lockout).
+func _track_presses() -> void:
+	var fr: InputFrame = input.get_frame(0)
+	var trig: float = fr.shield_analog()
+	var trig_press: bool = trig >= FighterConst.TRIGGER_PRESS and _prev_trigger < FighterConst.TRIGGER_PRESS
+	_prev_trigger = trig
+	var shield_press: bool = input.pressed(InputFrame.BTN_SHIELD) or trig_press
+	if shield_press or input.pressed(InputFrame.BTN_Z):
+		_lc_tick = tick_count
+	if shield_press and tick_count - _tech_tick >= FighterConst.TECH_LOCKOUT:
+		_tech_tick = tick_count
+
+
+## L-cancel-druk binnen 7 frames vóór (en op) dit frame.
+func lcancel_ready() -> bool:
+	return tick_count - _lc_tick < FighterConst.LCANCEL_WINDOW
+
+
+## Tech-druk binnen 20 frames vóór (en op) dit frame.
+func tech_ready() -> bool:
+	return tick_count - _tech_tick < FighterConst.TECH_WINDOW
+
+
+## Verse C-stick-input (vorige frame onder de drempel): (±1, 0) of (0, ±1) langs de dominante as, anders ZERO.
+func cstick_dir() -> Vector2i:
+	var c: Vector2 = input.get_frame(0).cstick_f()
+	var p: Vector2 = input.get_frame(1).cstick_f()
+	var th: float = FighterConst.CSTICK_THRESHOLD - FighterConst.EPS
+	if maxf(absf(c.x), absf(c.y)) < th or maxf(absf(p.x), absf(p.y)) >= th:
+		return Vector2i.ZERO
+	if absf(c.y) > absf(c.x):
+		return Vector2i(0, 1 if c.y > 0.0 else -1)
+	return Vector2i(1 if c.x > 0.0 else -1, 0)
+
+
+## TODO M4: grab (Z, shield + A, JC/dash grab). Nu doen deze inputs bewust niets (en geven geen jab).
+func check_grab() -> bool:
+	return input.pressed(InputFrame.BTN_Z) \
+		or (input.pressed(InputFrame.BTN_ATTACK) and input.held(InputFrame.BTN_SHIELD))
+
+
+## Grond-aanval zoals Melee: C-stick = smash; A + flick (teller < SMASH_ATTACK_WINDOW) = smash;
+## A + stick = tilt (dominante as); A neutraal = jab. Smash/ftilt naar achteren draaien de fighter om.
+func check_ground_attack() -> bool:
+	if check_grab():
+		return true
+	var c: Vector2i = cstick_dir()
+	if c != Vector2i.ZERO:
+		return _start_smash(c, false)
+	if not input.pressed(InputFrame.BTN_ATTACK):
+		return false
+	var fx: int = input.flick_x(MeleeStick.SMASH_THRESHOLD, FighterConst.SMASH_ATTACK_WINDOW)
+	var fy: int = input.flick_y(MeleeStick.SMASH_THRESHOLD, FighterConst.SMASH_ATTACK_WINDOW)
+	var s: Vector2 = stick()
+	if fy != 0 and (fx == 0 or absf(s.y) >= absf(s.x)):
+		return _start_smash(Vector2i(0, fy), true)
+	if fx != 0:
+		return _start_smash(Vector2i(fx, 0), true)
+	if s == Vector2.ZERO:
+		return start_attack("jab")
+	if absf(s.y) > absf(s.x):
+		return start_attack("utilt" if s.y > 0.0 else "dtilt")
+	return start_attack("ftilt", {"facing": 1 if s.x > 0.0 else -1})
+
+
+func _start_smash(dir: Vector2i, with_a: bool) -> bool:
+	if dir.y > 0:
+		return start_attack("usmash", {"charge": with_a})
+	if dir.y < 0:
+		return start_attack("dsmash", {"charge": with_a})
+	return start_attack("fsmash", {"charge": with_a, "facing": dir.x})
+
+
+## Dash/Run: A of C-stick = dash attack. In de initial dash ook usmash (A + omhoog-flick of C-stick omhoog). ⚠️
+func check_dash_attack(allow_usmash: bool) -> bool:
+	if check_grab():
+		return true
+	var c: Vector2i = cstick_dir()
+	var a: bool = input.pressed(InputFrame.BTN_ATTACK)
+	if allow_usmash and (c.y > 0 \
+			or (a and input.flick_y(MeleeStick.SMASH_THRESHOLD, FighterConst.SMASH_ATTACK_WINDOW) == 1)):
+		return start_attack("usmash", {"charge": a})
+	if a or c != Vector2i.ZERO:
+		return start_attack("dash_attack")
+	return false
+
+
+## Jumpsquat: A + stick omhoog (of C-stick omhoog) = jump-cancelled usmash (de sprong vervalt).
+func check_jc_usmash() -> bool:
+	if check_grab():
+		return true
+	var a: bool = input.pressed(InputFrame.BTN_ATTACK)
+	if cstick_dir().y > 0 or (a and stick_y() >= FighterConst.JC_USMASH_THRESHOLD - FighterConst.EPS):
+		return start_attack("usmash", {"charge": a})
+	return false
+
+
+## Aerial: C-stick of A + stick (dominante as, t.o.v. facing): nair / fair / bair / uair / dair.
+func check_aerial() -> bool:
+	var c: Vector2i = cstick_dir()
+	var d: Vector2
+	if c != Vector2i.ZERO:
+		d = Vector2(c)
+	elif input.pressed(InputFrame.BTN_ATTACK):
+		d = stick()
+	else:
+		return false
+	var n: String = "nair"
+	if d != Vector2.ZERO:
+		if absf(d.y) > absf(d.x):
+			n = "uair" if d.y > 0.0 else "dair"
+		else:
+			n = "fair" if d.x * facing > 0.0 else "bair"
+	return start_attack(n)
+
+
+## Start een aanval (grond: Attack, lucht: AttackAir). args: facing, charge. false als de move niet bestaat.
+func start_attack(move_name: String, args: Dictionary = {}) -> bool:
+	var m: MoveData = moves.get(move_name)
+	if m == null:
+		return false
+	var a: Dictionary = args.duplicate()
+	a["move"] = move_name
+	change_state("Attack" if grounded else "AttackAir", a)
+	return true
+
+
+# --- hitboxes / hurtboxes -----------------------------------------------------------------------
+
+## Hitboxes van dit frame (leeg tijdens hitlag, na een clank, of buiten de match).
+func active_hitboxes() -> Array[ActiveHitbox]:
+	if not active or hitlag_frames > 0 or hitboxes_off or state == null:
+		return []
+	return state.hitboxes()
+
+
+## Hurtbox-capsules (lokaal, voeten = oorsprong), geschaald met visual_height; vorm per state.
+func hurtboxes() -> Array[HurtboxData]:
+	var h: float = stats.visual_height
+	var shape: String = state.hurtbox_shape() if state != null else "stand"
+	if shape == "crouch":
+		var c: Array[HurtboxData] = []
+		c.append(HurtboxData.make(Vector2(0, h * 0.15), Vector2(0, h * 0.3), h * 0.17))
+		c.append(HurtboxData.make(Vector2(h * 0.08, h * 0.42), Vector2(h * 0.08, h * 0.42), h * 0.15))
+		return c
+	if shape == "lie":
+		var l: Array[HurtboxData] = []
+		l.append(HurtboxData.make(Vector2(-h * 0.38, h * 0.12), Vector2(h * 0.38, h * 0.12), h * 0.13))
+		return l
+	return HurtboxData.default_for_height(h)
+
+
+## Momentopname voor HitResolver.
+func combat_target() -> CombatTarget:
+	var t := CombatTarget.new()
+	t.id = player
+	t.origin = pos
+	t.facing = facing
+	t.hurtboxes = hurtboxes()
+	t.percent = percent
+	t.weight = stats.weight
+	t.grounded = grounded
+	t.crouching = grounded and state != null and state.is_crouching()
+	t.intangible = is_intangible() or not active
+	return t
+
+
+# --- treffers toepassen (aangeroepen door CombatSystem) -------------------------------------------
+
+## Aanvaller: eigen treffer (HIT of SHIELD). Hitlag; hitfall alleen bij een echte treffer.
+func on_hit_landed(ev: HitEvent) -> void:
+	already_hit[ev.key] = true
+	hitlag_frames = maxi(hitlag_frames, ev.attacker_hitlag)
+	if _victim_tick != tick_count:
+		hitlag_victim = false
+		hitlag_strength = 0.0
+		hitfall_allowed = ev.attacker_hitfall_allowed
+
+
+## Clank: hitlag voor beide; rebound = de move raakt niets meer, op de grond -> Rebound-state.
+func on_clank(hitlag: int, rebound: bool) -> void:
+	hitlag_frames = maxi(hitlag_frames, hitlag)
+	if _victim_tick != tick_count:
+		hitlag_victim = false
+		hitlag_strength = 0.0
+		hitfall_allowed = false
+	if rebound:
+		hitboxes_off = true
+		if grounded and state != null and state.id() == "Attack":
+			change_state("Rebound")
+
+
+## Slachtoffer: percent, ledge-reset, damage-state, hitlag. De launch wacht tot het einde van de hitlag
+## (SDI tijdens, ASDI en DI op het laatste hitlag-frame). Geeft true als de hit (vrijwel zeker) killt.
+func receive_hit(ev: HitEvent) -> bool:
+	var kb: KnockbackResult = ev.knockback
+	last_hit_by = ev.attacker
+	_victim_tick = tick_count
+	set_percent(minf(percent + ev.damage, MAX_PERCENT))
+	if ledge_key != "":
+		release_ledge(stats.ledge_hit_cooldown)
+	on_hit_reset_ledge()
+	fastfalling = false
+	reset_fast_fall_buffer()
+	hitfall_allowed = false
+	hitlag_victim = true
+	hitlag_frames = ev.defender_hitlag
+	hitlag_strength = clampf(1.5 + ev.damage * 0.35, 1.5, 9.0)
+	var kill: bool = predict_ko(kb)
+	var crouch_cc: bool = kb.crouch_cancelled and kb.stays_grounded and state != null and state.is_crouching()
+	if not crouch_cc:
+		change_state("DamageFly" if kb.tumble else "Damage", {"kb": kb})
+	pending_kb = kb
+	if hitlag_frames <= 0:
+		hitlag_frames = 0
+		_end_victim_hitlag(stick(), stick())
+	_hit_fx(ev, kb, kill)
+	return kill
+
+
+func _hitlag_tick() -> void:
+	hitlag_frames -= 1
+	if hitlag_victim:
+		var cur: Vector2 = stick()
+		var off: Vector2 = Knockback.sdi_offset(input.get_frame(1).stick_f(), cur)
+		var asdi_stick: Vector2 = cur
+		if hitlag_frames == 0:
+			# ASDI: C-stick heeft voorrang op de stick (Melee).
+			var cs: Vector2 = input.get_frame(0).cstick_f()
+			if cs != Vector2.ZERO:
+				asdi_stick = cs
+			off += Knockback.asdi_offset(asdi_stick)
+		if off != Vector2.ZERO:
+			_nudge(off)
+		if hitlag_frames == 0:
+			_end_victim_hitlag(cur, asdi_stick)
+	elif hitfall_allowed and not grounded and not fastfalling \
+			and input.flick_y(MeleeStick.FAST_FALL_THRESHOLD, MeleeStick.FAST_FALL_WINDOW) == -1:
+		# Hitfall (Rivals-aanpak): ook tijdens het stijgen; vy wordt in de volgende phys() gezet.
+		fastfalling = true
+
+
+## SDI/ASDI-verschuiving met collision: op de grond alleen langs het segment, in de lucht niet door de vloer.
+func _nudge(off: Vector2) -> void:
+	if grounded and ground_seg >= 0 and ground_seg < _segments.size():
+		var s: Dictionary = _segments[ground_seg]
+		var x: float = clampf(pos.x + off.x, s["a"].x, s["b"].x)
+		pos = Vector2(x, _seg_y(s, x))
+		return
+	var from: Vector2 = pos
+	var to: Vector2 = pos + off
+	for s: Dictionary in _segments:
+		if s["platform"] or to.x < s["a"].x - EPS or to.x > s["b"].x + EPS:
+			continue
+		var y: float = _seg_y(s, to.x)
+		if from.y >= _seg_y(s, from.x) - 0.01 and to.y < y:
+			to.y = y + 0.01
+	pos = to
+
+
+func _end_victim_hitlag(di_stick: Vector2, asdi_stick: Vector2) -> void:
+	var kb: KnockbackResult = pending_kb
+	pending_kb = null
+	if kb == null:
+		return
+	var lv: Vector2 = Knockback.apply_di(kb.launch_vel, di_stick)
+	# ⚠️ ASDI omlaag op de grond zonder tumble: blijft staan (alleen de x-component als glijden).
+	var stay: bool = kb.stays_grounded \
+		or (grounded and not kb.tumble and asdi_stick.y <= -FighterConst.ASDI_DOWN_THRESHOLD + FighterConst.EPS)
+	_launch(kb, lv, stay)
+
+
+func _launch(kb: KnockbackResult, lv: Vector2, stay_grounded: bool) -> void:
+	vel = Vector2.ZERO
+	if grounded and stay_grounded:
+		gr_vel = lv.x
+		kb_vel = Vector2.ZERO
+		return
+	if grounded:
+		if lv.y < 0.0:
+			lv.y = -lv.y * FighterConst.GROUND_BOUNCE_FACTOR   # ⚠️ grond-bounce
+		grounded = false
+		ground_seg = -1
+		gr_vel = 0.0
+	fastfalling = false
+	kb_vel = lv
+	if kb.tumble:
+		var v: Node = get_vfx()
+		if v != null and v.has_method("spawn_launch_trail"):
+			v.spawn_launch_trail(self, clampi(kb.hitstun, 12, 60))
+
+
+## Neerkomen in tumble (DamageFly/DamageFall): tech-druk binnen 20 frames -> Tech (stick-x >= 0.5 = roll die kant
+## op, anders in place); anders missed tech (DownBound).
+func land_in_tumble() -> void:
+	if tech_ready():
+		var sx: float = stick_x()
+		var d: int = 0
+		if absf(sx) >= FighterConst.TECH_ROLL_THRESHOLD - FighterConst.EPS:
+			d = 1 if sx > 0.0 else -1
+		change_state("Tech", {"dir": d})
+	else:
+		change_state("DownBound")
+
+
+## Zou deze launch (zonder DI én met ±18° DI) de fighter uit de blast zone brengen? Voor de kill-flash/-SFX.
+func predict_ko(kb: KnockbackResult) -> bool:
+	if not kb.tumble or stage == null or not stage.has_method("get_blast_zone"):
+		return false
+	var bz: Rect2 = stage.get_blast_zone()
+	if bz.size == Vector2.ZERO:
+		return false
+	for deg: float in [0.0, Knockback.MAX_DI_DEG, -Knockback.MAX_DI_DEG]:
+		if not _flies_out(kb.launch_vel.rotated(deg_to_rad(deg)), kb.hitstun, bz):
+			return false
+	return true
+
+
+func _flies_out(launch: Vector2, hitstun: int, bz: Rect2) -> bool:
+	var p: Vector2 = pos
+	var v: Vector2 = Vector2.ZERO
+	var k: Vector2 = launch
+	for i in 300:
+		p += v + k
+		if not bz.has_point(p):
+			return true
+		k = Knockback.decay_step(k)
+		v.y = maxf(v.y - stats.gravity, -stats.terminal_velocity)
+		if k == Vector2.ZERO and i > hitstun:
+			return false
+	return false
+
+
+# --- effecten (alleen presentatie) --------------------------------------------------------------
+
+## VfxLayer: `vfx` als die gezet is, anders de eerste node in groep "vfx_layer".
+func get_vfx() -> Node:
+	if vfx != null and is_instance_valid(vfx):
+		return vfx
+	if is_inside_tree():
+		return get_tree().get_first_node_in_group("vfx_layer")
+	return null
+
+
+func _hit_fx(ev: HitEvent, kb: KnockbackResult, kill: bool) -> void:
+	var v: Node = get_vfx()
+	if v != null and v.has_method("spawn_hit"):
+		v.spawn_hit(ev.hitbox.pos, clampf(kb.kb / 160.0, 0.05, 1.0), int(ev.hitbox.data.element), kb.angle, kill)
+	var s: String = "hit_weak"
+	if kill:
+		s = "hit_kill"
+	elif kb.tumble:
+		s = "hit_strong"
+	elif ev.damage >= 7.0 or kb.kb >= 40.0:
+		s = "hit_medium"
+	_sfx(s)
+
+
+func _land_fx(heavy: bool) -> void:
+	_sfx("land_heavy" if heavy else "land")
+	var v: Node = get_vfx()
+	if v != null and v.has_method("spawn_land_dust"):
+		v.spawn_land_dust(pos, heavy)
+
+
+func _state_fx(old: String, id: String) -> void:
+	if not is_inside_tree():
+		return
+	var v: Node = get_vfx()
+	match id:
+		"Jump":
+			if old == "KneeBend":
+				_sfx("jump")
+				if v != null:
+					v.spawn_jump_dust(pos)
+		"JumpAerial":
+			_sfx("double_jump")
+		"Dash":
+			_sfx("dash")
+			if v != null:
+				v.spawn_dash_dust(pos, facing)
+		"EscapeAir":
+			_sfx("airdodge")
+			if v != null:
+				v.spawn_airdodge_trail(pos + Vector2(0, stats.visual_height * 0.5),
+					NAN if vel == Vector2.ZERO else rad_to_deg(atan2(vel.y, vel.x)))
+
+
+# =============================================================================================
 # Physics-helpers (Melee-formules, zie docs/movement.md)
 # =============================================================================================
 
@@ -708,7 +1211,11 @@ func _set_grounded(seg: int, x: float) -> void:
 
 ## Landen: gr_vel = vx (begrensd), verticale snelheid vervalt, sprongen terug.
 func _land(seg: int, x: float) -> void:
+	var heavy: bool = fastfalling or vel.y + kb_vel.y <= -2.8
+	vel += kb_vel
+	kb_vel = Vector2.ZERO
 	_set_grounded(seg, x)
+	_land_fx(heavy)
 	gr_vel = clampf(vel.x, -stats.ground_max_horizontal_velocity, stats.ground_max_horizontal_velocity)
 	vel = Vector2.ZERO
 	air_jumps_used = 0
@@ -760,9 +1267,9 @@ func ground_coll() -> void:
 ## Lucht-coll: verplaats met vel; land als de ECB-onderkant een segment van boven kruist (alleen vy <= 0).
 func air_coll() -> void:
 	var from: Vector2 = pos
-	var to: Vector2 = pos + vel
+	var to: Vector2 = pos + vel + kb_vel
 	pos = to
-	if vel.y > 0.0:
+	if vel.y + kb_vel.y > 0.0:
 		return
 	var best: int = -1
 	var best_y: float = -INF
@@ -809,6 +1316,7 @@ func _blast_ko(bz: Rect2) -> void:
 	gr_vel = 0.0
 	grounded = false
 	ground_seg = -1
+	reset_combat()
 	intangible_frames = 0
 	change_state("Dead")
 	active = false
@@ -919,12 +1427,27 @@ func _update_visual() -> void:
 	position = Units.to_px(pos)
 	if visual != null and state != null:
 		# Rig is getekend op STAND_HEIGHT_PX; schaal naar de lengte van dit character.
-		visual.scale = Vector2.ONE * (stats.visual_height * Units.UNIT_TO_PX / Rig.STAND_HEIGHT_PX)
+		var sc: float = stats.visual_height * Units.UNIT_TO_PX / Rig.STAND_HEIGHT_PX
+		visual.scale = Vector2.ONE * sc
 		visual.facing = facing
-		visual.play(state.pose(), false)
+		var p: String = state.pose()
+		var key: String = "%d|%s" % [_serial, p]
+		var timing: Array = state.pose_timing()
+		if key != _vis_key and timing.size() == 3:
+			# Aanvalspose: fases geschaald naar de frame-data (docs/rig.md 6b), bij elke nieuwe aanval opnieuw.
+			visual.play_timed(p, int(timing[0]), int(timing[1]), int(timing[2]), true)
+		elif timing.size() != 3:
+			visual.play(p, false)
+		_vis_key = key
 		visual.tick(state.pose_frame(), state.pose_speed())
+		var off: Vector2 = state.visual_offset_px() * sc
+		if hitlag_frames > 0 and hitlag_victim:
+			off += VfxConst.hitlag_jitter(hitlag_frames, hitlag_strength)
+		visual.position = off
 	if is_inside_tree():
 		queue_redraw()
+		if _debug_node != null:
+			_debug_node.queue_redraw()
 
 
 func _draw() -> void:
@@ -934,30 +1457,41 @@ func _draw() -> void:
 		var w: float = 14.0 * k0
 		draw_rect(Rect2(Vector2(-w, 0.0), Vector2(2.0 * w, 3.0 * k0)), Color(0.55, 0.85, 1.0, 0.85))
 		draw_rect(Rect2(Vector2(-w, 3.0 * k0), Vector2(2.0 * w, 1.0 * k0)), Color(0.3, 0.5, 0.9, 0.6))
+
+
+## F2 (Sim.debug_hitboxes): ECB, hurtboxes en hitboxes, boven de visual (CombatDebug-node, z 100).
+func _draw_debug() -> void:
 	var sim: Node = get_node_or_null("/root/Sim")
-	if sim == null or not sim.debug_hitboxes or stats == null:
+	if sim == null or not sim.debug_hitboxes or stats == null or state == null or not active:
 		return
+	var c: Node2D = _debug_node
+	HitboxDraw.draw_hurtboxes(c, combat_target(), pos)
+	HitboxDraw.draw_hitboxes(c, last_hitboxes, pos)
 	# ECB-diamant (presentatie in px, t.o.v. de voeten)
 	var k: float = Units.UNIT_TO_PX
 	var pts := PackedVector2Array([
 		Vector2(0, 0), Vector2(stats.ecb_half_width * k, -stats.ecb_mid_y * k),
 		Vector2(0, -stats.ecb_height * k), Vector2(-stats.ecb_half_width * k, -stats.ecb_mid_y * k), Vector2(0, 0)])
-	draw_polyline(pts, Color(1.0, 0.55, 0.1, 0.9), 2.0)
-	draw_circle(Vector2.ZERO, 3.0, Color(1, 1, 0.2))
+	c.draw_polyline(pts, Color(1.0, 0.55, 0.1, 0.9), 2.0)
+	c.draw_circle(Vector2.ZERO, 3.0, Color(1, 1, 0.2))
 
 
 ## Hook voor de debug overlay.
 func get_debug_state_name() -> String:
-	var s: String = "%s  %s f%d  pos(%.2f, %.2f)" % [
+	var s: String = "%s  %s f%d  pos(%.2f, %.2f)  %.1f%%" % [
 		stats.display_name if stats != null else "?", state.debug_name() if state != null else "-",
-		state_frame, pos.x, pos.y]
+		state_frame, pos.x, pos.y, percent]
 	if grounded:
 		s += "  gr_vel %.3f" % gr_vel
 	else:
 		s += "  vel(%.3f, %.3f)" % [vel.x, vel.y]
+	if kb_vel != Vector2.ZERO:
+		s += "  kb(%.2f, %.2f)" % [kb_vel.x, kb_vel.y]
 	s += "  jumps %d/%d" % [stats.air_jumps - air_jumps_used, stats.air_jumps]
 	if fastfalling:
 		s += "  FF"
+	if hitlag_frames > 0:
+		s += "  HITLAG %d%s" % [hitlag_frames, " (hitfall)" if hitfall_allowed else ""]
 	if is_intangible():
 		s += "  INTANGIBLE"
 		if intangible_frames > 0:
@@ -968,4 +1502,4 @@ func get_debug_state_name() -> String:
 ## Momentopname voor tests/determinisme.
 func snapshot() -> Array:
 	return [state_name(), state_frame, pos, vel, gr_vel, facing, grounded, air_jumps_used, fastfalling,
-		intangible_frames, ledge_key, active]
+		intangible_frames, ledge_key, active, percent, kb_vel, hitlag_frames]
