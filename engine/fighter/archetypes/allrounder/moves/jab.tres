@@ -1,0 +1,46 @@
+[gd_resource type="Resource" script_class="MoveData" format=3]
+
+[ext_resource type="Script" path="res://engine/combat/hitbox_data.gd" id="hb"]
+[ext_resource type="Script" path="res://engine/combat/move_data.gd" id="md"]
+
+[sub_resource type="Resource" id="HB_1"]
+script = ExtResource("hb")
+start_frame = 2
+end_frame = 3
+offset = Vector2(9, 8)
+damage = 2.0
+
+[sub_resource type="Resource" id="HB_2"]
+script = ExtResource("hb")
+id = 1
+start_frame = 2
+end_frame = 3
+offset = Vector2(4.5, 8)
+damage = 1.0
+
+[sub_resource type="Resource" id="HB_3"]
+script = ExtResource("hb")
+id = 2
+group = 1
+start_frame = 4
+end_frame = 4
+offset = Vector2(9, 8)
+damage = 3.0
+base_kb = 8.0
+kb_growth = 60.0
+
+[sub_resource type="Resource" id="HB_4"]
+script = ExtResource("hb")
+id = 3
+group = 1
+start_frame = 4
+end_frame = 4
+offset = Vector2(4.5, 8)
+damage = 2.0
+kb_growth = 60.0
+
+[resource]
+script = ExtResource("md")
+move_name = "jab"
+total_frames = 21
+hitboxes = Array[ExtResource("hb")]([SubResource("HB_1"), SubResource("HB_2"), SubResource("HB_3"), SubResource("HB_4")])

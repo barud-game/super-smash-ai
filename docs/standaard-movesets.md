@@ -150,3 +150,10 @@ Gelden voor archetypes én characters. De validator controleert ze.
    Hitbox-**posities** (offsets) worden geschaald met `visual_height / 15`; **radius** niet. Zo blijft een omhoog-move
    net boven het hoofd en een dair net onder de voeten, ook bij een klein of groot character.
 10. **"Rondom"-moves** (nair, dsmash met twee kanten): minimaal één box voor én één achter, ook bij Bereik 1.
+
+### Verduidelijkingen (validator-definities)
+- **Tellen van frames:** "laatste actieve frame" is 1-based (`max(end_frame) + 1`); grab-whiff `total_frames` = dat getal + 23.
+  `start_frame` (0-based) = S - 1.
+- **Alle vier de throws** zetten hun launch-hitbox op de grab-tip (offset van de verste grab-hitbox, dus ook bthrow en uthrow/dthrow), radius 3.0.
+- **Achterwaarts = hoek > 90:** ook bair en de achterkant van nair/dsmash (standaard 135); 361 telt als vooruit omdat het relatief aan de kijkrichting is.
+- **Rondom-moves met Bereik 1** (nair): front-box op tip, achter-box op de helft van de tip; de achter-box is een sourspot.

@@ -90,6 +90,10 @@ const REACH := {
 	"grab": [8, 10, 12, 14, 17, 20],
 }
 ## Richting waarin reach gemeten wordt: "fwd" (+x), "back" (-x), "side" (|x|), "up" (+y), "down" (-y).
+## Definitie (afspraak 9): reach = (positie langs die as / (visual_height/15)) + radius. De positie is de offset t.o.v.
+## de fighter-oorsprong (= de voeten). Verticale moves (utilt, usmash, uair, dair) meten we dus in y vanaf de voeten
+## (omhoog +y, omlaag -y); horizontale moves en aerials (nair, fair, bair) in x vanaf het lichaamsmidden (x = 0).
+## De radius schaalt niet mee.
 const REACH_DIR := {
 	"jab": "fwd", "ftilt": "fwd", "utilt": "up", "dtilt": "fwd", "dash_attack": "fwd",
 	"fsmash": "fwd", "usmash": "up", "dsmash": "side",
@@ -152,17 +156,41 @@ const ANGLES := {
 	"dash_attack": [[361, 361], [72, 80], [110, 110]],
 	"fsmash": [[361, 361], [60, 70]],
 	"usmash": [[75, 90]],
-	"dsmash": [[361, 361], [25, 25], [0, 0]],
+	"dsmash": [[361, 361], [25, 25], [0, 0], [91, 180]],
 	"nair": [[361, 361], [80, 90]],
 	"fair": [[361, 361], [67, 67], [24, 24]],
-	"bair": [[361, 361]],
+	"bair": [[91, 180]],
 	"uair": [[80, 92]],
 	"dair": [[270, 290], [361, 361]],
 	"fthrow": [[45, 55]],
-	"bthrow": [[45, 56], [120, 180]],
+	"bthrow": [[91, 180]],
 	"uthrow": [[70, 93]],
 	"dthrow": [[50, 50], [80, 80], [135, 135], [270, 270]],
 }
+
+## Afspraken (docs/standaard-movesets.md, director).
+## 1. Hoeken: achterwaarts lanceren = hoek > 90 (361 is relatief aan de kijkrichting en lanceert dus vooruit).
+const SAKURAI := 361.0
+const BACK_ANGLE_MIN := 90.0
+## 2. Grab-whiff: totale duur = laatste actieve frame (1-based) + 23.
+const GRAB_WHIFF_AFTER := 23
+## 3. Throws: launch-hitbox op de grab-tip, radius 3.0.
+const THROW_RADIUS := 3.0
+const THROW_POS_TOL := 0.5
+## 8. Hoogtes als fractie van visual_height (tolerantie ook als fractie); dtilt/dsmash op y = 2 (+-1).
+const HEIGHT_HORIZONTAL := 0.55
+const HEIGHT_AERIAL := 0.5
+const HEIGHT_TOL := 0.12
+const HEIGHT_LOW := 2.0
+const HEIGHT_LOW_TOL := 1.0
+## 9. Referentielengte waarvoor de reach-tabel geldt.
+const REFERENCE_HEIGHT := 15.0
+## 10. Rondom-moves: minimaal een box voor (x > 0) en een achter (x < 0).
+const AROUND_MOVES: Array[String] = ["nair", "dsmash"]
+## 6. Multi-hit: eerdere hits d 1-2, BKB <= 10.
+const MULTI_DAMAGE_MIN := 1.0
+const MULTI_DAMAGE_MAX := 2.0
+const MULTI_BKB_MAX := 10.0
 
 ## §7 Grab: hitbox-eigenschappen (angle 361, BKB 0, KBG 100, geen damage).
 const GRAB_BKB := 0

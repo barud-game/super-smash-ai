@@ -204,6 +204,10 @@ Ve 5 (12 frames) ligt onder het gemeten minimum (15); bewuste extrapolatie. ⚠�
 Angle is gemeten t.o.v. de kijkrichting van de aanvaller: **0 = vooruit, 90 = omhoog, 180 = achteruit, 270 = omlaag**. Bij de
 bair wordt de hit achter de aanvaller gespiegeld (angle blijft 361 / 'weg van de aanvaller').
 
+> **Projectafspraak (gaat vóór de tabel hieronder):** in dit project zijn hoeken altijd relatief aan de kijkrichting
+> zonder automatische spiegeling. Achterwaartse hits (bair, bthrow, achter-box van nair/dsmash) krijgen daarom
+> een hoek **> 90°**, standaard **135°**. Zie `docs/standaard-movesets.md`, afspraak 1.
+
 | Type | Standaard | Variant (sourspot / speciale wens) | Gemeten |
 |---|---|---|---|
 | Jab 1 | **361** | 70–83 (omhoog-poppen, Fox/Bowser) | 361, 70, 83, 361 |
@@ -216,11 +220,11 @@ bair wordt de hit achter de aanvaller gespiegeld (angle blijft 361 / 'weg van de
 | D-smash | **361** | 25 (laag, vooruit), 0 (Jigglypuff) | 25/361, 75/361, 0 |
 | Nair | **361** | 80–90 (late hit, omhoog) | 361 bij alle vier |
 | Fair | **361** | 67 (tip, schuin omhoog) | 361/67, 361, 361/24, 361 |
-| Bair | **361** | – | 361 bij alle vier |
+| Bair | **135** (project; Melee: 361) | – | 361 bij alle vier |
 | Uair | **90** | 80–85 | 90/80, 85/92, 85, 90 |
 | Dair (enkele hit) | **290** (meteor/spike) | 361 (geen spike), 270 | 290 (Marth, Fox), 270–290 |
 | F-throw | **45** | 50–55 | 50, 45, 45, 55 |
-| B-throw | **45** (t.o.v. worprichting) | 56 | 56 (Fox); 135-achtige hoeken bij andere characters ⚠️ |
+| B-throw | **135** (project; Melee: 45 t.o.v. worprichting) | 120–150 | 56 (Fox); 135-achtige hoeken bij andere characters ⚠️ |
 | U-throw | **90** | 70–93 | 93, 90, 70, 90 |
 | D-throw | **80** (combo) | 270 (grond-bounce, Fox) / 135 | 135, 270, 50, 80 |
 

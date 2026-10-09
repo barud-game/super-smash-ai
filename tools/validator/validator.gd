@@ -111,19 +111,31 @@ static func _late_box(hbs: Array, last_active0: int) -> HitboxData:
 	return best
 
 
-static func _reach(move: String, hbs: Array) -> float:
+## Reach in referentie-units: positie langs de as gedeeld door `scale` (= visual_height / 15), plus radius (niet geschaald).
+static func _reach(move: String, hbs: Array, scale: float = 1.0) -> float:
 	var dir: String = CT.REACH_DIR.get(move, "fwd")
 	var best: float = -INF
 	for h in hbs:
 		var v: float
 		match dir:
-			"fwd": v = h.offset.x + h.radius
-			"back": v = -h.offset.x + h.radius
-			"side": v = absf(h.offset.x) + h.radius
-			"up": v = h.offset.y + h.radius
-			_: v = -h.offset.y + h.radius
+			"fwd": v = h.offset.x / scale + h.radius
+			"back": v = -h.offset.x / scale + h.radius
+			"side": v = absf(h.offset.x) / scale + h.radius
+			"up": v = h.offset.y / scale + h.radius
+			_: v = -h.offset.y / scale + h.radius
 		best = maxf(best, v)
 	return best
+
+
+## Offset van de verste hitbox (grab-tip) van een grab-MoveData; null als er geen hitbox is.
+static func grab_tip(grab: MoveData) -> Variant:
+	if grab == null or grab.hitboxes.is_empty():
+		return null
+	var best: HitboxData = grab.hitboxes[0]
+	for h in grab.hitboxes:
+		if h.offset.x > best.offset.x:
+			best = h
+	return best.offset
 
 
 static func _angle_ok(move: String, angle: float) -> bool:
@@ -160,8 +172,12 @@ static func check_scores(res: Dictionary, move: String, scores: Dictionary) -> v
 # ---------------------------------------------------------------- move-validatie
 
 ## Valideert één MoveData van type `move` (jab, fair, ...) tegen `scores` ({"S":..,"K":..,"B":..,"V":..}).
-func validate_move(scope: String, move: String, md: MoveData, scores: Dictionary) -> Dictionary:
+## `visual_height` = lengte van het character (afspraak 9: posities schalen met visual_height / 15, radius niet).
+## `grab` = de grab-MoveData van hetzelfde character (voor de throw-hitbox-positie op de grab-tip); mag null zijn.
+func validate_move(scope: String, move: String, md: MoveData, scores: Dictionary,
+		visual_height: float = CT.REFERENCE_HEIGHT, grab: MoveData = null) -> Dictionary:
 	var res := _new_result(scope, move, scores)
+	var scale: float = maxf(visual_height, 0.001) / CT.REFERENCE_HEIGHT
 	check_scores(res, move, scores)
 	if md == null:
 		_add(res, "fail", "MoveData kon niet geladen worden")
@@ -185,7 +201,8 @@ func validate_move(scope: String, move: String, md: MoveData, scores: Dictionary
 	res["measured"]["last_active"] = last_active
 
 	if CT.is_throw(move):
-		_validate_throw(res, move, md, main, sn, kr, scores)
+		_validate_throw(res, move, md, main, sn, kr, scores, grab, scale)
+		_check_back_angles(res, move, hbs)
 		return _finish(res)
 
 	if scores.has("S") and CT.STARTUP.has(move):
@@ -196,7 +213,7 @@ func validate_move(scope: String, move: String, md: MoveData, scores: Dictionary
 			rmax = maxf(rmax, h.radius)
 		_cmp(res, "radius", rmax, CT.RADIUS, be, CT.RADIUS_TOL, "fail", "B")
 		if CT.REACH.has(move):
-			_cmp(res, "reach", _reach(move, hbs), CT.REACH[move], be, CT.REACH_TOL, "fail", "B")
+			_cmp(res, "reach", _reach(move, hbs, scale), CT.REACH[move], be, CT.REACH_TOL, "fail", "B")
 		if CT.ACTIVE.has(move):
 			_cmp(res, "active", blk.y - blk.x + 1, CT.ACTIVE[move], be, 0.0, "fail", "B")
 		var disjoint_any := false
@@ -207,13 +224,18 @@ func validate_move(scope: String, move: String, md: MoveData, scores: Dictionary
 		if be < CT.DISJOINT_MIN_BE and disjoint_any:
 			_add(res, "warn", "B=%d verwacht geen disjoint hitbox" % be)
 
+	_check_height(res, move, hbs, visual_height)
 	if move == "grab":
-		_validate_grab(res, main)
+		_validate_grab(res, main, md, last_active)
 		return _finish(res)
 
+	if move in CT.AROUND_MOVES:
+		_check_around(res, move, hbs)
 	if scores.has("K"):
 		_check_power(res, move, group, main, hbs, kr)
-	if not _angle_ok(move, main.angle):
+	_check_multi_hit(res, move, main, hbs)
+	var back_warned := _check_back_angles(res, move, hbs)
+	if not back_warned and not _angle_ok(move, main.angle):
 		_add(res, "warn", "angle %s niet in standaard/variant (move-conversie §6)" % _fmt(main.angle))
 	if scores.has("V"):
 		if CT.is_aerial(move):
@@ -233,17 +255,101 @@ func _check_power(res: Dictionary, move: String, group: String, main: HitboxData
 	for h in hbs:
 		if h.damage > ceil_v + 0.001:
 			_add(res, "fail", "hitbox %d damage %s boven plafond %d" % [h.id, _fmt(h.damage), ceil_v])
-	# Sourspots/late hits: damage x0,7 (afronden), BKB -10 (min 0), KBG gelijk.
+	# Sourspots/late hits (afspraak 5 en 7): damage x0,7 (afronden), BKB -10 (min 0), KBG gelijk, per hit-groep
+	# t.o.v. de sterkste box van die groep. Zelfde positie + later in de tijd = "sterk begin, zwak einde" (sex kick).
+	var tops := {}
 	for h in hbs:
-		if h == main or h.group != main.group:
+		var t: HitboxData = tops.get(h.group, null)
+		if t == null or h.damage > t.damage or (h.damage == t.damage and h.id < t.id):
+			tops[h.group] = h
+	for h in hbs:
+		var top: HitboxData = tops[h.group]
+		if h == top:
 			continue
-		if absf(h.damage - main.damage) < 0.001 and absf(h.base_kb - main.base_kb) < 0.001:
+		var late_sib: bool = h.start_frame > top.start_frame and h.offset.is_equal_approx(top.offset) 				and is_equal_approx(h.radius, top.radius)
+		if not late_sib and absf(h.damage - top.damage) < 0.001 and absf(h.base_kb - top.base_kb) < 0.001:
 			continue
-		var sd: float = roundf(main.damage * CT.SOURSPOT_DAMAGE_MULT)
-		var sb: float = maxf(0.0, main.base_kb - CT.SOURSPOT_BKB_MINUS)
-		if absf(h.damage - sd) > 0.5 or absf(h.base_kb - sb) > 0.5 or absf(h.kb_growth - main.kb_growth) > 0.5:
-			_add(res, "warn", "sourspot hitbox %d: %s/%s/%s, verwacht %s/%s/%s (d/b/g, §2.3)" % [h.id,
-					_fmt(h.damage), _fmt(h.base_kb), _fmt(h.kb_growth), _fmt(sd), _fmt(sb), _fmt(main.kb_growth)])
+		var sd: float = roundf(top.damage * CT.SOURSPOT_DAMAGE_MULT)
+		var sb: float = maxf(0.0, top.base_kb - CT.SOURSPOT_BKB_MINUS)
+		if absf(h.damage - sd) > 0.5 or absf(h.base_kb - sb) > 0.5 or absf(h.kb_growth - top.kb_growth) > 0.5:
+			var kind := "sex-kick late blok" if late_sib else "sourspot"
+			_add(res, "warn", "%s hitbox %d: %s/%s/%s, verwacht %s/%s/%s (d/b/g, afspraak 5)" % [kind, h.id,
+					_fmt(h.damage), _fmt(h.base_kb), _fmt(h.kb_growth), _fmt(sd), _fmt(sb), _fmt(top.kb_growth)])
+
+
+## Afspraak 6: multi-hit. Alle groepen voor de laatste zijn kleine hits (d 1-2, BKB <= 10, hoek 361 of naar de
+## finisher toe: gelijk aan de hoek van de finisher, of 270-290 bij een drill-dair).
+func _check_multi_hit(res: Dictionary, move: String, main: HitboxData, hbs: Array) -> void:
+	var last_group: int = main.group
+	var multi := false
+	for h in hbs:
+		if h.group != last_group:
+			multi = true
+	if not multi:
+		return
+	for h in hbs:
+		if h.group >= last_group:
+			continue
+		var bad: PackedStringArray = []
+		if h.damage < CT.MULTI_DAMAGE_MIN - 0.001 or h.damage > CT.MULTI_DAMAGE_MAX + 0.001:
+			bad.append("damage %s (verwacht %d-%d)" % [_fmt(h.damage), int(CT.MULTI_DAMAGE_MIN), int(CT.MULTI_DAMAGE_MAX)])
+		if h.base_kb > CT.MULTI_BKB_MAX + 0.001:
+			bad.append("BKB %s (verwacht <= %d)" % [_fmt(h.base_kb), int(CT.MULTI_BKB_MAX)])
+		var ang_ok: bool = is_equal_approx(h.angle, CT.SAKURAI) or is_equal_approx(h.angle, main.angle) \
+				or (move == "dair" and h.angle >= 270.0 and h.angle <= 290.0)
+		if not ang_ok:
+			bad.append("angle %s (verwacht 361 of richting de finisher)" % _fmt(h.angle))
+		if not bad.is_empty():
+			_add(res, "warn", "multi-hit hitbox %d (groep %d): %s (afspraak 6)" % [h.id, h.group, ", ".join(bad)])
+
+
+## Afspraak 1: een hitbox die achter de fighter zit (of een bthrow) moet naar achteren lanceren: hoek > 90.
+## 361 geldt als vooruit (relatief aan de kijkrichting). Geeft true als er een WARN is gegeven.
+func _check_back_angles(res: Dictionary, move: String, hbs: Array) -> bool:
+	var warned := false
+	for h in hbs:
+		var is_back: bool = h.offset.x < -0.001 or move == "bthrow"
+		if move == "grab" or CT.is_throw(move) and move != "bthrow":
+			is_back = false
+		if not is_back:
+			continue
+		if h.angle <= CT.BACK_ANGLE_MIN or h.angle >= 360.0:
+			_add(res, "warn", "achterwaartse hitbox %d (%s) heeft angle %s; achterwaarts lanceren = > 90 (afspraak 1)" % [
+					h.id, move, _fmt(h.angle)])
+			warned = true
+	return warned
+
+
+## Afspraak 10: rondom-moves hebben minimaal een box voor (x > 0) en een achter (x < 0).
+func _check_around(res: Dictionary, move: String, hbs: Array) -> void:
+	var front := false
+	var back := false
+	for h in hbs:
+		front = front or h.offset.x > 0.001
+		back = back or h.offset.x < -0.001
+	if not (front and back):
+		_add(res, "fail", "%s is een rondom-move maar heeft %s (afspraak 10)" % [move,
+				"geen box achter" if front else ("geen box voor" if back else "geen box voor en achter")])
+
+
+## Afspraak 8: hoogtes (WARN). Horizontale grondmoves ~55% van visual_height, aerials ~50%, dtilt/dsmash op y = 2.
+func _check_height(res: Dictionary, move: String, hbs: Array, vh: float) -> void:
+	var target: float = -1.0
+	var tol: float = vh * CT.HEIGHT_TOL
+	if move in ["jab", "ftilt", "dash_attack", "fsmash", "grab"]:
+		target = vh * CT.HEIGHT_HORIZONTAL
+	elif move in ["nair", "fair", "bair"]:
+		target = vh * CT.HEIGHT_AERIAL
+	elif move in ["dtilt", "dsmash"]:
+		target = CT.HEIGHT_LOW
+		tol = CT.HEIGHT_LOW_TOL
+	if target < 0.0:
+		return
+	for h in hbs:
+		if absf(h.offset.y - target) > tol:
+			_add(res, "warn", "hitbox %d y=%s, verwacht ~%s voor visual_height %s (afspraak 8)" % [h.id, _fmt(h.offset.y),
+					_fmt(target), _fmt(vh)])
+			return
 
 
 func _validate_ground_safety(res: Dictionary, move: String, md: MoveData, hbs: Array, last_active: int, ve: int) -> void:
@@ -276,16 +382,25 @@ func _validate_aerial(res: Dictionary, md: MoveData, blk: Vector2i, last_active:
 		_add(res, "warn", "geen auto-cancel ingesteld (verwacht < start en > last_active+%d)" % CT.AUTOCANCEL_AFTER_OFFSET)
 
 
-func _validate_grab(res: Dictionary, main: HitboxData) -> void:
+## Grab (afspraak 2): geen damage, ignores_shield, en whiff-duur = laatste actieve frame (1-based) + 23.
+func _validate_grab(res: Dictionary, main: HitboxData, md: MoveData, last_active: int) -> void:
 	if main.damage != 0.0:
 		_add(res, "fail", "grab-hitbox damage %s, verwacht 0" % _fmt(main.damage))
 	if main.base_kb != CT.GRAB_BKB or main.kb_growth != CT.GRAB_KBG:
 		_add(res, "warn", "grab BKB/KBG %s/%s, verwacht %d/%d" % [_fmt(main.base_kb), _fmt(main.kb_growth), CT.GRAB_BKB, CT.GRAB_KBG])
 	if not main.ignores_shield:
 		_add(res, "fail", "grab-hitbox moet ignores_shield=true hebben")
+	var want: int = last_active + CT.GRAB_WHIFF_AFTER
+	res["measured"]["whiff_total"] = md.total_frames
+	if md.total_frames != want:
+		_add(res, "fail", "grab-whiff total %d, verwacht %d (laatste actieve frame %d + %d, afspraak 2)" % [
+				md.total_frames, want, last_active, CT.GRAB_WHIFF_AFTER])
 
 
-func _validate_throw(res: Dictionary, move: String, md: MoveData, main: HitboxData, sn: int, kr: int, scores: Dictionary) -> void:
+## Worp (afspraken 1 en 3): duur uit S, kracht uit K, launch-frame round(total*0,5), launch-hitbox radius 3.0 op de
+## grab-tip (positie geschaald met `scale`; alleen gecontroleerd als de grab bekend is).
+func _validate_throw(res: Dictionary, move: String, md: MoveData, main: HitboxData, sn: int, kr: int, scores: Dictionary,
+		grab: MoveData, scale: float) -> void:
 	if scores.has("S"):
 		_cmp(res, "total", md.total_frames, CT.THROW_TOTAL, sn, 0.0, "fail", "S")
 	if scores.has("K"):
@@ -295,9 +410,17 @@ func _validate_throw(res: Dictionary, move: String, md: MoveData, main: HitboxDa
 	res["measured"]["launch_frame"] = got
 	if got != launch:
 		_add(res, "warn", "worp-lanceerframe %d, verwacht round(total*0,5) = %d" % [got, launch])
+	if absf(main.radius - CT.THROW_RADIUS) > CT.RADIUS_TOL:
+		_add(res, "fail", "worp-hitbox radius %s, verwacht %s (afspraak 3)" % [_fmt(main.radius), _fmt(CT.THROW_RADIUS)])
+	var tip: Variant = grab_tip(grab)
+	if tip != null and (main.offset - (tip as Vector2)).length() > CT.THROW_POS_TOL:
+		_add(res, "warn", "worp-hitbox op (%s, %s), verwacht op de grab-tip (%s, %s) (afspraak 3)" % [
+				_fmt(main.offset.x), _fmt(main.offset.y), _fmt((tip as Vector2).x), _fmt((tip as Vector2).y)])
+	if move == "bthrow":
+		if main.angle <= CT.BACK_ANGLE_MIN or main.angle >= 360.0:
+			return  # _check_back_angles meldt dit
 	if not _angle_ok(move, main.angle):
 		_add(res, "warn", "angle %s niet in standaard/variant (§6)" % _fmt(main.angle))
-
 
 ## Sanity die niet van de scores afhangt.
 func _sanity(res: Dictionary, move: String, md: MoveData) -> void:
@@ -461,15 +584,30 @@ func validate_archetype(id: String) -> Dictionary:
 		_add(r, "fail", "scores.json ontbreekt of is ongeldig in %s" % dir)
 		out["results"].append(_finish(r))
 		return out
+	var vh: float = archetype_height(id)
+	var grab_md: MoveData = _load_move(dir + "/grab.tres") if ResourceLoader.exists(dir + "/grab.tres") else null
 	for m in CT.NORMAL_MOVES:
-		out["results"].append(_validate_one(scope, m, "%s/%s.tres" % [dir, m], scores_all.get(m, null)))
+		out["results"].append(_validate_one(scope, m, "%s/%s.tres" % [dir, m], scores_all.get(m, null), vh, grab_md))
 	var n := normals_total(scores_all)
 	out["budget"] = {"normals": n, "total": n, "op": false,
 			"status": "PASS" if n <= CT.BUDGET else "FAIL", "msg": "normals %d/%d" % [n, CT.BUDGET]}
 	return out
 
 
-func _validate_one(scope: String, move: String, path: String, scores: Variant) -> Dictionary:
+## visual_height van een archetype (engine/fighter/archetypes/<id>.tres); 15 als dat ontbreekt.
+func archetype_height(id: String) -> float:
+	var path := "%s/%s.tres" % [arch_root, id]
+	if not ResourceLoader.exists(path):
+		return CT.REFERENCE_HEIGHT
+	var r: Resource = ResourceLoader.load(path, "", ResourceLoader.CACHE_MODE_IGNORE)
+	if r == null:
+		return CT.REFERENCE_HEIGHT
+	var v: Variant = r.get("visual_height")
+	return float(v) if v != null else CT.REFERENCE_HEIGHT
+
+
+func _validate_one(scope: String, move: String, path: String, scores: Variant,
+		vh: float = CT.REFERENCE_HEIGHT, grab: MoveData = null) -> Dictionary:
 	if not (scores is Dictionary):
 		var r := _new_result(scope, move, {})
 		_add(r, "fail", "geen scores voor %s in scores.json" % move)
@@ -479,7 +617,7 @@ func _validate_one(scope: String, move: String, path: String, scores: Variant) -
 		check_scores(r2, move, scores)
 		_add(r2, "fail", "move-bestand ontbreekt: %s" % path)
 		return _finish(r2)
-	return validate_move(scope, move, _load_move(path), scores)
+	return validate_move(scope, move, _load_move(path), scores, vh, grab)
 
 
 ## Valideert een character: eigen moves tegen eigen scores, plus budget over (eigen of archetype-)scores.
@@ -506,12 +644,19 @@ func validate_character(id: String) -> Dictionary:
 		_add(r3, "fail", "archetype '%s' heeft geen scores.json" % arch)
 		out["results"].append(_finish(r3))
 		return out
+	var vh: float = archetype_height(arch)
+	if info.has("visual_height"):
+		vh = float(info["visual_height"])
+	var grab_path := "%s/moves/grab.tres" % base
+	if not ResourceLoader.exists(grab_path):
+		grab_path = "%s/%s/moves/grab.tres" % [arch_root, arch]
+	var grab_md: MoveData = _load_move(grab_path) if ResourceLoader.exists(grab_path) else null
 	var merged := {}
 	for m in CT.NORMAL_MOVES:
 		var own_path := "%s/moves/%s.tres" % [base, m]
 		var own_scores: Variant = cs.get(m, null)
 		if ResourceLoader.exists(own_path):
-			out["results"].append(_validate_one(scope, m, own_path, own_scores))
+			out["results"].append(_validate_one(scope, m, own_path, own_scores, vh, grab_md))
 			merged[m] = own_scores if own_scores is Dictionary else arch_scores.get(m, {})
 		elif own_scores is Dictionary:
 			var r4 := _new_result(scope, m, own_scores)

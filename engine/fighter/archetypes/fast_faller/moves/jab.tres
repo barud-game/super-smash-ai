@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="MoveData" format=3]
+
+[ext_resource type="Script" path="res://engine/combat/move_data.gd" id="1_md"]
+[ext_resource type="Script" path="res://engine/combat/hitbox_data.gd" id="2_hb"]
+
+[sub_resource type="Resource" id="hb0"]
+script = ExtResource("2_hb")
+start_frame = 1
+end_frame = 2
+offset = Vector2(6, 6.5)
+radius = 2.5
+damage = 3.0
+base_kb = 8.0
+kb_growth = 60.0
+
+[resource]
+script = ExtResource("1_md")
+move_name = "jab"
+total_frames = 16
+hitboxes = Array[ExtResource("2_hb")]([SubResource("hb0")])

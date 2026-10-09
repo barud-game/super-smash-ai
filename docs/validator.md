@@ -45,8 +45,7 @@ Frame-conventie: `MoveData`-frames zijn 0-based, de tabel is 1-based. `startup =
 
 Per grond-/luchtmove, tegen de score (exacte tabelwaarde, geen interpolatie):
 - **Snelheid**: startup. **Worp**: `total_frames`; lanceerframe `round(total*0,5)` (WARN, ontwerpkeuze).
-- **Bereik**: max-radius (±0,05), reach in de richting van het type (±1,5 unit; zie `REACH_DIR`: fwd/back/side/up/down vanaf de voeten),
-  active frames van het eerste hit-blok (hitboxen met gap ≤ 3 frames = één blok). Disjoint-verwachting vanaf B ≥ 4 (WARN).
+- **Bereik**: max-radius (±0,05), reach in de richting van het type (±1,5 unit; zie `REACH_DIR`), active frames van het eerste hit-blok (hitboxen met gap ≤ 3 frames = één blok). Disjoint-verwachting vanaf B ≥ 4 (WARN).
 - **Kracht**: damage/BKB/KBG van de hoofd-hitbox (laatste hit-groep, hoogste damage); damage-plafond (jab 7, tilt 14, aerial 17, smash 24, worp 9);
   sourspot ×0,7 / BKB −10 (WARN); angle uit §6 (WARN).
 - **Veiligheid grond**: shield-advantage op de laatste actieve frame `floor(0,448·d+2) − endlag` (d van de late hitbox) tegen de doelwaarde (±1).
@@ -55,6 +54,26 @@ Per grond-/luchtmove, tegen de score (exacte tabelwaarde, geen interpolatie):
 - **Sanity**: ≥ 1 hitbox; frames binnen `total_frames`/iasa; geen negatieve waarden/NaN; radius > 0; `total_frames` ≥ 10; offsets voor facing = +1
   (vooruit-moves niet achter de fighter, bair niet ervoor); aerials hebben `aerial=true` en landing lag, grondmoves niet; unieke hitbox-id's (WARN).
 - **Scores**: alle assen aanwezig en in 0..5, niet alles 0, niet S/K/B/V alle vijf (specials: U 0..10; alles-0 incl. U).
+
+## Afspraken van de director (`docs/standaard-movesets.md`)
+
+- **Lengte-schaal (afspraak 9).** `validate_move(..., visual_height, grab)`; `visual_height` komt uit `engine/fighter/archetypes/<id>.tres`
+  (of `visual_height` in `character.json`, anders 15). Reach = `positie langs de as / (visual_height / 15) + radius`; de radius schaalt niet.
+  Definitie van de as (`REACH_DIR` in `conversion_table.gd`), altijd t.o.v. de fighter-oorsprong (de voeten):
+  - utilt, usmash, uair: `+y` (omhoog, vanaf de voeten); dair: `-y` (omlaag, vanaf de voeten);
+  - jab, ftilt, dtilt, dash attack, fsmash, grab, fair: `+x`; bair: `-x`; nair, dsmash: `|x|` (rondom) - aerials horizontaal vanaf het lichaamsmidden (x = 0).
+- **Hoeken (afspraak 1, WARN).** Een hitbox met `offset.x < 0` en elke bthrow moet `angle > 90` hebben; 361 telt als vooruit (relatief aan de
+  kijkrichting) en geeft ook een WARN. bair en de achterkant van nair/dsmash dus 135 (of 160). Bthrow-standaard 135.
+- **Grab-whiff (afspraak 2, FAIL).** `total_frames = (max end_frame + 1) + 23` (dezelfde 1-based telling als bij `endlag`). Dash grab telt niet mee.
+- **Throws (afspraak 3).** Launch-hitbox: radius 3,0 (FAIL), offset = de grab-tip (verste grab-hitbox, WARN; alleen als de grab bekend is),
+  launch-frame `round(total x 0,5)` (WARN).
+- **Rondom (afspraak 10, FAIL).** nair en dsmash: minimaal een box met `x > 0` en een met `x < 0`.
+- **Sourspot en sex kick (afspraken 5 en 7, WARN).** Per hit-groep zijn alle boxen die van de sterkste box verschillen sourspots:
+  damage `round(0,7 x d)`, BKB -10 (min 0), KBG gelijk. Een box op dezelfde positie die later start (zelfde groep) is het late blok van
+  een sex kick en moet dezelfde regel volgen ("sex-kick late blok").
+- **Multi-hit (afspraak 6, WARN).** Alle groepen voor de laatste: damage 1-2, BKB <= 10, hoek 361 (of gelijk aan de finisher; 270-290 bij dair).
+- **Hoogtes (afspraak 8, WARN).** jab/ftilt/dash/fsmash/grab: y ~ 0,55 x visual_height; nair/fair/bair: ~ 0,5 x visual_height (beide +-12%);
+  dtilt/dsmash: y = 2 (+-1).
 
 ## Budget
 

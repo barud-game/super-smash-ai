@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="MoveData" format=3]
+
+[ext_resource type="Script" path="res://engine/combat/move_data.gd" id="1"]
+[ext_resource type="Script" path="res://engine/combat/hitbox_data.gd" id="2"]
+
+[sub_resource type="Resource" id="hb0"]
+script = ExtResource("2")
+start_frame = 27
+end_frame = 33
+offset = Vector2(23.45, 10.5)
+radius = 3.5
+damage = 20.0
+base_kb = 40.0
+kb_growth = 110.0
+
+[sub_resource type="Resource" id="hb1"]
+script = ExtResource("2")
+id = 1
+start_frame = 27
+end_frame = 33
+offset = Vector2(11.7, 10.5)
+radius = 3.5
+damage = 14.0
+base_kb = 30.0
+kb_growth = 110.0
+
+[resource]
+script = ExtResource("1")
+move_name = "fsmash"
+total_frames = 78
+hitboxes = Array[ExtResource("2")]([SubResource("hb0"), SubResource("hb1")])

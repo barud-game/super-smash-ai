@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="MoveData" format=3]
+
+[ext_resource type="Script" path="res://engine/combat/hitbox_data.gd" id="hb"]
+[ext_resource type="Script" path="res://engine/combat/move_data.gd" id="md"]
+
+[sub_resource type="Resource" id="HB_1"]
+script = ExtResource("hb")
+start_frame = 5
+end_frame = 12
+offset = Vector2(9, 7.5)
+damage = 6.0
+base_kb = 15.0
+kb_growth = 110.0
+
+[sub_resource type="Resource" id="HB_2"]
+script = ExtResource("hb")
+id = 1
+start_frame = 5
+end_frame = 12
+offset = Vector2(-4.5, 7.5)
+damage = 4.0
+angle = 135.0
+base_kb = 5.0
+kb_growth = 110.0
+
+[resource]
+script = ExtResource("md")
+move_name = "nair"
+total_frames = 39
+aerial = true
+grounded = false
+landing_lag = 20
+lcancel_lag = 10
+autocancel_before = 5
+autocancel_after = 24
+hitboxes = Array[ExtResource("hb")]([SubResource("HB_1"), SubResource("HB_2")])

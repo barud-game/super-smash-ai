@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="MoveData" format=3]
+
+[ext_resource type="Script" path="res://engine/combat/hitbox_data.gd" id="hb"]
+[ext_resource type="Script" path="res://engine/combat/move_data.gd" id="md"]
+
+[sub_resource type="Resource" id="HB_1"]
+script = ExtResource("hb")
+start_frame = 22
+end_frame = 22
+offset = Vector2(9, 8)
+damage = 4.0
+angle = 135.0
+base_kb = 30.0
+kb_growth = 105.0
+
+[resource]
+script = ExtResource("md")
+move_name = "bthrow"
+total_frames = 46
+hitboxes = Array[ExtResource("hb")]([SubResource("HB_1")])

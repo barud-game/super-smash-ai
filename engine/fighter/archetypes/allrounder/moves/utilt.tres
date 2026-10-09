@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="MoveData" format=3]
+
+[ext_resource type="Script" path="res://engine/combat/hitbox_data.gd" id="hb"]
+[ext_resource type="Script" path="res://engine/combat/move_data.gd" id="md"]
+
+[sub_resource type="Resource" id="HB_1"]
+script = ExtResource("hb")
+start_frame = 5
+end_frame = 9
+offset = Vector2(0, 13)
+damage = 8.0
+angle = 100.0
+base_kb = 20.0
+kb_growth = 120.0
+
+[sub_resource type="Resource" id="HB_2"]
+script = ExtResource("hb")
+id = 1
+start_frame = 5
+end_frame = 9
+offset = Vector2(0, 6.5)
+damage = 6.0
+angle = 100.0
+base_kb = 10.0
+kb_growth = 120.0
+
+[resource]
+script = ExtResource("md")
+move_name = "utilt"
+total_frames = 27
+hitboxes = Array[ExtResource("hb")]([SubResource("HB_1"), SubResource("HB_2")])

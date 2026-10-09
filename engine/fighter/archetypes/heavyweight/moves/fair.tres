@@ -1,0 +1,37 @@
+[gd_resource type="Resource" script_class="MoveData" format=3]
+
+[ext_resource type="Script" path="res://engine/combat/move_data.gd" id="1"]
+[ext_resource type="Script" path="res://engine/combat/hitbox_data.gd" id="2"]
+
+[sub_resource type="Resource" id="hb0"]
+script = ExtResource("2")
+start_frame = 11
+end_frame = 16
+offset = Vector2(20.9, 9.5)
+radius = 3.5
+damage = 12.0
+base_kb = 30.0
+kb_growth = 125.0
+
+[sub_resource type="Resource" id="hb1"]
+script = ExtResource("2")
+id = 1
+start_frame = 11
+end_frame = 16
+offset = Vector2(10.45, 9.5)
+radius = 3.5
+damage = 8.0
+base_kb = 20.0
+kb_growth = 125.0
+
+[resource]
+script = ExtResource("1")
+move_name = "fair"
+total_frames = 55
+aerial = true
+grounded = false
+landing_lag = 30
+lcancel_lag = 15
+autocancel_before = 11
+autocancel_after = 28
+hitboxes = Array[ExtResource("2")]([SubResource("hb0"), SubResource("hb1")])
