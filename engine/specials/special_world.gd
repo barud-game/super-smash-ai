@@ -136,7 +136,14 @@ func _sort_fighters() -> void:
 		if not is_instance_valid(fighters[i]):
 			fighters.remove_at(i)
 		i -= 1
-	fighters.sort_custom(func(a, b) -> bool: return a.player < b.player)
+	# Alleen sorteren als de volgorde niet al klopt (bijna altijd): scheelt een lambda + sort per frame.
+	var sorted: bool = true
+	for k in range(1, fighters.size()):
+		if fighters[k - 1].player > fighters[k].player:
+			sorted = false
+			break
+	if not sorted:
+		fighters.sort_custom(func(a, b) -> bool: return a.player < b.player)
 
 
 func next_instance() -> int:
@@ -252,6 +259,16 @@ func step() -> void:
 	_refresh_fighters()
 	for f: Fighter in fighters:
 		SpecialKit.of(f).poll()
+	if entities.is_empty():
+		# Zonder entities en zonder fighter in een special-state zijn alle stappen hieronder no-ops.
+		var busy: bool = false
+		for f: Fighter in fighters:
+			if _move_of(f) != null:
+				busy = true
+				break
+		if not busy:
+			_cleanup()
+			return
 	for e: SpecialEntity in entities.duplicate():
 		if e.alive:
 			e.tick()

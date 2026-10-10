@@ -97,10 +97,9 @@ static func resolve(active: Array[ActiveHitbox], targets: Array[CombatTarget], a
 				continue
 			if h.is_grab and not t.grabbable:
 				continue
-			var gkey: String = hit_key(h.owner, h.instance, d.group, t.id)
-			if already_hit.has(gkey):
+			if not already_hit.is_empty() and already_hit.has(hit_key(h.owner, h.instance, d.group, t.id)):
 				continue
-			var fkey: String = "%d:%d:%d" % [h.owner, h.instance, t.id]
+			var fkey := Vector3i(h.owner, h.instance, t.id)
 			if taken.has(fkey):
 				continue
 			# Shield: raakt de hitbox de bubble, dan SHIELD. Zo niet, dan tellen de hurtboxes gewoon (shield poke: delen van
@@ -122,7 +121,7 @@ static func resolve(active: Array[ActiveHitbox], targets: Array[CombatTarget], a
 			ev.attacker = h.owner
 			ev.defender = t.id
 			ev.hitbox = h
-			ev.key = gkey
+			ev.key = hit_key(h.owner, h.instance, d.group, t.id)
 			ev.damage = h.damage
 			ev.attacker_hitlag = Knockback.hitlag_frames(h.damage, d.element, d.hitlag_mult)
 			ev.defender_hitlag = Knockback.hitlag_frames(h.damage, d.element, d.hitlag_mult, true, t.crouching)

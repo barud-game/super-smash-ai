@@ -95,6 +95,7 @@ func _ready() -> void:
 	if rules == null:
 		_read_match_setup()
 	state.start(rules, is_training())
+	_warm_up()
 	_build_stage()
 	_build_fighters()
 	_build_camera()
@@ -663,3 +664,16 @@ func visible_rect_units(inset_units: float = 15.0) -> Rect2:
 	var full := Rect2(Vector2(minf(tl.x, br.x), minf(tl.y, br.y)), (br - tl).abs())
 	var r: Rect2 = full.grow(-minf(inset_units, minf(full.size.x, full.size.y) * 0.2))
 	return r if r.size.x > 0.0 and r.size.y > 0.0 else Rect2()
+
+
+## Laadt alles vooraf wat anders pas bij het eerste gebruik midden in een sim-frame zou laden: geluiden (synthese),
+## KO-effecten en special-scripts. Alleen het moment van laden verschuift; gedrag blijft gelijk (docs/performance.md).
+func _warm_up() -> void:
+	var sfx: Node = get_node_or_null("/root/Sfx")
+	if sfx != null:
+		sfx.call("preload_all", "")
+	for id in picks:
+		if sfx != null:
+			sfx.call("preload_all", id)
+		VfxLayer.warm_ko_effect(id)
+		Specials.warm(id)

@@ -7,6 +7,7 @@ extends RefCounted
 
 const META: String = "special_kit"
 const FX_LOG_MAX: int = 64
+const EMPTY_KEYS: Array = []
 
 var f: Fighter
 ## Slot -> SpecialDef (overschrijfbaar; anders geladen uit characters/<id>/specials/<slot>.tres).
@@ -244,7 +245,8 @@ func fx_seen(kind: String, fx_name: String) -> bool:
 ## Eén keer per frame (SpecialWorld, na alle fighters). Bouwsteen 15: limieten resetten bij landen, ledge,
 ## geraakt worden, respawn. Buff-duur loopt niet tijdens eigen hitlag (tick_during_hitlag = false).
 func poll() -> void:
-	var dead: bool = not f.active or f.state_name() == "Dead"
+	var sn: String = f.state_name()
+	var dead: bool = not f.active or sn == "Dead"
 	if dead:
 		if not _was_dead:
 			_on_death()
@@ -253,9 +255,8 @@ func poll() -> void:
 	if _was_dead:
 		_was_dead = false
 		reset_air_limits("respawn")
-	var sn: String = f.state_name()
 	var in_special: bool = sn == "Special"
-	if f.state_name() == "RebirthWait":
+	if sn == "RebirthWait":
 		reset_air_limits("respawn")
 	elif f.grounded and not in_special:
 		reset_air_limits("land")
@@ -265,11 +266,11 @@ func poll() -> void:
 	if got_hit:
 		reset_air_limits("hit")
 	_prev_percent = f.percent
-	for s: String in cooldowns.keys():
+	for s: String in (cooldowns.keys() if not cooldowns.is_empty() else EMPTY_KEYS):
 		cooldowns[s] = int(cooldowns[s]) - 1
 		if int(cooldowns[s]) <= 0:
 			cooldowns.erase(s)
-	for s: String in stored_charge.keys():
+	for s: String in (stored_charge.keys() if not stored_charge.is_empty() else EMPTY_KEYS):
 		var fr: int = int(stored_charge[s]["frames"])
 		if fr > 0:
 			stored_charge[s]["frames"] = fr - 1

@@ -17,6 +17,7 @@ const NAMES: PackedStringArray = [
 
 static var _streams: Dictionary = {}   # "<char>/<naam>" -> AudioStreamWAV
 static var _recipes: Dictionary = {}   # "<char>/<naam>" -> Dictionary ({} = niet gevonden)
+static var _streams_by_path: Dictionary = {}   # recept-pad -> AudioStreamWAV (gedeeld tussen characters)
 
 
 static func recipe_path(sfx_name: String, character_id: String = "") -> String:
@@ -53,8 +54,14 @@ static func get_stream(sfx_name: String, character_id: String = "") -> AudioStre
 	if r.is_empty():
 		push_warning("SfxBank: onbekend geluid '%s'" % sfx_name)
 		return null
+	# Characters zonder eigen recept delen de stream van het standaardrecept (één synthese per recept).
+	var path: String = recipe_path(sfx_name, character_id)
+	if _streams_by_path.has(path):
+		_streams[key] = _streams_by_path[path]
+		return _streams[key]
 	var s: AudioStreamWAV = SfxSynth.make_stream(r)
 	_streams[key] = s
+	_streams_by_path[path] = s
 	return s
 
 
@@ -64,4 +71,5 @@ static func get_volume_db(sfx_name: String, character_id: String = "") -> float:
 
 static func clear_cache() -> void:
 	_streams.clear()
+	_streams_by_path.clear()
 	_recipes.clear()

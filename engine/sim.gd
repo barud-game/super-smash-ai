@@ -21,6 +21,8 @@ var combat: CombatSystem = CombatSystem.new()
 
 var _entities: Array[Object] = []
 var _step_requested: bool = false
+## Hergebruikte kopie van `_entities` voor de tick-lus (geen nieuwe Array per frame).
+var _tick_buf: Array[Object] = []
 
 
 ## Registreer een gameplay-object. Het moet `sim_tick(frame: int)` hebben.
@@ -60,9 +62,11 @@ func _advance() -> void:
 	InputManager.sample(frame)
 	# Over een kopie lopen: een entity mag zich tijdens een tick afmelden of registreren zonder dat de
 	# volgorde van de rest van dit frame verschuift.
-	for e: Object in _entities.duplicate():
+	_tick_buf.assign(_entities)
+	for e: Object in _tick_buf:
 		if is_instance_valid(e) and _entities.has(e):
 			e.sim_tick(frame)
+	_tick_buf.clear()
 	combat.step(_entities)
 	var k: int = _entities.size() - 1
 	while k >= 0:

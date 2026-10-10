@@ -20,6 +20,7 @@ var _shown_pct: Array[float] = [0.0, 0.0]
 var _shake_until: Array[int] = [-1, -1]
 var _shake_amp: Array[float] = [0.0, 0.0]
 var _frame: int = 0
+var _last_sig: Array = []
 
 
 func _ready() -> void:
@@ -50,7 +51,29 @@ func _process(_delta: float) -> void:
 			_shake_until[p] = _frame + SHAKE_FRAMES
 			_shake_amp[p] = clampf(2.0 + gain * 0.35, 2.0, 11.0)
 		_shown_pct[p] = pct
-	_canvas.queue_redraw()
+	# Alleen herschilderen als iets zichtbaars veranderde: de HUD tekent veel omrande tekst, en bijna alle frames
+	# zijn identiek aan het vorige (de timer verandert 1x per seconde, het % alleen bij een treffer).
+	var sig: Array = _signature()
+	if sig != _last_sig:
+		_last_sig = sig
+		_canvas.queue_redraw()
+
+
+## Alles wat `_draw_all` leest, als vergelijkbare lijst. Animaties (countdown, GO, schud-effect) staan er per
+## frame in zolang ze lopen; daarbuiten blijft de lijst gelijk en wordt er niet herschilderd.
+func _signature() -> Array:
+	var st: MatchState = controller.state
+	var left: int = st.time_left()
+	var shaking: Array[int] = [-1, -1]
+	for p in 2:
+		if _frame < _shake_until[p]:
+			shaking[p] = _frame
+	return [controller.get_percent(0), controller.get_percent(1), st.stocks[0], st.stocks[1],
+		controller.is_dead(0), controller.is_dead(1), ceili(float(left) / 60.0) if left >= 0 else -1, left <= 600,
+		st.sudden_death, controller.sudden_death_banner, controller.is_training(), controller.paused_by,
+		controller.countdown_number(), controller.countdown_age() if controller.countdown_number() > 0 else 0, controller.go_visible(),
+		controller.go_age() if controller.go_visible() else 0, controller.end_banner(),
+		shaking[0], shaking[1], _canvas.size]
 
 
 ## Kleur bij een percentage (publiek voor tests/screenshots).
@@ -73,6 +96,12 @@ static func format_time(frames: int) -> String:
 # =============================================================================================
 
 func _draw_all() -> void:
+	var _pt: int = Perf.begin()
+	_draw_all_impl()
+	Perf.end(&"hud", _pt)
+
+
+func _draw_all_impl() -> void:
 	if controller == null:
 		return
 	var c: Control = _canvas

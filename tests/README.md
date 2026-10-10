@@ -43,3 +43,7 @@ Character-pipeline (stats per character, taunt + tekstwolkje, props, move-overri
 Wall jump (vlag, smash weg van de muur, richting, special-reset, cooldown, determinisme):
 
     <godot_console> --headless --path . --script res://tests/test_wall_jump.gd
+
+Performance-bench + determinisme-check (geen test-suite, maar hoort bij elke engine-wijziging; zie `docs/performance.md`):
+
+    <godot_console> --headless --path . --script res://tools/bench/bench.gd -- --check

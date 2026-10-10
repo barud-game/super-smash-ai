@@ -580,3 +580,15 @@ func _test_sandbox() -> void:
 	root.remove_child(sb)
 	sb.queue_free()
 	await process_frame
+	await process_frame
+	# Bug-fix: met alleen --p1 is P2 de _dummy (Allrounder), niet de Fast-faller-preset van de F3/F4-rij.
+	var sb2: Node2D = (load("res://scenes/sandbox.gd") as GDScript).new()
+	var only_p1: Array[String] = ["captain_pep", ""]
+	sb2.set("_pick_ids", only_p1)
+	root.add_child(sb2)
+	await process_frame
+	var fs2: Array = sb2.get("fighters")
+	check("sandbox --p1 alleen: P2 = _dummy als Allrounder", fs2[1].character_id == "_dummy" and fs2[1].stats.display_name == "Allrounder")
+	check("sandbox --p1 alleen: label toont Allrounder voor P2", String(sb2.get("hud").text).contains("P2: Allrounder [_dummy]"))
+	root.remove_child(sb2)
+	sb2.queue_free()

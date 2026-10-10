@@ -70,6 +70,11 @@ De gebruiker werkt vaak op dezelfde pc. Gebruik voor logica/tests altijd `--head
   screenshots maken"). Bundel zoveel mogelijk in één ronde.
 - Windowed runs altijd **buiten beeld**: `--position -20000,-20000` (plus de benodigde `--resolution`).
 
+## Performance
+- Na elke engine-wijziging: `--headless --path . --script res://tools/bench/bench.gd -- --check`
+  (determinisme t.o.v. `tools/bench/golden.json` + tijden per subsysteem). Regels en baseline: `docs/performance.md`.
+- Gedrag bewust veranderd? Dan opnieuw `--write-golden` en dat in de commit vermelden.
+
 ## Werkafspraken
 - Na elke sessie: **status in `PLAN.md` bijwerken** en committen, zodat de volgende chat weet waar we zijn.
 - Commits klein en beschrijvend; push naar `main` tenzij anders afgesproken.

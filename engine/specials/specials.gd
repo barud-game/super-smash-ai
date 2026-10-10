@@ -157,3 +157,18 @@ static func step(holder: Object) -> void:
 	var w: Variant = holder.get_meta(SpecialWorld.META)
 	if w is SpecialWorld:
 		(w as SpecialWorld).step()
+
+
+const SLOTS: Array[String] = ["neutral", "side", "up", "down"]
+
+
+## Laadt de definities en eigen scripts van een character alvast (bij het opbouwen van een match), zodat de eerste
+## B-druk geen script-compilatie in een sim-frame triggert. Verandert geen gedrag; alleen het moment van laden.
+static func warm(character_id: String) -> void:
+	for slot: String in SLOTS:
+		var d: SpecialDef = load_def(character_id, slot)
+		var path: String = d.script_path if d != null else ""
+		if path == "":
+			path = CharacterLoader.dir(character_id).path_join("specials").path_join(slot + ".gd")
+		if ResourceLoader.exists(path):
+			ResourceLoader.load(path)

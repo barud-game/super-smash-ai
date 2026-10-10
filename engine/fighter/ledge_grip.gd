@@ -20,10 +20,10 @@ static var _cache: Dictionary = {}
 
 
 ## Ledge-hoek t.o.v. de voeten in rig-px (x = richting de stage/kijkrichting, y omlaag; y < 0).
-static func grip_px(character_id: String) -> Vector2:
+static func grip_px(character_id: String, library: PoseLibrary = null) -> Vector2:
 	if _cache.has(character_id):
 		return _cache[character_id]
-	var lib: PoseLibrary = PoseLibrary.load_for(character_id)
+	var lib: PoseLibrary = library if library != null else PoseLibrary.load_for(character_id)
 	var p: Vector2 = FALLBACK_PX
 	var pose: Pose = lib.poses.get(HANG_POSE)
 	if pose != null:

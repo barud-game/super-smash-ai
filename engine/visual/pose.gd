@@ -110,11 +110,19 @@ func remap(real_t: float, startup: float, active: float, total: float) -> float:
 
 ## Waarden op tijd t (frames). Geeft {"r": {bone: graden}, "o": {bone: Vector2}} voor alle bones van de pose.
 func sample(t: float) -> Dictionary:
-	var n: int = times.size()
 	var out_r: Dictionary = {}
 	var out_o: Dictionary = {}
+	sample_into(t, out_r, out_o)
+	return {"r": out_r, "o": out_o}
+
+
+## Zelfde als `sample`, maar vult bestaande dictionaries (ze worden eerst leeggemaakt): geen allocaties per frame.
+func sample_into(t: float, out_r: Dictionary, out_o: Dictionary) -> void:
+	var n: int = times.size()
+	out_r.clear()
+	out_o.clear()
 	if n == 0:
-		return {"r": out_r, "o": out_o}
+		return
 	if loop:
 		t = fposmod(t, length)
 	else:
@@ -146,10 +154,37 @@ func sample(t: float) -> Dictionary:
 			else:
 				i = 0
 				j = 0
+	_ensure_dense()
+	for bi in bones.size():
+		var b: String = bones[bi]
+		out_r[b] = _chan_r(bi, i, j, u, n)
+		out_o[b] = _chan_o(bi, i, j, u, n)
+	return
+
+
+## Dichte kopie van rot/off per bot (index = positie in `bones`), zodat sample() geen dictionary-lookups per
+## bot per key hoeft te doen. Wordt (opnieuw) gebouwd als het aantal keys of botten verandert (lazy).
+var _dense_keys: int = -1
+var _dense_bones: int = -1
+var _dense_r: Array = []   # per bot: PackedFloat64Array (per key)
+var _dense_o: Array = []   # per bot: PackedVector2Array (per key)
+
+
+func _ensure_dense() -> void:
+	if _dense_keys == times.size() and _dense_bones == bones.size():
+		return
+	_dense_r.clear()
+	_dense_o.clear()
 	for b: String in bones:
-		out_r[b] = _chan_r(b, i, j, u, n)
-		out_o[b] = _chan_o(b, i, j, u, n)
-	return {"r": out_r, "o": out_o}
+		var rr := PackedFloat64Array()
+		var oo := PackedVector2Array()
+		for k in times.size():
+			rr.append(float(rot[k].get(b, 0.0)))
+			oo.append(off[k].get(b, Vector2.ZERO))
+		_dense_r.append(rr)
+		_dense_o.append(oo)
+	_dense_keys = times.size()
+	_dense_bones = bones.size()
 
 
 func _idx(i: int, n: int) -> int:
@@ -158,23 +193,23 @@ func _idx(i: int, n: int) -> int:
 	return clampi(i, 0, n - 1)
 
 
-func _chan_r(b: String, i: int, j: int, u: float, n: int) -> float:
-	var p1: float = float(rot[i].get(b, 0.0))
-	var p2: float = float(rot[j].get(b, 0.0))
+func _chan_r(bi: int, i: int, j: int, u: float, n: int) -> float:
+	var a: PackedFloat64Array = _dense_r[bi]
+	var p1: float = a[i]
+	var p2: float = a[j]
 	if not spline or n < 3:
 		return lerpf(p1, p2, u)
-	var p0: float = float(rot[_idx(i - 1, n)].get(b, 0.0))
-	var p3: float = float(rot[_idx(j + 1, n)].get(b, 0.0))
-	return _cr(p0, p1, p2, p3, u)
+	return _cr(a[_idx(i - 1, n)], p1, p2, a[_idx(j + 1, n)], u)
 
 
-func _chan_o(b: String, i: int, j: int, u: float, n: int) -> Vector2:
-	var p1: Vector2 = off[i].get(b, Vector2.ZERO)
-	var p2: Vector2 = off[j].get(b, Vector2.ZERO)
+func _chan_o(bi: int, i: int, j: int, u: float, n: int) -> Vector2:
+	var a: PackedVector2Array = _dense_o[bi]
+	var p1: Vector2 = a[i]
+	var p2: Vector2 = a[j]
 	if not spline or n < 3:
 		return p1.lerp(p2, u)
-	var p0: Vector2 = off[_idx(i - 1, n)].get(b, Vector2.ZERO)
-	var p3: Vector2 = off[_idx(j + 1, n)].get(b, Vector2.ZERO)
+	var p0: Vector2 = a[_idx(i - 1, n)]
+	var p3: Vector2 = a[_idx(j + 1, n)]
 	return Vector2(_cr(p0.x, p1.x, p2.x, p3.x, u), _cr(p0.y, p1.y, p2.y, p3.y, u))
 
 

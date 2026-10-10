@@ -8,6 +8,8 @@ extends Node2D
 ## (tests, preview-tool). Alle posities zijn Melee-units (y omhoog).
 
 const BASE_SEED: int = 0x5EED
+## Maximaal aantal gelijktijdige effecten (KO-effecten tellen mee maar worden nooit weggegooid).
+const MAX_EFFECTS: int = 64
 const DEFAULT_PLAYER_COLORS: Array[Color] = [Color(1.0, 0.35, 0.3), Color(0.35, 0.55, 1.0), Color(1.0, 0.85, 0.3), Color(0.4, 0.9, 0.45)]
 
 @export var auto_register: bool = true
@@ -90,6 +92,20 @@ func _add(e: VfxEffect) -> VfxEffect:
 func _launch(e: VfxEffect) -> void:
 	add_child(e)
 	_effects.append(e)
+	# Begrenzing: bij een storm aan effecten verdwijnt het oudste (niet-KO) effect eerder. Puur presentatie.
+	while _effects.size() > MAX_EFFECTS:
+		var drop: int = -1
+		for i in _effects.size() - 1:
+			if not (_effects[i] is KoEffect):
+				drop = i
+				break
+		if drop < 0:
+			break
+		var old: VfxEffect = _effects[drop]
+		_effects.remove_at(drop)
+		if is_instance_valid(old):
+			old.finished = true
+			old.queue_free()
 
 
 # ---------- spawn-API ----------
@@ -279,3 +295,14 @@ func _apply_flash() -> void:
 		add_child(_flash_layer)
 	_flash_rect.color = Color(_flash_color.r, _flash_color.g, _flash_color.b, current_flash_alpha())
 	_flash_rect.visible = _flash_left > 0
+
+
+## Laadt het KO-effect-script/-scene van een character alvast (bij het opbouwen van een match), zodat de eerste KO
+## geen compilatie in een sim-frame triggert.
+static func warm_ko_effect(character_id: String) -> void:
+	if character_id == "":
+		return
+	var base: String = ko_effect_path(character_id)
+	for ext: String in [".tscn", ".gd"]:
+		if ResourceLoader.exists(base + ext):
+			ResourceLoader.load(base + ext)

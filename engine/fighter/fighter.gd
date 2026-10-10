@@ -149,6 +149,14 @@ var _states: Dictionary = {}
 ## Teller van state-wissels (visual: dezelfde pose opnieuw starten bij een nieuwe aanval).
 var _serial: int = 0
 var _vis_key: String = ""
+var _vis_serial: int = -1
+var _drew_self: bool = false
+var _drew_debug: bool = false
+var _drew_shield: bool = false
+var _drew_bubble: bool = false
+var _sim_node: Node = null
+var _hb_cache: Dictionary = {}
+var _hb_cache_h: float = -1.0
 var _debug_node: Node2D = null
 ## tick_count van de laatste L-cancel-druk (L/R/Z of analoge trigger) en van de laatste tech-druk.
 var _lc_tick: int = -1000
@@ -189,7 +197,9 @@ func setup() -> void:
 		visual.character_id = character_id
 		visual.player_index = player
 		# Herladen poses (hot reload) -> greeppunt aan de ledge opnieuw uit het rig berekenen.
-		visual.reloaded.connect(func() -> void: LedgeGrip.clear_cache(character_id))
+		visual.reloaded.connect(func() -> void:
+			LedgeGrip.clear_cache(character_id)
+			LedgeGrip.grip_px(character_id, visual.library))   # meteen opnieuw vullen uit de al geladen poses
 		add_child(visual)
 	if use_visual and _debug_node == null:
 		# Debug-tekenlaag (F2) boven de visual.
@@ -963,8 +973,21 @@ func active_hitboxes() -> Array[ActiveHitbox]:
 
 ## Hurtbox-capsules (lokaal, voeten = oorsprong), geschaald met visual_height; vorm per state.
 func hurtboxes() -> Array[HurtboxData]:
-	var h: float = stats.visual_height
-	var shape: String = state.hurtbox_shape() if state != null else "stand"
+	# Gecachet per vorm en lichaamshoogte: de capsules zijn alleen-lezen (HitResolver, traps, debug-tekening).
+	var hh: float = stats.visual_height
+	if hh != _hb_cache_h:
+		_hb_cache.clear()
+		_hb_cache_h = hh
+	var sh: String = state.hurtbox_shape() if state != null else "stand"
+	var cached: Variant = _hb_cache.get(sh)
+	if cached != null:
+		return cached
+	var built: Array[HurtboxData] = _build_hurtboxes(sh, hh)
+	_hb_cache[sh] = built
+	return built
+
+
+func _build_hurtboxes(shape: String, h: float) -> Array[HurtboxData]:
 	if shape == "crouch":
 		var c: Array[HurtboxData] = []
 		c.append(HurtboxData.make(Vector2(0, h * 0.15), Vector2(0, h * 0.3), h * 0.17))
@@ -1897,35 +1920,61 @@ func _segment_at(p: Vector2, tol: float) -> int:
 # =============================================================================================
 
 func _update_visual() -> void:
+	var _pt: int = Perf.begin()
 	position = Units.to_px(pos)
 	if visual != null and state != null:
 		# Rig is getekend op STAND_HEIGHT_PX; schaal naar de lengte van dit character.
 		var sc: float = stats.visual_height * Units.UNIT_TO_PX / Rig.STAND_HEIGHT_PX
-		visual.scale = Vector2.ONE * sc
-		visual.facing = facing
+		if visual.scale.x != sc or visual.scale.y != sc:
+			visual.scale = Vector2.ONE * sc
+		if visual.facing != facing:
+			visual.facing = facing
 		var p: String = state.pose()
-		var key: String = "%d|%s" % [_serial, p]
+		var new_key: bool = _serial != _vis_serial or p != _vis_key
 		var timing: Array = state.pose_timing()
-		if key != _vis_key and timing.size() == 3:
+		if new_key and timing.size() == 3:
 			# Aanvalspose: fases geschaald naar de frame-data (docs/rig.md 6b), bij elke nieuwe aanval opnieuw.
 			visual.play_timed(p, int(timing[0]), int(timing[1]), int(timing[2]), true)
 		elif timing.size() != 3:
 			visual.play(p, false)
-		_vis_key = key
+		_vis_key = p
+		_vis_serial = _serial
 		visual.tick(state.pose_frame(), state.pose_speed())
 		visual.set_props(state.props())
 		var off: Vector2 = state.visual_offset_px() * sc
 		if hitlag_frames > 0 and hitlag_victim:
 			off += VfxConst.hitlag_jitter(hitlag_frames, hitlag_strength)
-		visual.position = off
+		if visual.position != off:
+			visual.position = off
 	if is_inside_tree():
-		queue_redraw()
+		# Overlay-nodes alleen herschilderen als ze iets tonen (of net iets toonden en nu leeg moeten): ze tekenen
+		# niets in alle andere gevallen, dus een redraw per frame is verspilde canvas-arbeid.
+		var rebirth: bool = state != null and state.id() == "RebirthWait"
+		if rebirth or _drew_self:
+			queue_redraw()
+		_drew_self = rebirth
 		if _debug_node != null:
-			_debug_node.queue_redraw()
+			var dbg: bool = _sim_debug_on()
+			if dbg or _drew_debug:
+				_debug_node.queue_redraw()
+			_drew_debug = dbg
 		if _shield_node != null:
-			_shield_node.queue_redraw()
+			var shd: bool = state != null and state.is_shielding()
+			if shd or _drew_shield:
+				_shield_node.queue_redraw()
+			_drew_shield = shd
 		if _bubble_node != null:
-			_bubble_node.queue_redraw()
+			var bub: bool = bubble_text() != ""
+			if bub or _drew_bubble:
+				_bubble_node.queue_redraw()
+			_drew_bubble = bub
+	Perf.end(&"visual", _pt)
+
+
+func _sim_debug_on() -> bool:
+	if _sim_node == null or not is_instance_valid(_sim_node):
+		_sim_node = get_node_or_null("/root/Sim")
+	return _sim_node != null and _sim_node.debug_hitboxes
 
 
 func _draw() -> void:

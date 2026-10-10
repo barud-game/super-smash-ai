@@ -42,6 +42,18 @@ var sprites: Dictionary = {}     # "<part>" of "<part>_l"/"<part>_r" -> Sprite2D
 var library: PoseLibrary
 
 var _flip: Node2D
+## Hergebruikte sample-buffers en per-bot arrays (zelfde volgorde als Rig.BONES) voor `_apply`.
+var _scratch_r: Dictionary = {}
+var _scratch_o: Dictionary = {}
+var _scratch: Dictionary = {"r": _scratch_r, "o": _scratch_o}
+var _bone_names: Array[String] = []
+var _bone_nodes: Array[Bone2D] = []
+var _bone_rest: PackedVector2Array = PackedVector2Array()
+var _bone_rot: PackedFloat64Array = PackedFloat64Array()
+var _bone_pos: PackedVector2Array = PackedVector2Array()
+var _applied_pose: Pose = null
+var _applied_frame: float = NAN
+var _applied_blend: bool = false
 var _pose: Pose
 var _blend_from: Dictionary = {}   # snapshot {"r":..., "o":...} van de vorige pose
 var _since_play: float = 0.0
@@ -93,11 +105,11 @@ func reload() -> bool:
 		pose_frame = keep_frame
 		_blend_from = {}
 		_since_play = 1000.0
-		_apply(_sample_current())
+		_apply_current()
 	else:
 		play("idle")
 		_since_play = 1000.0
-		_apply(_sample_current())
+		_apply_current()
 	if not _props_now.is_empty():
 		var again: Array = _props_now
 		_props_now = []
@@ -116,6 +128,13 @@ func _clear() -> void:
 	_prop_sprites.clear()
 	_prop_tex.clear()
 	_prop_sig = ""
+	_bone_names.clear()
+	_bone_nodes.clear()
+	_bone_rest.clear()
+	_bone_rot.clear()
+	_bone_pos.clear()
+	_applied_pose = null
+	_applied_blend = false
 
 
 func _build_skeleton() -> void:
@@ -136,6 +155,11 @@ func _build_skeleton() -> void:
 		var parent: Node = skeleton if def[1] == "" else bones[def[1]]
 		parent.add_child(b)
 		bones[def[0]] = b
+		_bone_names.append(def[0])
+		_bone_nodes.append(b)
+		_bone_rest.append(def[2])
+		_bone_rot.append(NAN)
+		_bone_pos.append(Vector2(NAN, NAN))
 
 
 func _build_sprites() -> void:
@@ -239,7 +263,7 @@ func play(pose_name: String, restart: bool = true) -> void:
 	current_pose = pose_name
 	pose_frame = 0.0
 	_since_play = 0.0
-	_apply(_sample_current())
+	_apply_current()
 
 
 ## Start een aanvalspose geschaald naar de frame-data van een move (zie docs/rig.md sectie 6b).
@@ -252,7 +276,7 @@ func play_timed(pose_name: String, startup: int, active: int, total: int, restar
 	_t_startup = float(startup)
 	_t_active = float(active)
 	_t_total = float(maxi(total, 1))
-	_apply(_sample_current())
+	_apply_current()
 
 
 ## Zet de pose op een frame en past hem toe. De fighter roept dit elke sim-frame aan.
@@ -270,7 +294,7 @@ func tick(frame: int = -1, speed: float = 1.0) -> void:
 	else:
 		pose_frame += speed
 		_since_play += 1.0
-	_apply(_sample_current())
+	_refresh_current()
 
 
 func set_facing(dir: int) -> void:
@@ -288,7 +312,8 @@ func pose_length(pose_name: String = "") -> float:
 
 
 func _sample_current() -> Dictionary:
-	var s: Dictionary = _pose.sample(pose_frame)
+	_pose.sample_into(pose_frame, _scratch_r, _scratch_o)   # hergebruikte dictionaries: geen allocaties per frame
+	var s: Dictionary = _scratch
 	var blend: float = _pose.blend
 	if _blend_from.is_empty() or blend <= 0.0 or _since_play >= blend:
 		return s
@@ -319,18 +344,48 @@ func _snapshot() -> Dictionary:
 	return {"r": r, "o": o}
 
 
+## Past de huidige pose toe zonder opnieuw te sampelen als niets veranderde (zelfde pose, zelfde frame, geen
+## crossfade): vooral bij bevroren frames (hitlag) en lange houdposes.
+func _refresh_current() -> void:
+	if _pose == null:
+		return
+	if not _is_blending() and not _applied_blend and _applied_pose == _pose and _applied_frame == pose_frame:
+		return
+	_apply_current()
+
+
+func _apply_current() -> void:
+	_applied_blend = _is_blending()
+	_apply(_sample_current())
+	_applied_pose = _pose
+	_applied_frame = pose_frame
+
+
+func _is_blending() -> bool:
+	return not (_blend_from.is_empty() or _pose.blend <= 0.0 or _since_play >= _pose.blend)
+
+
 func _apply(s: Dictionary) -> void:
-	for b in bones:
-		var bone: Bone2D = bones[b]
-		bone.rotation = deg_to_rad(s["r"].get(b, 0.0))
-		bone.position = bone.rest.origin + s["o"].get(b, Vector2.ZERO)
+	var r: Dictionary = s["r"]
+	var o: Dictionary = s["o"]
+	for i in _bone_nodes.size():
+		var n: String = _bone_names[i]
+		var rot: float = deg_to_rad(r.get(n, 0.0))
+		var pos: Vector2 = _bone_rest[i] + (o.get(n, Vector2.ZERO) as Vector2)
+		# Alleen schrijven bij een verandering: elke set op een Bone2D laat de skeleton-transforms opnieuw doorrekenen.
+		if rot != _bone_rot[i]:
+			_bone_rot[i] = rot
+			_bone_nodes[i].rotation = rot
+		if pos != _bone_pos[i]:
+			_bone_pos[i] = pos
+			_bone_nodes[i].position = pos
 
 
 ## Zet de crossfade uit voor de huidige pose (handig voor previews: frame 0 toont dan echt de pose zelf).
 func clear_blend() -> void:
 	_blend_from = {}
 	if _pose != null:
-		_apply(_sample_current())
+		_apply_current()
 
 
 # =============================================================================================
@@ -352,6 +407,8 @@ func props_dir() -> String:
 ## Toont precies de gegeven prop-events (genormaliseerd door PropEvent.normalize) en verbergt de rest.
 ## Goedkoop als er niets verandert; elke fighter-tick aanroepen mag.
 func set_props(events: Array) -> void:
+	if events.is_empty() and _prop_sig == "[]":
+		return   # snelle weg: geen props toen, geen props nu (str() per frame vermijden)
 	var sig: String = str(events)
 	if sig == _prop_sig:
 		return

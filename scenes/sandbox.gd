@@ -68,9 +68,15 @@ func _ready() -> void:
 		f.player = p
 		f.stage = stage
 		f.stats = Archetypes.load_stats(Archetypes.IDS[archetype_index[p]])
-		if _pick_ids[p] != "":
-			f.character_id = _pick_ids[p]
-			f.stats = CharacterLoader.stats_for(_pick_ids[p])
+		# Met --p1/--p2 zijn beide spelers echte characters: een speler zonder keuze is de _dummy (Allrounder), geen
+		# preset uit de F3/F4-rij (anders toonde het label P2 als "Fast-faller" terwijl _dummy een Allrounder is).
+		if _pick_ids[p] != "" or _pick_ids[0] != "" or _pick_ids[1] != "":
+			if _pick_ids[p] != "":
+				f.character_id = _pick_ids[p]
+			f.stats = CharacterLoader.stats_for(f.character_id)
+			var arch_i: int = Archetypes.IDS.find(Archetypes.id_for_stats(f.stats))
+			if arch_i >= 0:
+				archetype_index[p] = arch_i
 		f.pos = stage.get_spawn(p)
 		if _demo_fight:
 			f.pos = Vector2(-14.0 if p == 0 else 2.0, 0.0)

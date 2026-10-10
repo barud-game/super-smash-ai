@@ -8,6 +8,9 @@ const NO_DEVICE: int = -1
 ## Joypad-device per speler (NO_DEVICE = vrij).
 var devices: Array[int] = []
 var _histories: Array[InputHistory] = []
+## Optionele gescripte bron (tools/bench, tests): `(player: int, frame: int) -> InputFrame` vervangt het
+## pad/toetsenbord-samplen. Ongeldige Callable = normale input.
+var scripted_source: Callable = Callable()
 
 
 func _ready() -> void:
@@ -46,6 +49,10 @@ func latest(player: int) -> InputFrame:
 
 ## Sampled alle spelers en duwt het resultaat in de ringbuffers. Eén keer per sim-frame.
 func sample(_frame: int) -> void:
+	if scripted_source.is_valid():
+		for p in MAX_PLAYERS:
+			_histories[p].push(scripted_source.call(p, _frame))
+		return
 	for p in MAX_PLAYERS:
 		var f: InputFrame = null
 		if devices[p] != NO_DEVICE:

@@ -31,7 +31,11 @@ func step(entities: Array) -> void:
 	for e: Variant in entities:
 		if is_instance_valid(e) and e is Fighter and (e as Fighter).active and (e as Fighter).state != null:
 			list.append(e)
-	list.sort_custom(_by_player)
+	if list.size() == 2:
+		if list[0].player > list[1].player:
+			list.reverse()   # twee fighters (het normale geval): geen sort_custom nodig
+	elif list.size() > 2:
+		list.sort_custom(_by_player)
 	# 0. Grab-acties (pummel-treffer, throw-launch) van deze frame: kunnen niet missen, dus geen resolver.
 	for f: Fighter in list:
 		f.apply_grab_actions()
@@ -40,24 +44,28 @@ func step(entities: Array) -> void:
 			if f.hitlag_frames <= 0:
 				f.last_hitboxes = f.active_hitboxes()
 		return
-	var by_id: Dictionary = {}
 	var boxes: Array[ActiveHitbox] = []
+	for f: Fighter in list:
+		# Eén keer verzamelen (de state-hitboxes zijn puur): zowel voor het debug-overzicht als voor de resolver.
+		var hb: Array[ActiveHitbox] = f.active_hitboxes()
+		if f.hitlag_frames <= 0:
+			f.last_hitboxes = hb
+		boxes.append_array(hb)
+	if boxes.is_empty():
+		last_result = null
+		return
+	# Doelwitten, already-hit en clank-uitzonderingen alleen bouwen als er iets te resolven valt.
+	var by_id: Dictionary = {}
 	var targets: Array[CombatTarget] = []
 	var already: Dictionary = {}
 	var no_clank: Dictionary = {}
 	for f: Fighter in list:
 		by_id[f.player] = f
-		if f.hitlag_frames <= 0:
-			f.last_hitboxes = f.active_hitboxes()
-		var hb: Array[ActiveHitbox] = f.active_hitboxes()
-		boxes.append_array(hb)
 		targets.append(f.combat_target())
-		already.merge(f.already_hit)
+		if not f.already_hit.is_empty():
+			already.merge(f.already_hit)
 		if not f.grounded:
 			no_clank[f.player] = true
-	if boxes.is_empty():
-		last_result = null
-		return
 	var res: HitResolver.Result = HitResolver.resolve(boxes, targets, already, no_clank)
 	last_result = res
 	var touched: Dictionary = {}
