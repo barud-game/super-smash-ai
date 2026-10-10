@@ -4,6 +4,7 @@ extends RefCounted
 ## scores tegen de prijs-richtlijn van docs/special-sjablonen.md. Puur; gebruikt door validator.gd en tests.
 
 const ST := preload("res://tools/validator/special_table.gd")
+const CT := preload("res://tools/validator/conversion_table.gd")
 
 
 static func _add(res: Dictionary, level: String, msg: String) -> void:
@@ -220,18 +221,69 @@ func estimate(d: SpecialDef) -> Dictionary:
 			var dd: float = float(eff(d, 0, "dash_distance", 0.0))
 			if dd <= 0.0:
 				dd = float(eff(d, 0, "dash_speed", 4.0)) * float(eff(d, 0, "dash_frames", 12))
-			e["B"] = ST.band(dd, ST.RANGE_DASH, 5)
+			e["B"] = maxi(ST.band(dd, ST.RANGE_DASH, 5), _hitbox_reach_score(d))
 		"tether":
 			e["S"] = ST.band(first, ST.SPEED_PROJECTILE, 1)
 			e["B"] = ST.band(float(eff(d, 0, "max_length", 120.0)), ST.RANGE_TETHER, 5)
 		"multi_jump":
-			e["S"] = 5
-			e["K"] = 0
+			var hbs: Array[HitboxData] = _all_hitboxes(d)
+			if hbs.is_empty():
+				e["S"] = 5
+				e["K"] = 0
+			else:
+				# Met hitboxes (bv. een sabelhaal in de sprong) zoals een aerial: S uit de eerste actieve frame
+				# (rol-frames zijn relatief aan de flap-fase, die na `startup` begint), K uit de sterkste hitbox.
+				var first_hit: int = int(eff(d, 0, "startup", 3)) + 1
+				var earliest: int = 1 << 30
+				for h: HitboxData in hbs:
+					earliest = mini(earliest, h.start_frame)
+				e["S"] = _nearest_score(CT.STARTUP["fair"], float(first_hit + earliest))
+				e["K"] = _hitbox_power_score(hbs)
 		"absorber":
 			e["K"] = 0
 		"trap", "spin", "command_dash", "stall_fall":
 			e["S"] = ST.band(first, ST.SPEED_PROJECTILE, 1)
 	return e
+
+
+## Alle hitboxes van alle rollen van de definitie.
+static func _all_hitboxes(d: SpecialDef) -> Array[HitboxData]:
+	var out: Array[HitboxData] = []
+	for role: Variant in d.hitboxes:
+		out.append_array(d.hits(String(role)))
+	return out
+
+
+## Score waarvan de tabelwaarde het dichtst bij `value` ligt (gelijk = laagste score), zoals normals worden geprijsd.
+static func _nearest_score(row: Array, value: float) -> int:
+	var best: int = 0
+	for i in row.size():
+		if absf(float(row[i]) - value) < absf(float(row[best]) - value) - 0.0001:
+			best = i
+	return best
+
+
+## Bereik-score uit de verste hitbox-rand vanaf de fighter (offset.x vooruit + radius, ongeschaald, zoals dash_attack-reach) tegen de
+## dash-attack-reach-rij van de conversietabel (move-conversie.md §4.1). 0 zonder hitboxes.
+static func _hitbox_reach_score(d: SpecialDef) -> int:
+	var reach: float = -1.0
+	for h: HitboxData in _all_hitboxes(d):
+		reach = maxf(reach, h.offset.x + h.radius)
+	if reach < 0.0:
+		return 0
+	return _nearest_score(CT.REACH["dash_attack"], reach)
+
+
+## Kracht-score uit de sterkste hitbox (hoogste damage): gemiddelde van de dichtstbijzijnde damage- en
+## BKB-rij van de normals (move-conversie.md §2.1).
+static func _hitbox_power_score(hbs: Array[HitboxData]) -> int:
+	var top: HitboxData = hbs[0]
+	for h: HitboxData in hbs:
+		if h.damage > top.damage:
+			top = h
+	var kd: int = _nearest_score(CT.DAMAGE["normal"], top.damage)
+	var kb: int = _nearest_score(CT.BKB["normal"], top.base_kb)
+	return roundi((kd + kb) / 2.0)
 
 
 func _projectile_range(d: SpecialDef, i: int, speed_scale: float = 1.0) -> int:

@@ -368,7 +368,24 @@ Volledige beschrijving en alle waarden in `docs/combat.md`, sectie "M4-implement
 - **Stats per character** (`CharacterLoader.stats_for(id)`, gebruikt door MatchController/training/sandbox): archetype-preset (kopie)
   -> `visual_height` (8–30) -> `movement_extras` (tabel "naam -> effect" in `docs/balans.md` §2) -> of volledig `characters/<id>/stats.tres`.
   Alle extra-waarden (weight ×1,10/×0,90, jumpsquat −1 min. 2, dash ×0,8/×0,85, traction ×0,8) zijn ⚠️ eigen keuzes.
-  `glide`/`wall_jump` zijn voorlopig alleen vlaggen op `FighterStats`.
+  `glide` is voorlopig alleen een vlag op `FighterStats`; `wall_jump` is gebouwd (zie "Wall jump" hieronder).
 - **Taunt** (Melee: D-pad omhoog): `BTN_TAUNT` (XInput D-pad omhoog, toets `T` voor speler 1). Alleen vanuit `Wait` (`Fighter.check_taunt`);
   state `Taunt` duurt `taunt_frames` (standaard `FighterConst.TAUNT_FRAMES` = 80 ⚠️; Melee ±80–100 per character), is niet cancelbaar,
   heeft een gewone hurtbox (te raken) en eindigt in `Wait`. Tekstwolkje: `Fighter.bubble_text()` (vanaf frame 4 tot 4 frames voor het einde).
+
+## Wall jump (`StateWallJump`, tests: `tests/test_wall_jump.gd`)
+Alleen met `stats.wall_jump` (movement-extra `wall_jump`). Stages hebben geen echte muren; de "muur" is de zijkant van elk
+SOLID-segment: x = uiteinde van het segment, van 2 units onder de rand tot `WALL_DEPTH` eronder (fighter-voeten). De fighter vliegt er
+doorheen (geen zij-collision); de wall jump is een trigger op nabijheid.
+
+| Onderdeel | Waarde | Zekerheid |
+|---|---|---|
+| Trigger | in Jump/JumpAerial/Fall (via `check_air_interrupts`, vóór air dodge/double jump), muur binnen `WALL_REACH` = 8 u, verse smash (≥ 0,8, venster 2) **weg van de muur** | ✅ regel, ⚠️ afstand |
+| Niet vanuit | FallSpecial (helpless), aanvallen, hitstun, ledge-states (Melee: de meeste wall-jumpers kunnen niet uit special fall) | ✅ gedrag, ⚠️ per character |
+| Wall-touch | 2 frames (vel 0, geen gravity), fighter draait weg van de muur | ⚠️ |
+| Sprong | vy = `air_jump_velocity(0)` (= jump_v × air_jump_v_multiplier), vx = 1,0 weg van de muur, daarna gewone lucht-physics | ⚠️ (Fox/Falco ±1,0 / ±2,1) |
+| Duur | 30 frames, daarna Fall; na het wall-touch weer actionable (aerial, double jump, air dodge, ledge grab) | ⚠️ |
+| Muurhoogte | `WALL_DEPTH` = 30 u onder de segment-rand (zelfde diepte als het solide blok, zie M5) | ⚠️ |
+| Cooldown | 40 frames tussen twee wall jumps (Melee: eens per muurcontact; wij hebben geen echte muur) | ⚠️ |
+| Effect | `SpecialKit.reset_air_limits("wall_jump")`; `air_jumps_used` blijft (geen double jump terug) | director-besluit 10 |
+| Pose | hergebruikt `jump_aerial` | |

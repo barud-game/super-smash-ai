@@ -32,6 +32,9 @@ params = {
 hitboxes = {
 "slash": Array[ExtResource("1_v1uih")]([SubResource("Resource_cxqvl")])
 }
+poses = {
+"flap": "atk_special_slash"
+}
 ledge_snap = "during"
 air_use_limit = 2
 scores = {

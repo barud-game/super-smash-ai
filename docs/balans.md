@@ -59,7 +59,7 @@ Aliassen (Engels) staan tussen haakjes. Een onbekende sleutel geeft een waarschu
 | `tragere_dash` (`slower_dash`) | `dash_initial_velocity` × 0,8 en `dash_accel_additional` × 0,85 ⚠️ | run speed ongemoeid |
 | `langere_wavedash` (`longer_wavedash`) | `traction` × 0,8 ⚠️ | minder wrijving = langere slide (ook elke andere sliding) |
 | `glide` | `stats.glide = true` | ⚠️ alleen vlag, mechaniek nog niet gebouwd |
-| `wall_jump` (`walljump`) | `stats.wall_jump = true` | ⚠️ alleen vlag, stages hebben nog geen muren |
+| `wall_jump` (`walljump`) | `stats.wall_jump = true` | `StateWallJump` (docs/movement.md); "muur" = zijkant van SOLID-segmenten |
 
 Volgorde in `stats_for`: preset (kopie) -> `visual_height` uit `character.json` (8–30, geklemd + waarschuwing) -> extras in de
 volgorde van `scores.json`. Een `characters/<id>/stats.tres` vervangt dit alles (volledige override).

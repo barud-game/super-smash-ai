@@ -57,7 +57,7 @@ const ATTACK_POSES: Array = [
 	"atk_nair", "atk_fair", "atk_bair", "atk_uair", "atk_dair",
 	"atk_grab", "atk_grab_dash", "atk_grab_hold", "atk_pummel", "atk_fthrow", "atk_bthrow", "atk_uthrow", "atk_dthrow",
 	"atk_special_projectile", "atk_special_charge", "atk_special_release", "atk_special_rise", "atk_special_dash",
-	"atk_special_counter", "atk_special_counter_strike", "atk_special_spin", "atk_special_stall", "atk_special_stall_fall",
+	"atk_special_counter", "atk_special_counter_strike", "atk_special_spin", "atk_special_slash", "atk_special_stall", "atk_special_stall_fall",
 ]
 const COMBAT_POSES: Array = [
 	"shield", "shield_stun", "roll_forward", "roll_back", "spotdodge", "cliff_catch", "cliff_wait", "cliff_getup",

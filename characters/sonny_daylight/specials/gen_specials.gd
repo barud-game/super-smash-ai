@@ -51,6 +51,7 @@ func _side() -> SpecialDef:
 	d.params = {"kind": "flap", "startup": 4, "flap_power": 2.3, "power_decay": 0.1, "flap_frames": 16,
 		"side_speed": 1.7, "momentum_air": "scale", "momentum_scale": 0.3}
 	d.hitboxes = {"slash": [hb(5, 10, Vector2(10.0, 8.0), 6.5, 5.0, 65.0, 30.0, 35.0)] as Array[HitboxData]}
+	d.poses = {"flap": "atk_special_slash"}
 	d.helpless_after = false
 	d.air_use_limit = 2
 	d.ledge_snap = "during"

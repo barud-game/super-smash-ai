@@ -4,6 +4,7 @@ extends SceneTree
 
 const Validator := preload("res://tools/validator/validator.gd")
 const CT := preload("res://tools/validator/conversion_table.gd")
+const SpecialValidator := preload("res://tools/validator/special_validator.gd")
 
 var _fails: int = 0
 var _total: int = 0
@@ -19,6 +20,7 @@ func _initialize() -> void:
 	_test_sanity()
 	_test_scores()
 	_test_budget()
+	_test_special_estimates()
 	_test_files()
 	print("%d/%d checks geslaagd" % [_total - _fails, _total])
 	quit(1 if _fails > 0 else 0)
@@ -232,6 +234,39 @@ func _write(path: String, text: String) -> void:
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	f.store_string(text)
 	f.close()
+
+
+func _test_special_estimates() -> void:
+	var sv: RefCounted = SpecialValidator.new()
+	# dash_strike: kort dashen (12 u) maar een brede hitbox (reach ~20 u) -> Bereik uit de hitbox.
+	var ds := SpecialDef.new()
+	ds.slot = "neutral"
+	ds.templates = ["dash_strike"]
+	ds.params = {"startup": 11, "dash_speed": 2.0, "dash_frames": 6}
+	var nohit: Dictionary = sv.estimate(ds)
+	_check("dash_strike zonder hitboxes: Bereik uit de dash alleen (1)", int(nohit["B"]) == 1)
+	ds.hitboxes = {"dash": [_hb(0, -1, Vector2(15.0, 9.0), 5.5, 10.0, 45.0, 85.0, 45.0)] as Array[HitboxData]}
+	var withhit: Dictionary = sv.estimate(ds)
+	_check("dash_strike met hitbox: Bereik = max(dash, hitbox-reach)", int(withhit["B"]) >= 4)
+	var far := SpecialDef.new()
+	far.templates = ["dash_strike"]
+	far.params = {"startup": 10, "dash_distance": 250.0}
+	far.hitboxes = {"dash": [_hb(0, -1, Vector2(4.0, 0.0), 3.0, 8.0, 40.0, 80.0, 45.0)] as Array[HitboxData]}
+	_check("dash_strike: ver dashen blijft winnen van kleine hitbox", int(sv.estimate(far)["B"]) == 5)
+	# multi_jump: zonder hitboxes S=5/K=0; met hitboxes geschat uit de hitbox.
+	var mj := SpecialDef.new()
+	mj.slot = "side"
+	mj.templates = ["multi_jump"]
+	mj.params = {"kind": "flap", "startup": 4}
+	var plain: Dictionary = sv.estimate(mj)
+	_check("multi_jump zonder hitboxes: S=5, K=0", int(plain["S"]) == 5 and int(plain["K"]) == 0)
+	mj.hitboxes = {"slash": [_hb(5, 10, Vector2(10.0, 8.0), 6.5, 5.0, 30.0, 35.0, 65.0)] as Array[HitboxData]}
+	var sl: Dictionary = sv.estimate(mj)
+	_check("multi_jump met hitbox: S uit eerste actieve frame (startup 4 + frame 5 -> 10 = S2)", int(sl["S"]) == 2)
+	_check("multi_jump met hitbox: K uit damage/BKB (5 dmg, BKB 30 -> 2)", int(sl["K"]) == 2)
+	mj.hitboxes = {"slash": [_hb(0, 4, Vector2(8.0, 8.0), 5.0, 14.0, 40.0, 100.0, 45.0)] as Array[HitboxData]}
+	var fast: Dictionary = sv.estimate(mj)
+	_check("multi_jump: snellere en sterkere hitbox geeft hogere S en K", int(fast["S"]) > 2 and int(fast["K"]) > 2)
 
 
 func _test_files() -> void:

@@ -252,7 +252,7 @@ func _register_default_states() -> void:
 		StateGuardOn.new(), StateGuard.new(), StateGuardSetOff.new(), StateGuardOff.new(),
 		StateShieldBreak.new(), StateShieldBreakDown.new(), StateDizzy.new(), StateEscape.new(), StateEscapeN.new(),
 		StateGrab.new(), StateGrabHold.new(), StatePummel.new(), StateThrow.new(), StateGrabbed.new(),
-		StateThrown.new(), StateGrabRelease.new(), StateTaunt.new(),
+		StateThrown.new(), StateGrabRelease.new(), StateTaunt.new(), StateWallJump.new(),
 	]:
 		register_state(s)
 
@@ -546,6 +546,9 @@ func check_walk() -> bool:
 
 ## Lucht: air dodge (digitale L/R) en double jump.
 func check_air_interrupts() -> bool:
+	if StateWallJump.can_start(self):
+		change_state("WallJump")
+		return true
 	if input.pressed(InputFrame.BTN_SHIELD):
 		change_state("EscapeAir")
 		return true

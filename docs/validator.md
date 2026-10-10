@@ -95,3 +95,13 @@ Per character één resultaat per onderwerp, `character_fields/<naam>`:
 
 Reach en kill-percentages zijn schattingen (⚠️ in move-conversie.md). Multi-hit, projectielen en specials-gedrag worden niet gemeten; specials
 worden alleen op scorebereik en budget gecontroleerd.
+
+## Special-schatting: hitboxes (`SpecialValidator.estimate`)
+- `dash_strike`: Bereik = max(band(`dash_distance` of `dash_speed × dash_frames`), hitbox-reach). Hitbox-reach = verste rand van alle hitboxes
+  in alle rollen, vooruit gemeten: `max(offset.x + radius)` (ongeschaald, net als de dash-attack-reach in `move-conversie.md` §4.1),
+  naar de dichtstbijzijnde score van de `REACH["dash_attack"]`-rij (gelijk = laagste score).
+- `multi_jump`: zonder hitboxes `S=5, K=0` (alleen de sprong). Met hitboxes (bv. Sonny's `slash`) behandeld als een aerial:
+  S = dichtstbijzijnde score in de `STARTUP["fair"]`-rij voor het eerste actieve frame `startup + min(start_frame) + 1` (rol-frames zijn relatief aan
+  de flap-fase, die na `startup` begint); K = gemiddelde (afgerond) van de dichtstbijzijnde `DAMAGE["normal"]`- en `BKB["normal"]`-score van de
+  hitbox met de meeste damage.
+- Tests: `tests/test_validator.gd` (`_test_special_estimates`).

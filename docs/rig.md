@@ -183,7 +183,7 @@ cv.tick(state_frame)                                                            
 | Grond | `atk_jab1` `atk_jab2` `atk_jab3` (trap) `atk_jab_rapid` (loop) `atk_ftilt` `atk_utilt` `atk_dtilt` `atk_dash_attack` `atk_fsmash` `atk_usmash` `atk_dsmash` (+ `_charge`-loops) |
 | Lucht | `atk_nair` `atk_fair` `atk_bair` `atk_uair` `atk_dair` |
 | Grab | `atk_grab` `atk_grab_dash` `atk_grab_hold` (loop) `atk_pummel` `atk_fthrow` `atk_bthrow` `atk_uthrow` `atk_dthrow` (marks.active = loslaat-frame) |
-| Specials | `atk_special_projectile` `atk_special_charge` (loop) `atk_special_release` `atk_special_rise` `atk_special_dash` `atk_special_counter` (loop) `atk_special_counter_strike` `atk_special_spin` (loop) `atk_special_stall` (loop) `atk_special_stall_fall` |
+| Specials | `atk_special_projectile` `atk_special_charge` (loop) `atk_special_release` `atk_special_rise` `atk_special_dash` `atk_special_counter` (loop) `atk_special_counter_strike` `atk_special_spin` (loop) `atk_special_slash` `atk_special_stall` (loop) `atk_special_stall_fall` |
 
 Nominale lengtes/marks (frames) zijn typische Melee-waarden (zie `docs/move-conversie.md`); gebruik `play_timed` om ze op
 de echte move-data te schalen. Aerials en specials die geen sjabloon-pose hebben vallen terug op de dichtstbijzijnde

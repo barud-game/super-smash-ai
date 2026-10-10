@@ -39,3 +39,7 @@ Aerial-bereik (afspraak 8, SH-aerials tegen staande hurtboxes; geometrisch, `-- 
 Character-pipeline (stats per character, taunt + tekstwolkje, props, move-override, validator-velden, match/sandbox; gebruikt een tijdelijke map in `user://`):
 
     <godot_console> --headless --path . --script res://tests/test_character_pipeline.gd
+
+Wall jump (vlag, smash weg van de muur, richting, special-reset, cooldown, determinisme):
+
+    <godot_console> --headless --path . --script res://tests/test_wall_jump.gd
