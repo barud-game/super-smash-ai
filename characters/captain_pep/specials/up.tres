@@ -23,8 +23,8 @@ params = {
 "momentum_air": "zero",
 "rise_angle": 70.0,
 "rise_curve": "decel",
-"rise_frames": 26,
-"rise_speed": 4.2,
+"rise_frames": 20,
+"rise_speed": 1.8,
 "startup": 16
 }
 linked_params = {

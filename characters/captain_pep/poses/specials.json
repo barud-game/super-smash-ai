@@ -26,17 +26,17 @@
 		"length": 14, "blend": 1, "interp": "linear",
 		"keys": [
 			{"t": 0, "drop": 16, "o": {"hip": [-6,4]}, "r": {"hip": -8, "torso": -16, "head": 6, "upper_arm_r": 72, "forearm_r": -18, "upper_arm_l": -40, "forearm_l": -60, "thigh_r": -16, "shin_r": 36, "thigh_l": 28, "shin_l": 40, "foot_l": 6}},
-			{"t": 2, "drop": 14, "o": {"hip": [10,2]}, "r": {"hip": 12, "torso": 30, "head": -16, "upper_arm_r": -98, "forearm_r": -2, "upper_arm_l": 44, "forearm_l": -40, "thigh_r": -28, "shin_r": 40, "thigh_l": 34, "shin_l": 14, "foot_l": 40}},
-			{"t": 4, "drop": 14, "o": {"hip": [14,2]}, "r": {"hip": 14, "torso": 34, "head": -20, "upper_arm_r": -102, "forearm_r": 0, "upper_arm_l": 48, "forearm_l": -40, "thigh_r": -30, "shin_r": 42, "thigh_l": 36, "shin_l": 14, "foot_l": 40}},
-			{"t": 14, "drop": 14, "o": {"hip": [14,2]}, "r": {"hip": 14, "torso": 34, "head": -20, "upper_arm_r": -102, "forearm_r": 0, "upper_arm_l": 48, "forearm_l": -40, "thigh_r": -30, "shin_r": 42, "thigh_l": 36, "shin_l": 14, "foot_l": 40}}
+			{"t": 2, "drop": 18, "o": {"hip": [14,2]}, "r": {"hip": 22, "torso": 36, "head": 10, "upper_arm_r": -80, "forearm_r": -10, "upper_arm_l": 70, "forearm_l": -30, "thigh_r": -48, "shin_r": 30, "foot_r": 10, "thigh_l": 42, "shin_l": 6, "foot_l": 46}},
+			{"t": 4, "drop": 20, "o": {"hip": [24,0]}, "r": {"hip": 34, "torso": 46, "head": 16, "upper_arm_r": -128, "forearm_r": 0, "upper_arm_l": 84, "forearm_l": -24, "thigh_r": -56, "shin_r": 34, "foot_r": 12, "thigh_l": 50, "shin_l": 4, "foot_l": 52}},
+			{"t": 14, "drop": 20, "o": {"hip": [25,0]}, "r": {"hip": 36, "torso": 48, "head": 18, "upper_arm_r": -130, "forearm_r": 0, "upper_arm_l": 86, "forearm_l": -24, "thigh_r": -58, "shin_r": 36, "foot_r": 12, "thigh_l": 52, "shin_l": 4, "foot_l": 54}}
 		]
 	},
 
 	"pep_pant": {
 		"loop": true, "length": 22, "blend": 6, "interp": "spline",
 		"keys": [
-			{"t": 0, "drop": 16, "o": {"hip": [4,4]}, "r": {"torso": 34, "head": 22, "upper_arm_r": 10, "forearm_r": -8, "upper_arm_l": 4, "forearm_l": -8, "thigh_r": -12, "shin_r": 28, "thigh_l": 18, "shin_l": 34}},
-			{"t": 11, "drop": 18, "o": {"hip": [4,6]}, "r": {"torso": 38, "head": 26, "upper_arm_r": 12, "forearm_r": -8, "upper_arm_l": 6, "forearm_l": -8, "thigh_r": -12, "shin_r": 30, "thigh_l": 18, "shin_l": 36}}
+			{"t": 0, "drop": 24, "o": {"hip": [6,6]}, "r": {"torso": 52, "head": 30, "upper_arm_r": -22, "forearm_r": -6, "upper_arm_l": -18, "forearm_l": -6, "thigh_r": -30, "shin_r": 50, "thigh_l": 22, "shin_l": 52}},
+			{"t": 11, "drop": 26, "o": {"hip": [6,8]}, "r": {"torso": 57, "head": 34, "upper_arm_r": -24, "forearm_r": -6, "upper_arm_l": -20, "forearm_l": -6, "thigh_r": -30, "shin_r": 52, "thigh_l": 22, "shin_l": 54}}
 		]
 	},
 

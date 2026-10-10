@@ -79,7 +79,7 @@ func _up() -> SpecialDef:
 	d.slot = "up"
 	d.display_name = "Grabby Hands"
 	d.templates = ["rising_multi", "command_grab"]
-	d.params = {"startup": 16, "rise_frames": 26, "rise_speed": 4.2, "rise_curve": "decel", "rise_angle": 70.0,
+	d.params = {"startup": 16, "rise_frames": 20, "rise_speed": 1.8, "rise_curve": "decel", "rise_angle": 70.0,
 		"h_control": "x_only", "endlag": 26, "momentum_air": "zero"}
 	d.linked_params = {"grab_radius": 7.0, "grab_active": 4, "hold_frames": 12, "burst_frames": 8, "miss_endlag": 26,
 		"grab_offset": Vector2(5.0, 12.0), "hold_offset": Vector2(7.0, 6.0)}

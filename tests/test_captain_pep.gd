@@ -401,16 +401,20 @@ func _test_up() -> void:
 	started(a, "up")
 	var y0: float = a.pos.y
 	idle(fs, 30)
-	check("stijgt (recovery)", a.pos.y > y0 + 30.0, "%.1f" % (a.pos.y - y0))
+	var ymax: float = a.pos.y
+	run_until(fs, func() -> bool:
+		ymax = maxf(ymax, a.pos.y)
+		return a.state_name() != "Special", 80)
+	check("stijgt (recovery) ~32-38 units", ymax - y0 >= 30.0 and ymax - y0 <= 40.0, "%.1f" % (ymax - y0))
 	run_until(fs, func() -> bool: return a.state_name() != "Special", 80)
-	check("mis in de lucht: helpless", a.state_name() == "FallSpecial", a.state_name())
+	check("mis in de lucht: helpless", a.state_name() in ["FallSpecial", "LandingFallSpecial"], a.state_name())
 	free_all(fs)
 	# Mis op de grond: helpless na afloop, landing lag bij landen.
 	fs = pair(-40.0, 60.0)
 	a = fs[0]
 	started(a, "up")
 	run_until(fs, func() -> bool: return a.state_name() != "Special", 100)
-	check("mis (grond): helpless na afloop", a.state_name() == "FallSpecial", a.state_name())
+	check("mis (grond): helpless (landing lag bij landen)", a.state_name() in ["FallSpecial", "LandingFallSpecial"], a.state_name())
 	run_until(fs, func() -> bool: return a.grounded, 300)
 	check("mis: landing lag bij landen", a.state_name() == "LandingFallSpecial", a.state_name())
 	free_all(fs)
