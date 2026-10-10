@@ -368,9 +368,9 @@ func _test_up() -> void:
 		"%.1f %s" % [b.percent, b.state_name()])
 	var vfx_seen: bool = false
 	for e: Dictionary in kit.fx_log:
-		if String(e["name"]) == "purple_sparks":
+		if String(e["name"]) == "sparks":
 			vfx_seen = true
-	check("paarse-vonken-VFX aangeroepen (toolkit-hook)", vfx_seen)
+	check("paarse-vonken-VFX aangeroepen (sparks)", vfx_seen)
 	run_until(fs, func() -> bool: return a.state_name() != "Special", 80)
 	check("grab geslaagd: GEEN helpless (recovery)", a.state_name() in ["Fall", "Wait", "Landing"], a.state_name())
 	free_all(fs)

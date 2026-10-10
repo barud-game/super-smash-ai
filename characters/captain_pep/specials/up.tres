@@ -41,9 +41,6 @@ hitboxes = {
 "finisher": Array[ExtResource("1_2ov2l")]([]),
 "multi": Array[ExtResource("1_2ov2l")]([])
 }
-vfx = {
-"burst": "purple_sparks"
-}
 sfx = {
 "hold": "grab"
 }

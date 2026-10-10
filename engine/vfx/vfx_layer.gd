@@ -192,6 +192,97 @@ func spawn_respawn(pos_units: Vector2, player_color: Color = Color(0.6, 0.85, 1.
 	return e
 
 
+# ---------- special-effecten ----------
+
+## Cache van characters/<id>/vfx/<naam>.gd: "<id>/<naam>" -> Script, of null als het bestand niet bestaat of geen SpecialFx is.
+static var _char_fx_cache: Dictionary = {}
+## Namen waarvoor al een "onbekend effect"-waarschuwing is gegeven (per layer).
+var _warned_fx: Dictionary = {}
+## Onbekende effectnamen die op `sparks` terugvielen (tests/debug).
+var unknown_fx: Array[String] = []
+
+
+## Presentatie-effect van een special. Volgorde: `characters/<params.character>/vfx/<naam>.gd` (subclass van `SpecialFx`),
+## dan de generieke registry (`GenericSpecialFx`, incl. aliassen), anders `sparks` + één waarschuwing.
+## `params`: `color` (Color of "#hex", standaard spelerskleur), `size` (schaal), `duration`, `character`, `foot` (units) en
+## effect-specifieke sleutels (docs/vfx.md). Posities in Melee-units (y omhoog). Geeft het effect terug.
+func spawn_special_fx(fx_name: String, pos_units: Vector2, facing: int = 1, player: int = 0, params: Dictionary = {}) -> VfxEffect:
+	var p: Dictionary = params
+	var e: VfxEffect = null
+	var script: Script = _char_fx_script(String(p.get("character", "")), fx_name)
+	if script != null:
+		e = script.new() as VfxEffect
+	if e == null:
+		var r: Array = GenericSpecialFx.resolve(fx_name)
+		if r.is_empty():
+			if not _warned_fx.has(fx_name):
+				_warned_fx[fx_name] = true
+				unknown_fx.append(fx_name)
+				push_warning("VfxLayer: onbekend special-effect '%s', fallback sparks" % fx_name)
+			r = ["sparks", {}]
+		var defaults: Dictionary = r[1]
+		if not defaults.is_empty():
+			p = defaults.duplicate()
+			p.merge(params, true)
+		e = (GenericSpecialFx.REGISTRY[r[0]] as GDScript).new() as VfxEffect
+	_add(e)
+	var col: Color = _fx_color(p, player)
+	if e is SpecialFx:
+		(e as SpecialFx).setup_fx(Units.to_px(pos_units), facing, col, player, p)
+	else:
+		e.position = Units.to_px(pos_units)
+	_launch(e)
+	return e
+
+
+func _fx_color(p: Dictionary, player: int) -> Color:
+	var c: Variant = p.get("color")
+	if c is Color:
+		return c as Color
+	if c is String and (c as String) != "":
+		return Color.html(c as String)
+	return UiStyle.player_color(player)
+
+
+static func special_fx_path(character_id: String, fx_name: String) -> String:
+	return "res://characters/%s/vfx/%s.gd" % [character_id, fx_name]
+
+
+static func _char_fx_script(character_id: String, fx_name: String) -> Script:
+	if character_id == "" or fx_name == "":
+		return null
+	var key: String = character_id + "/" + fx_name
+	if _char_fx_cache.has(key):
+		return _char_fx_cache[key]
+	var path: String = special_fx_path(character_id, fx_name)
+	var script: Script = null
+	if ResourceLoader.exists(path):
+		var res: Resource = load(path)
+		if res is Script and (res as Script).can_instantiate():
+			var probe: Object = (res as Script).new()
+			if probe is SpecialFx:
+				script = res as Script
+			else:
+				push_warning("VfxLayer: %s is geen SpecialFx, genegeerd" % path)
+			if probe is Node:
+				(probe as Node).free()
+	_char_fx_cache[key] = script
+	return script
+
+
+## Laadt alle `characters/<id>/vfx/*.gd` alvast (bij het opbouwen van een match), zodat de eerste special geen lazy-load triggert.
+static func warm_special_fx(character_id: String) -> void:
+	if character_id == "":
+		return
+	var dir: String = "res://characters/%s/vfx" % character_id
+	if not DirAccess.dir_exists_absolute(dir):
+		return
+	for file: String in DirAccess.get_files_at(dir):
+		var fname: String = file.trim_suffix(".remap")
+		if fname.ends_with(".gd"):
+			_char_fx_script(character_id, fname.get_basename())
+
+
 ## KO-effect van `character_id` (valt terug op `DefaultKoEffect`). `pos_units` = waar de fighter de blast zone
 ## uitvloog, `side` = VfxConst.SIDE_*. `colors` leeg = lezen uit characters/<id>/character.json.
 func spawn_ko(character_id: String, pos_units: Vector2, side: int, player_color: Color, colors: PackedColorArray = PackedColorArray()) -> KoEffect:

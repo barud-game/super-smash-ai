@@ -26,6 +26,7 @@ func _initialize() -> void:
 	_test_projectile()
 	_test_projectile_interactions()
 	_test_charge()
+	_test_vfx_hook()
 	_test_teleport()
 	_test_rising_multi_helpless_ledge()
 	_test_air_limit()
@@ -1219,3 +1220,26 @@ func _test_validator() -> void:
 		if String(r["move"]).begins_with("special") and r["status"] == "FAIL":
 			sp_fail = true
 	check("validate_character(_dummy): specials zonder FAIL", not sp_fail)
+
+
+func _test_vfx_hook() -> void:
+	print("== presentatie -> VfxLayer.spawn_special_fx")
+	var fs: Array = pair(-30.0, 30.0)
+	var a: Fighter = fs[0]
+	var layer := VfxLayer.new()
+	layer.auto_register = false
+	root.add_child(layer)
+	a.vfx = layer
+	var d := def("neutral", ["charge", "projectile"], {"startup": 6, "charge_max": 40, "hold_cancel": "shield",
+		"charge_keep": true, "scale_damage": 3.0, "scale_size": 2.0, "charge_stages": 0})
+	d.linked_params = {"startup": 4, "endlag": 18, "speed": 3.0, "damage": 4.0, "kb_base": 10.0, "max_alive": 2}
+	d.telegraph = "charge_glow"
+	d.vfx = {"start": "no_such_fx+burst"}
+	var held: Array = [fr(0, 0, B)]
+	check("start", start(a, d))
+	idle(fs, 12, held)
+	check("telegraaf en vfx-events spawnen effecten in de laag", layer.active_count() > 0)
+	check("'a+b' splitst in twee events", SpecialKit.of(a).fx_seen("vfx", "no_such_fx") and SpecialKit.of(a).fx_seen("vfx", "burst"))
+	check("onbekende naam valt terug op sparks (1 waarschuwing)", layer.unknown_fx == ["no_such_fx"])
+	free_all(fs)
+	layer.queue_free()

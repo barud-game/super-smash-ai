@@ -172,3 +172,4 @@ static func warm(character_id: String) -> void:
 			path = CharacterLoader.dir(character_id).path_join("specials").path_join(slot + ".gd")
 		if ResourceLoader.exists(path):
 			ResourceLoader.load(path)
+	VfxLayer.warm_special_fx(character_id)

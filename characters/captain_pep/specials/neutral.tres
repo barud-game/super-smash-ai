@@ -39,6 +39,9 @@ poses = {
 "end": "pep_pant",
 "startup": "pep_eat"
 }
+vfx = {
+"dash": "burst"
+}
 sfx = {
 "dash": "throw"
 }

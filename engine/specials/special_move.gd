@@ -594,7 +594,9 @@ func present(event: String) -> void:
 	var v: String = String(def.vfx.get(event, ""))
 	var s: String = String(def.sfx.get(event, ""))
 	if v != "":
-		fx(v, f.pos + Vector2(0.0, f.stats.visual_height * 0.5))
+		# "a+b" = meerdere effecten tegelijk (bv. "speed_lines+dust_kick").
+		for n: String in v.split("+", false):
+			fx(n.strip_edges(), f.pos + Vector2(0.0, f.stats.visual_height * 0.5))
 	if s != "":
 		if kit != null:
 			kit.log_fx("sfx", s, f.pos)
@@ -610,16 +612,20 @@ func telegraph(at: Vector2 = Vector2.INF) -> void:
 	_spawn_vfx(n, p0)
 
 
-func fx(vfx_name: String, at: Vector2) -> void:
+## Presentatie-effect (gelogd + VfxLayer.spawn_special_fx). `params`: o.a. `color`, `size`, `count` (docs/vfx.md).
+func fx(vfx_name: String, at: Vector2, params: Dictionary = {}) -> void:
 	if kit != null:
 		kit.log_fx("vfx", vfx_name, at)
-	_spawn_vfx(vfx_name, at)
+	_spawn_vfx(vfx_name, at, params)
 
 
-func _spawn_vfx(vfx_name: String, at: Vector2) -> void:
+func _spawn_vfx(vfx_name: String, at: Vector2, params: Dictionary = {}) -> void:
 	var layer: Node = f.get_vfx()
 	if layer != null and layer.has_method("spawn_special_fx"):
-		layer.spawn_special_fx(vfx_name, at, f.facing, f.player)
+		var p: Dictionary = params.duplicate()
+		p["character"] = f.character_id
+		p["foot"] = f.pos
+		layer.spawn_special_fx(vfx_name, at, f.facing, f.player, p)
 
 
 ## Pose voor de huidige fase: definitie > sjabloon-standaard, met fallback als het rig de pose niet heeft.

@@ -42,6 +42,9 @@ poses = {
 "end": "pep_ride",
 "startup": "pep_ride"
 }
+vfx = {
+"dash": "speed_lines+dust_kick"
+}
 sfx = {
 "dash": "dash"
 }

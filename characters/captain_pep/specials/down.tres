@@ -63,6 +63,9 @@ hitboxes = {
 poses = {
 "slide": "pep_slide_kick"
 }
+vfx = {
+"landing": "shockwave"
+}
 landing_lag = 24
 ledge_snap = "during"
 ledge_snap_range = 10.0

@@ -11,6 +11,13 @@ const TURN_COOLDOWN: int = 10
 var _turn_cd: int = 0
 
 
+## De klap-burst (def.vfx "dash") hoort op de hitbox, ~5.5 units voor hem, niet op zijn lichaam.
+func fx(vfx_name: String, at: Vector2, params: Dictionary = {}) -> void:
+	if vfx_name == "burst":
+		at += Vector2(5.5 * f.facing, 0.0)
+	super.fx(vfx_name, at, params)
+
+
 func step() -> void:
 	if _turn_cd > 0:
 		_turn_cd -= 1

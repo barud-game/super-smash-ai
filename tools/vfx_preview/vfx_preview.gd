@@ -46,6 +46,23 @@ func _run() -> void:
 		await _write_sheet(shots, labels, out, 3)
 		return
 
+	if effect == "specials":
+		# Contactsheet van alle special-effecten: per effect 3 frames naast de 15-units-referentie.
+		var sp_names: Array[String] = ["sparks", "purple_sparks", "smoke_puff", "burst", "explosion", "speed_lines", "charge_glow",
+			"shockwave", "counter_flash", "reflect_shine", "teleport_poof", "dust_kick", "wood_chips"]
+		if _args.has("fx"):
+			sp_names = [String(_args["fx"])]
+		var sp_frames: Array[int] = [2, 6, 11]
+		for n in sp_names:
+			var nm: String = n
+			var imgs3: Array[Image] = await _capture(func(l: VfxLayer) -> void:
+				l.spawn_special_fx(nm, BODY, 1, 0, {"foot": Vector2.ZERO, "character": "_dummy"}), sp_frames, Vector2(0, -REF_HEIGHT_UNITS * 0.5 * Units.UNIT_TO_PX), 1.0)
+			shots.append_array(imgs3)
+			for f in sp_frames:
+				labels.append("%s f%d" % [nm, f])
+		await _write_sheet(shots, labels, out, 9)
+		return
+
 	var spawn: Callable
 	var frames2: Array[int] = [0, 1, 2, 3, 5, 7, 9, 12]
 	var center: Vector2 = Vector2(0, -REF_HEIGHT_UNITS * 0.5 * Units.UNIT_TO_PX)

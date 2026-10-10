@@ -72,7 +72,7 @@ Klaar met de move: `finish()` (helpless/Fall/Wait, of de sequentie naar `templat
 | 21 follow-up-venster | `TplCommandDash` (input-buffer, chain_limit, special -> `templates[1]`) |
 | 24 identiteit, 25 determinisme | `owner_id` = `Fighter.player`; entity-instanties vanaf 1 000 000; vaste spawn-volgorde; geen RNG |
 | 27 debug | `StateSpecial.debug_name()`, `SpecialWorld.events`, `SpecialKit.fx_log` |
-| 28 presentatie | `present(fase)` (vfx/sfx uit de def), `telegraph()`; VFX via `VfxLayer.spawn_special_fx(naam, pos, facing, speler)` als die bestaat (nog te bouwen), anders alleen gelogd |
+| 28 presentatie | `present(fase)` (vfx/sfx uit de def), `telegraph()`; `fx(naam, pos, params)` / `def.vfx[event]` (`"a+b"` = twee effecten) roept `VfxLayer.spawn_special_fx` aan en logt in `fx_log`; namen en params: docs/vfx.md "Special-effecten". Onbekende naam = `sparks` + 1 waarschuwing |
 
 ## 3. Combinaties (max 2 sjablonen)
 - `charge` + X: de charge-loop eindigt met `start_linked(ratio)`; X krijgt de lading via `set_charge`.

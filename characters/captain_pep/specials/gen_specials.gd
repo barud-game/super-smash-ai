@@ -38,6 +38,7 @@ func _neutral() -> SpecialDef:
 	d.landing_lag = 22
 	d.helpless_after = false
 	d.poses = {"startup": "pep_eat", "dash": "pep_haymaker", "end": "pep_pant"}
+	d.vfx = {"dash": "burst"}
 	d.sfx = {"dash": "throw"}
 	# Frames sinds de knopdruk. Hamburger uit de zak (6..27), zoutvaatje met het kapje omlaag boven de burger
 	# (strooien 10..19, schuddend), burger naar de mond en weg (28 = opgegeten).
@@ -67,6 +68,7 @@ func _side() -> SpecialDef:
 	d.ledge_snap_range = 10.0
 	d.air_use_limit = 1
 	d.poses = {"startup": "pep_ride", "dash": "pep_ride", "end": "pep_ride"}
+	d.vfx = {"dash": "speed_lines+dust_kick"}
 	d.sfx = {"dash": "dash"}
 	# Fiets onder de voeten tijdens de hele move (verdwijnt als de special-state eindigt).
 	d.prop_events.append({"prop": "racefiets", "attach": "under_feet", "from_frame": 0, "to_frame": -1})
@@ -95,7 +97,6 @@ func _up() -> SpecialDef:
 	d.ledge_snap = "during"
 	d.ledge_snap_range = 10.0
 	d.air_use_limit = 1
-	d.vfx = {"burst": "purple_sparks"}
 	d.sfx = {"hold": "grab"}
 	return d
 
@@ -121,4 +122,5 @@ func _down() -> SpecialDef:
 	d.ledge_snap_range = 10.0
 	d.air_use_limit = 1
 	d.poses = {"slide": "pep_slide_kick"}
+	d.vfx = {"landing": "shockwave"}
 	return d

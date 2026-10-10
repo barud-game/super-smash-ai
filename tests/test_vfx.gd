@@ -13,6 +13,7 @@ func _initialize() -> void:
 	_test_shake()
 	_test_determinism()
 	_test_flash()
+	_test_special_fx()
 	print("")
 	print("%d/%d checks geslaagd" % [_total - _fails, _total])
 	quit(1 if _fails > 0 else 0)
@@ -206,4 +207,56 @@ func _test_scale() -> void:
 	var big_hb: HitEffect = l.spawn_hit(Vector2.ZERO, 0.5, 0, 0.0, false, 5.0)
 	check("hitbox-straal bepaalt sparkgrootte", big_hb.vis > small_hb.vis)
 	check("KO-radiusgrens", VfxConst.KO_MAX_RADIUS_PX <= 500.0)
+	l.queue_free()
+
+
+func _test_special_fx() -> void:
+	var l: VfxLayer = _layer()
+	var names: Array[String] = ["sparks", "smoke_puff", "burst", "explosion", "speed_lines", "trail", "charge_glow", "shockwave",
+		"counter_flash", "reflect_shine", "teleport_poof", "dust_kick", "telegraph", "aura", "mine_blink", "purple_sparks"]
+	var made: Array[VfxEffect] = []
+	for n in names:
+		made.append(l.spawn_special_fx(n, Vector2(5, 8), 1, 0, {"foot": Vector2(5, 0)}))
+	var all_ok: bool = true
+	for e in made:
+		all_ok = all_ok and e is SpecialFx
+	check("alle generieke special-effecten (+aliassen) spawnen", all_ok and l.unknown_fx.is_empty())
+	var longest: int = 0
+	for e in made:
+		longest = maxi(longest, e.duration)
+	check("special-effecten duren <= 90 frames", longest <= 90)
+	check("positie via Units (lichaamsmidden)", (made[0] as SpecialFx).position == Units.to_px(Vector2(5, 8)))
+	check("shockwave/dust_kick staan op de voet", (made[7] as SpecialFx).position == Units.to_px(Vector2(5, 0)) and (made[11] as SpecialFx).position == Units.to_px(Vector2(5, 0)))
+	check("kleur default = spelerskleur", (made[0] as SpecialFx).color.is_equal_approx(UiStyle.player_color(0)))
+	var pur: SpecialFx = l.spawn_special_fx("sparks", Vector2.ZERO, 1, 1, {"color": Color("#7b2fbf"), "count": 99}) as SpecialFx
+	check("color-param wint, count geklemd op 48", pur.color.is_equal_approx(Color("#7b2fbf")) and (pur as GenericSpecialFx.Sparks)._dir.size() == GenericSpecialFx.MAX_PARTICLES)
+	check("html-kleur als string", (l.spawn_special_fx("burst", Vector2.ZERO, 1, 0, {"color": "#00ff00"}) as SpecialFx).color.is_equal_approx(Color.html("#00ff00")))
+	check("alias-default (explosion groter)", (l.spawn_special_fx("explosion", Vector2.ZERO) as SpecialFx).size_mult > 1.5)
+	# onbekend: fallback sparks + één waarschuwing
+	var u1: VfxEffect = l.spawn_special_fx("bestaat_niet", Vector2.ZERO)
+	var u2: VfxEffect = l.spawn_special_fx("bestaat_niet", Vector2.ZERO)
+	check("onbekende naam -> sparks", u1 is GenericSpecialFx.Sparks and u2 is GenericSpecialFx.Sparks)
+	check("onbekende naam waarschuwt één keer", l.unknown_fx == ["bestaat_niet"])
+	# per-character effect gaat voor
+	var ce: VfxEffect = l.spawn_special_fx("wood_chips", Vector2.ZERO, 1, 0, {"character": "_dummy"})
+	check("per-character effect (characters/_dummy/vfx/wood_chips.gd)", ce is SpecialFx and not (ce is GenericSpecialFx.Sparks) and ce.get_script().resource_path.ends_with("_dummy/vfx/wood_chips.gd"))
+	var ce2: VfxEffect = l.spawn_special_fx("wood_chips", Vector2.ZERO, 1, 0, {"character": "captain_pep"})
+	check("zonder eigen bestand valt een ander character terug op sparks", ce2 is GenericSpecialFx.Sparks)
+	VfxLayer.warm_special_fx("_dummy")
+	# alles ruimt zichzelf op, ook na veel frames
+	_run_frames(l, 120)
+	check("special-effecten ruimen zichzelf op", l.active_count() == 0)
+	# maximum van 64 gehandhaafd
+	for i in 200:
+		l.spawn_special_fx("sparks", Vector2.ZERO)
+	check("VFX-maximum 64 geldt ook voor special-effecten", l.active_count() <= VfxLayer.MAX_EFFECTS)
+	l.clear()
+	# determinisme: zelfde spawn-volgorde -> zelfde deeltjes
+	var la: VfxLayer = _layer()
+	var lb: VfxLayer = _layer()
+	var sa: GenericSpecialFx.Sparks = la.spawn_special_fx("sparks", Vector2.ZERO) as GenericSpecialFx.Sparks
+	var sb: GenericSpecialFx.Sparks = lb.spawn_special_fx("sparks", Vector2.ZERO) as GenericSpecialFx.Sparks
+	check("special-fx deterministisch (geseed)", sa._dir == sb._dir and sa._reach == sb._reach)
+	la.queue_free()
+	lb.queue_free()
 	l.queue_free()

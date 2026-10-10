@@ -5,8 +5,9 @@ extends TplRisingMulti
 ## "explosion", element DARK = paars). Mist de grab: normaal einde en helpless (helpless_on_miss_only: na een
 ## geslaagde grab niet helpless). De sjablonen-sequentie (rising -> grab) wordt uitgezet (chain_mode "none"):
 ## de grab-instellingen staan in linked_params van de .tres en worden hier gelezen.
-## VFX: def.vfx["burst"] via het toolkit-hook (spawn_special_fx); bestaat die nog niet, dan een bestaande
-## VfxLayer.spawn_hit met EL_DARK op de plek van het slachtoffer.
+## VFX: bij de explosie `fx("sparks", ...)` (paars, veel) + `fx("burst", ...)` op de plek van het slachtoffer.
+
+const PURPLE: Color = Color("#7b2fbf")
 
 var victim: Fighter = null
 var grabbed: bool = false
@@ -88,9 +89,9 @@ func _explode() -> void:
 		return
 	var at: Vector2 = v.pos + Vector2(0.0, v.stats.visual_height * 0.5)
 	SpecialMove.apply_direct_hit(f, v, scaled(src[0]), src[0].damage * damage_mult)
-	var layer: Node = f.get_vfx()
-	if layer != null and not layer.has_method("spawn_special_fx") and layer.has_method("spawn_hit"):
-		layer.spawn_hit(at, 1.0, VfxConst.EL_DARK, 70.0, false, 12.0)
+	# Paarse vonkenwolk + knal op het slachtoffer (gelogd in kit.fx_log en getekend door VfxLayer.spawn_special_fx).
+	fx("sparks", at, {"color": PURPLE, "count": 36, "reach": 9.0})
+	fx("burst", at, {"color": PURPLE, "size": 1.3})
 
 
 func hitboxes() -> Array[ActiveHitbox]:

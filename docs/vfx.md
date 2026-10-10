@@ -107,7 +107,7 @@ Windowed (headless rendert niet), schrijft een contactsheet-PNG:
 
     Godot_console.exe --path . res://tools/vfx_preview/vfx_preview.tscn -- --effect ko --character _dummy --side right --out C:/pad/ko.png
 
-Opties: `--effect hit|hit_fire|hit_electric|hit_ice|hit_dark|hit_slash|hit_kill|elements|shield|clank|dust|airdodge|trail|respawn|ko`,
+Opties: `--effect specials|hit|hit_fire|hit_electric|hit_ice|hit_dark|hit_slash|hit_kill|elements|shield|clank|dust|airdodge|trail|respawn|ko`,
 `--character <id>` (ko; leeg `""` = fallback), `--side left|right|top|bottom`, `--strength 0..1`,
 `--frames "0,3,6,10"`, `--cols N`, `--scale F`, `--ref 0|1` (silhouet van een character van 15 units als maatstaf, standaard aan; voeten op de grondlijn, hits spawnen op lichaamsmidden). Zonder `--out` landt de PNG in `user://vfx_preview.png`.
 Elke cel is 360x300 px, het effect staat gecentreerd (KO: richting de stage verschoven) op een donkere achtergrond met grondlijn.
@@ -116,3 +116,42 @@ Previews van de standaardeffecten staan in `tools/vfx_preview/out/`.
 ## Test
     Godot_console.exe --headless --path . --script res://tests/test_vfx.gd
 Controleert alle spawn-functies, opruimen na de duur, KO-fallback/dummy/clamp, shake-determinisme, seed-determinisme en screen-flash.
+
+## Special-effecten (`spawn_special_fx`)
+Presentatie van specials (`def.vfx`, `def.telegraph`, `fx(...)` in special-scripts). Code: `engine/vfx/special_fx.gd` (basis),
+`engine/vfx/generic_special_fx.gd` (registry), `VfxLayer.spawn_special_fx`.
+
+    layer.spawn_special_fx(name, pos_units, facing, player, params := {})   # pos = lichaamsmidden, units, y omhoog
+
+- `SpecialMove.fx(name, at, params)` en `def.vfx = {"fase": "naam"}` (of `"a+b"` voor meerdere) gaan hierheen; ook `telegraph()`
+  (standaardnaam `telegraph` = `charge_glow`). De special geeft automatisch `character` en `foot` (voet in units) mee.
+- Volgorde: **1)** `characters/<id>/vfx/<naam>.gd` (`extends SpecialFx`), **2)** generieke registry/alias, **3)** onbekend =
+  `sparks` + een `push_warning` (1x per naam per layer; `layer.unknown_fx`). VFX beinvloedt nooit gameplay; max 64 effecten (oudste valt weg).
+- Algemene params: `color` (Color of "#hex"; standaard spelerskleur), `size` (schaal, 0.1-6), `duration` (frames, max 90).
+
+| Naam | Maat (size 1) | Extra params | Gebruik |
+|---|---|---|---|
+| `sparks` | tot 6 units, 18f | `count` (12, max 48), `reach`, `angle`, `spread_deg` | treffer/ontlading; `purple_sparks` = alias (paars, 26) |
+| `smoke_puff` | puffs 1-3 units, 26f | `count`, `tint` | verdwijnen, landing |
+| `burst` | straal ~5, 14f | `smoke` | klap, impact; `explosion` = alias (size 1.7, oranje, rook, 20f) |
+| `speed_lines` | strepen 4-8 units lang, 14f | `lines`, `length` | dash/rush (tegen de kijkrichting in); `trail` = alias |
+| `charge_glow` | straal ~5, 24f | | opladen/telegraaf; `telegraph`, `aura` = alias |
+| `shockwave` | ring tot 10 units op de grond, 16f | `reach` | landing (op de voet) |
+| `counter_flash` | straal ~8, 14f, goud | | counter geraakt; `mine_blink` = alias (size 0.4) |
+| `reflect_shine` | bel straal ~6, 16f, lichtblauw | | reflector |
+| `teleport_poof` | straal ~7, 22f, paarsblauw | | teleport vertrek/aankomst |
+| `dust_kick` | puffs 1-2.5 units, 20f | `count`, `tint` | afzetten/remmen/fietsen (op de voet) |
+
+### Eigen effect per character
+Bestand `characters/<id>/vfx/<naam>.gd` met `extends SpecialFx` (subclass van `VfxEffect`); de naam is de effectnaam in `def.vfx`.
+Voorbeeld: `characters/_dummy/vfx/wood_chips.gd`. Schrijf twee functies:
+1. `_on_fx_setup()` - zet `duration` (<= 90) en bouw deeltjes in arrays met `rng` (nooit `randf()`); optioneel `at_feet = true`.
+2. `_draw_fx(t, f)` - pure functie van `t` (0..1) en `f` (frame) en je arrays. Tekenen in **units** (y omlaag, oorsprong = spawnpunt;
+   het transform is al x7 geschaald). Hulpen: `disc`, `draw_ring`, `draw_spike`, `draw_star`, `with_alpha`, `ease_out`, `SpecialFx.dir_deg(graden)`,
+   `SpecialFx.bright(kleur)`. Velden: `color`, `facing`, `player`, `params`, `size_mult`.
+Maatstaf: een character is 15 units hoog; hit-sparks 2-5.5 units; special-effecten zelden groter dan ~10 units (explosies ~9). Laatste frame (bijna) onzichtbaar.
+Het bestand wordt bij matchstart voorgeladen (`Specials.warm` -> `VfxLayer.warm_special_fx`); geen `load()` in je effect.
+
+### Preview
+    Godot_console.exe --path . res://tools/vfx_preview/vfx_preview.tscn -- --effect specials --out C:/pad/specials.png
+`--effect specials` toont alle effecten (3 frames per effect, naast de 15-units-referentie, 3 effecten per rij); `--fx <naam>` voor een enkel effect.
