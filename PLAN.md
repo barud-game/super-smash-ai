@@ -10,7 +10,7 @@
   (`characters/_concepten/captain_pep/ontwerp.md`: hamburger-neutral-B, racefiets-side-B, taunt "DA'S PAS SPUL!").
 - **Captain Pep (2026-10-10):** akkoord; klaar en gecommit: character.json, scores.json (194/200), art + props
   (`art/props/props.json` met pivots), KO-effect, Jitter Knee (fair), taunt "DA'S PAS SPUL!" (gecontroleerd op screenshot).
-  **Nog te doen: zijn 4 specials** → `special-builder` in `characters/captain_pep/specials/` volgens `ontwerp.md`:
+  **Specials klaar (2026-10-10):** Last Shot, Panic Rush, Grabby Hands (~35u), Stumble Kick; validator 12 PASS, 76 tests. M7 ✅.
   neutral `Last Shot` (dash_strike afstand 0; prop-events hamburger in hand_r + zoutvaatje in hand_l tijdens de startup,
   eetpose, dan klap), side `Panic Rush` (dash_strike; prop `racefiets` under_feet tijdens de move), up `Grabby Hands`
   (rising_multi + command_grab, paarse vonkenwolk), down `Stumble Kick` (stall_fall). Daarna validator, tests,
@@ -77,7 +77,7 @@
 | M4 | Verdediging | Shield + lightshield, shieldstun, shield break, rolls, spot dodge, grabs/pummel/throws, teching | ⬜ |
 | M5 | Character-systeem | Archetypes + standaard-movesets, 200-puntenbalans + validator, special-sjablonen/toolkit, SVG-skelet + gedeelde animaties, characters laden uit map + hot reload | ⬜ |
 | M6 | Menu & match | Main menu (Training / Fight), training mode, 2 spelers, stocks, respawn, HUD, match-einde | ⬜ |
-| M7 | Eerste character | Eerste custom character via `/nieuw-character`, end-to-end | ⬜ |
+| M7 | Eerste character | Eerste custom character via `/nieuw-character`, end-to-end | ✅ Captain Pep |
 
 ## Later
 - Simpele 2D-animatie (Skeleton2D) per character
