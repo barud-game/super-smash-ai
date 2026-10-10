@@ -44,6 +44,7 @@ Standaard fast-faller-moveset, met één signature move:
 | **Totaal** | **194 / 200** |
 
 ## Wijzigingslog
+- 2026-10-10: specials gebouwd (characters/captain_pep/specials/: neutral.gd, side.tres, up.gd, down.gd + gen_specials.gd) met eigen poses (poses/specials.json: pep_eat, pep_haymaker, pep_pant, pep_ride, pep_slide_kick). Last Shot: 40f eet-ritueel met props, stilstaande reuze-klap (reach ~11, B=2), 56f hijgen. Panic Rush: fiets onder de voeten, lucht licht stijgend + helpless, geen momentum na de dash in de lucht. Grabby Hands: grab-box tijdens de rise, paarse explosie (VFX: spawn_special_fx bestaat nog niet, fallback VfxLayer.spawn_hit met EL_DARK), helpless alleen bij mis. Stumble Kick: grond = glijdende trap, lucht = stall + schuine duik, ledge-snap tijdens stall/duik. Budget blijft 194/200.
 - 2026-10-09: side-B op een gare racefiets; neutral-B wordt hamburger + "zout" eten en dan de klap (mechanics gelijk).
 - 2026-10-09: eerste voorstel ("Kade Torque").
 - 2026-10-09: speler koos thema en naam **Captain Pep** (Engels) (verslaafde chaos-racer); uiterlijk en move-namen origineel gemaakt.

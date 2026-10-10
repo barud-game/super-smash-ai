@@ -1,0 +1,76 @@
+[gd_resource type="Resource" script_class="SpecialDef" format=3]
+
+[ext_resource type="Script" path="res://engine/combat/hitbox_data.gd" id="1_kkgmp"]
+[ext_resource type="Script" path="res://engine/specials/special_def.gd" id="2_b0b8y"]
+
+[sub_resource type="Resource" id="Resource_chq8w"]
+script = ExtResource("1_kkgmp")
+end_frame = -1
+offset = Vector2(7, 3)
+radius = 5.0
+damage = 8.0
+angle = 50.0
+base_kb = 30.0
+kb_growth = 62.0
+
+[sub_resource type="Resource" id="Resource_lmva3"]
+script = ExtResource("1_kkgmp")
+end_frame = -1
+offset = Vector2(5, 2)
+radius = 5.5
+damage = 11.0
+angle = 45.0
+base_kb = 35.0
+kb_growth = 85.0
+
+[sub_resource type="Resource" id="Resource_f08bk"]
+script = ExtResource("1_kkgmp")
+end_frame = -1
+offset = Vector2(4, 2)
+radius = 9.0
+angle = 75.0
+base_kb = 30.0
+kb_growth = 40.0
+
+[resource]
+script = ExtResource("2_b0b8y")
+slot = "down"
+display_name = "Stumble Kick"
+templates = Array[String](["stall_fall"])
+params = {
+"endlag_ground": 24,
+"fall_angle": -48.0,
+"fall_direction": "angled",
+"fall_speed": 4.6,
+"fall_trigger": "auto",
+"hitbox_mode": "pierce",
+"landing_frames": 4,
+"momentum_air": "scale",
+"momentum_scale": 0.5,
+"slide_frames": 18,
+"slide_speed": 3.2,
+"slide_speed_end": 1.2,
+"stall_frames": 14,
+"stall_gravity": 0.03,
+"stall_h_control": "none",
+"startup": 11
+}
+hitboxes = {
+"fall": Array[ExtResource("1_kkgmp")]([SubResource("Resource_lmva3")]),
+"landing": Array[ExtResource("1_kkgmp")]([SubResource("Resource_f08bk")]),
+"slide": Array[ExtResource("1_kkgmp")]([SubResource("Resource_chq8w")])
+}
+poses = {
+"slide": "pep_slide_kick"
+}
+landing_lag = 24
+ledge_snap = "during"
+ledge_snap_range = 10.0
+air_use_limit = 1
+scores = {
+"B": 2.0,
+"K": 3.0,
+"S": 3.0,
+"U": 3.0,
+"V": 1.0
+}

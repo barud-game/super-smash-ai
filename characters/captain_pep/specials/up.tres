@@ -1,0 +1,62 @@
+[gd_resource type="Resource" script_class="SpecialDef" format=3]
+
+[ext_resource type="Script" path="res://engine/combat/hitbox_data.gd" id="1_2ov2l"]
+[ext_resource type="Script" path="res://engine/specials/special_def.gd" id="2_j5o8f"]
+
+[sub_resource type="Resource" id="Resource_ktn1c"]
+script = ExtResource("1_2ov2l")
+end_frame = -1
+radius = 6.0
+damage = 14.0
+angle = 75.0
+base_kb = 42.0
+kb_growth = 66.0
+
+[resource]
+script = ExtResource("2_j5o8f")
+slot = "up"
+display_name = "Grabby Hands"
+templates = Array[String](["rising_multi", "command_grab"])
+params = {
+"endlag": 26,
+"h_control": "x_only",
+"momentum_air": "zero",
+"rise_angle": 70.0,
+"rise_curve": "decel",
+"rise_frames": 26,
+"rise_speed": 4.2,
+"startup": 16
+}
+linked_params = {
+"burst_frames": 8,
+"grab_active": 4,
+"grab_offset": Vector2(5, 12),
+"grab_radius": 7.0,
+"hold_frames": 12,
+"hold_offset": Vector2(7, 6),
+"miss_endlag": 26
+}
+hitboxes = {
+"explosion": Array[ExtResource("1_2ov2l")]([SubResource("Resource_ktn1c")]),
+"finisher": Array[ExtResource("1_2ov2l")]([]),
+"multi": Array[ExtResource("1_2ov2l")]([])
+}
+vfx = {
+"burst": "purple_sparks"
+}
+sfx = {
+"hold": "grab"
+}
+helpless_after = true
+helpless_on_miss_only = true
+landing_lag = 20
+ledge_snap = "during"
+ledge_snap_range = 10.0
+air_use_limit = 1
+scores = {
+"B": 2.0,
+"K": 2.0,
+"S": 2.0,
+"U": 8.0,
+"V": 1.0
+}

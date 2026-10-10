@@ -1,0 +1,65 @@
+[gd_resource type="Resource" script_class="SpecialDef" format=3]
+
+[ext_resource type="Script" path="res://engine/combat/hitbox_data.gd" id="1_5d5b6"]
+[ext_resource type="Script" path="res://engine/specials/special_def.gd" id="2_1f5ff"]
+
+[sub_resource type="Resource" id="Resource_kp35a"]
+script = ExtResource("1_5d5b6")
+end_frame = -1
+offset = Vector2(7, 6)
+radius = 6.5
+damage = 13.0
+angle = 45.0
+base_kb = 38.0
+kb_growth = 82.0
+
+[resource]
+script = ExtResource("2_1f5ff")
+slot = "side"
+display_name = "Panic Rush"
+templates = Array[String](["dash_strike"])
+params = {
+"cliff_stop": false,
+"dash_angle_air": 14.0,
+"dash_angle_ground": 0.0,
+"dash_frames": 25,
+"dash_gravity": 0.0,
+"dash_speed": 5.0,
+"endlag": 36,
+"ends_with_air": "stop",
+"ends_with_ground": "slide",
+"gravity_scale": 0.3,
+"hitbox_mode": "first_contact_stop",
+"momentum_air": "zero",
+"passes_through": false,
+"startup": 18
+}
+hitboxes = {
+"dash": Array[ExtResource("1_5d5b6")]([SubResource("Resource_kp35a")])
+}
+poses = {
+"dash": "pep_ride",
+"end": "pep_ride",
+"startup": "pep_ride"
+}
+sfx = {
+"dash": "dash"
+}
+helpless_after = true
+landing_lag = 20
+ledge_snap = "during"
+ledge_snap_range = 10.0
+air_use_limit = 1
+scores = {
+"B": 3.0,
+"K": 3.0,
+"S": 2.0,
+"U": 4.0,
+"V": 1.0
+}
+prop_events = Array[Dictionary]([{
+"attach": "under_feet",
+"from_frame": 0,
+"prop": "racefiets",
+"to_frame": -1
+}])

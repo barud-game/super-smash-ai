@@ -44,6 +44,9 @@ var _defense_demo: String = ""
 var _pick_ids: Array[String] = ["", ""]
 var roster_index: Array[int] = [-1, -1]
 var _taunt_demo: bool = false
+## --special-demo SLOT[:air]: P1 gebruikt die special (neutral/side/up/down; ":air" = eerst springen) op P2 (staat stil).
+var _special_demo: String = ""
+var _special_air: bool = false
 var _p2_percent: float = 0.0
 var _ledge_demo: String = ""
 var _ledge_option: String = "getup"
@@ -73,6 +76,8 @@ func _ready() -> void:
 			f.pos = Vector2(-14.0 if p == 0 else 2.0, 0.0)
 		if _defense_demo != "":
 			f.pos = Vector2(-8.0 if p == 0 else 2.0, 0.0)
+		if _special_demo != "":
+			f.pos = Vector2(-14.0 if p == 0 else -14.0 + _special_demo_gap(), 0.0)
 		f.facing = 1 if p == 0 else -1
 		if _ledge_demo != "" and p == 0:
 			f.stats = Archetypes.load_stats(_ledge_demo)
@@ -149,6 +154,12 @@ func _parse_args() -> void:
 			"--p2":
 				if i + 1 < a.size():
 					_pick_ids[1] = a[i + 1]
+			"--special-demo":
+				_demo = true
+				if i + 1 < a.size():
+					var sp: PackedStringArray = a[i + 1].split(":")
+					_special_demo = sp[0]
+					_special_air = sp.size() > 1 and sp[1] == "air"
 			"--taunt-demo":
 				_demo = true
 				_taunt_demo = true
@@ -203,6 +214,9 @@ func _physics_process(_delta: float) -> void:
 			tp1.buttons |= InputFrame.BTN_TAUNT
 		_demo_inputs[0].push(tp1)
 		_demo_inputs[1].push(InputFrame.new())
+		return
+	if _special_demo != "":
+		_special_demo_inputs(t)
 		return
 	if _defense_demo != "":
 		_defense_demo_inputs(t)
@@ -373,6 +387,37 @@ func _defense_demo_inputs(t: int) -> void:
 				p1.stick = Vector2i(80, 0)
 	_demo_inputs[0].push(p1)
 	_demo_inputs[1].push(p2)
+
+
+## Afstand P1-P2 per special-demo.
+func _special_demo_gap() -> float:
+	match _special_demo:
+		"neutral":
+			return 10.0
+		"side":
+			return 45.0
+		"up":
+			return 8.0
+	return 20.0
+
+
+func _special_demo_inputs(t: int) -> void:
+	var p1 := InputFrame.new()
+	var t0: int = 24 if _special_air else 10
+	if _special_air and t >= 5 and t < 8:
+		p1.buttons |= InputFrame.BTN_JUMP
+	if t >= t0:
+		match _special_demo:
+			"side":
+				p1.stick = Vector2i(80, 0)
+			"up":
+				p1.stick = Vector2i(0, 80)
+			"down":
+				p1.stick = Vector2i(0, -80)
+		if t < t0 + 2:
+			p1.buttons |= InputFrame.BTN_SPECIAL
+	_demo_inputs[0].push(p1)
+	_demo_inputs[1].push(InputFrame.new())
 
 
 ## --demo-fight: P1 short hop + fair op P2 (P2 staat stil, eventueel op --p2-percent). Daarna niets.

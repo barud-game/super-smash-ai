@@ -1,0 +1,98 @@
+[gd_resource type="Resource" script_class="SpecialDef" format=3]
+
+[ext_resource type="Script" path="res://engine/combat/hitbox_data.gd" id="1_oh4q8"]
+[ext_resource type="Script" path="res://engine/specials/special_def.gd" id="2_jabb5"]
+
+[sub_resource type="Resource" id="Resource_8ilxe"]
+script = ExtResource("1_oh4q8")
+end_frame = 3
+offset = Vector2(5.5, 8)
+radius = 6.0
+damage = 26.0
+angle = 42.0
+base_kb = 48.0
+kb_growth = 104.0
+
+[resource]
+script = ExtResource("2_jabb5")
+display_name = "Last Shot"
+templates = Array[String](["dash_strike"])
+params = {
+"cliff_stop": true,
+"dash_frames": 6,
+"dash_gravity": 0.0,
+"dash_speed": 2.0,
+"endlag": 56,
+"ends_with": "stop",
+"gravity_scale": 0.4,
+"hitbox_mode": "during",
+"momentum_air": "scale",
+"momentum_scale": 0.3,
+"passes_through": true,
+"startup": 40
+}
+hitboxes = {
+"dash": Array[ExtResource("1_oh4q8")]([SubResource("Resource_8ilxe")])
+}
+poses = {
+"dash": "pep_haymaker",
+"end": "pep_pant",
+"startup": "pep_eat"
+}
+sfx = {
+"dash": "throw"
+}
+landing_lag = 22
+scores = {
+"B": 2.0,
+"K": 5.0,
+"S": 0.0,
+"U": 2.0,
+"V": 0.0
+}
+prop_events = Array[Dictionary]([{
+"attach": "hand_r",
+"from_frame": 6,
+"prop": "hamburger",
+"to_frame": 27
+}, {
+"attach": "hand_l",
+"from_frame": 6,
+"prop": "zoutvaatje",
+"to_frame": 9
+}, {
+"attach": "hand_l",
+"from_frame": 10,
+"prop": "zoutvaatje",
+"rotation": 150.0,
+"to_frame": 11
+}, {
+"attach": "hand_l",
+"from_frame": 12,
+"prop": "zoutvaatje",
+"rotation": 190.0,
+"to_frame": 13
+}, {
+"attach": "hand_l",
+"from_frame": 14,
+"prop": "zoutvaatje",
+"rotation": 150.0,
+"to_frame": 15
+}, {
+"attach": "hand_l",
+"from_frame": 16,
+"prop": "zoutvaatje",
+"rotation": 190.0,
+"to_frame": 17
+}, {
+"attach": "hand_l",
+"from_frame": 18,
+"prop": "zoutvaatje",
+"rotation": 150.0,
+"to_frame": 19
+}, {
+"attach": "hand_l",
+"from_frame": 20,
+"prop": "zoutvaatje",
+"to_frame": 22
+}])
