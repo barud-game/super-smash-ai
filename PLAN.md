@@ -22,8 +22,8 @@
   `tests/test_wall_jump.gd`), validator-schatting `dash_strike`/`multi_jump` met hitboxes, pose `atk_special_slash`.
   Open: speeltest; prop aan tether-uiteinde (entity-attach); Captain Pep neutral-B geeft nu een WARN (B=2, schatting ~4).
 - **Volgende:**
-  1. **M7 Captain Pep afmaken** (specials, zie hierboven).
-  2. **Special-VFX:** `VfxLayer.spawn_special_fx(...)` bestaat nog niet (events staan nu alleen in `SpecialKit.fx_log`).
+  1. ~~M7 Captain Pep~~ ✅ volledig af (specials + special-VFX). Wacht op speeltest gebruiker.
+  2. ~~Special-VFX~~ ✅ (2026-10-10): `VfxLayer.spawn_special_fx` + per-character `characters/<id>/vfx/`. Performance-pass ✅ (`tools/bench`, `docs/performance.md`).
   3. **Intercept-hook in `CombatSystem`** voor armor tegen grabs en buff-`damage_dealt_mult` op normals.
   4. Rest-⚠️ uit `docs/verificatie.md` (❓-punten), attacker-pushback op shield, shield-tilt.
 - **Screenshots:** alleen de director, na waarschuwing in de chat (zie CLAUDE.md).
