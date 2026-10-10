@@ -69,6 +69,9 @@ func _up() -> SpecialDef:
 	d.hitboxes = {"hook": [hb(0, -1, Vector2.ZERO, 2.5, 3.0, 60.0, 25.0, 30.0)] as Array[HitboxData]}
 	d.helpless_after = true
 	d.landing_lag = 18
+	# Kruisboog in de linkerhand van de druk tot het einde (schuin omhoog gericht). pijl_touw aan het tether-uiteinde
+	# wordt door het prop-mechanisme niet ondersteund (alleen bot-attaches).
+	d.prop_events = [{"prop": "kruisboog", "attach": "hand_l", "from_frame": 0, "to_frame": -1, "rotation": -50.0}]
 	d.air_use_limit = 1
 	return d
 

@@ -44,3 +44,10 @@ scores = {
 "U": 5.0,
 "V": 1.0
 }
+prop_events = Array[Dictionary]([{
+"attach": "hand_l",
+"from_frame": 0,
+"prop": "kruisboog",
+"rotation": -50.0,
+"to_frame": -1
+}])
